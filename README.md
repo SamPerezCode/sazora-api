@@ -22,10 +22,10 @@ adiciones, cancelaciones y cierre de la orden con trazabilidad histórica.
 
 ## Estado actual
 
-**Bloque actual:** configuración de la conexión con MySQL.
+**Bloque actual:** diseño conceptual de la base de datos del MVP.
 
-**Último avance verificado:** pool de conexiones configurado con `mysql2` y
-conexión del backend a `sazora_db` comprobada antes de iniciar Express.
+**Último avance verificado:** arranque correcto con MySQL disponible y fallo
+controlado ante credenciales inválidas, sin iniciar Express.
 
 ## Checklist del proyecto
 
@@ -68,6 +68,7 @@ que funciona.
 - [x] Configurar las variables de conexión.
 - [x] Configurar el pool con `mysql2/promise`.
 - [x] Comprobar la conexión desde el backend.
+- [x] Comprobar el fallo controlado ante credenciales de MySQL inválidas.
 - [x] Crear una consulta mínima de verificación.
 - [ ] Crear progresivamente tablas, llaves y restricciones.
 - [ ] Agregar índices justificados por las consultas.
@@ -208,6 +209,13 @@ La plataforma se llamará Sazora. Sus identificadores técnicos serán
 la base de datos MySQL. Esta convención mantendrá alineados la marca, los
 repositorios y los servicios sin mezclar sus responsabilidades.
 
+### DT-011: comprobación de MySQL durante el arranque
+
+Antes de abrir el puerto HTTP, el servidor ejecutará una consulta mínima
+mediante el pool. Si MySQL no está disponible o las credenciales son inválidas,
+el proceso registrará el error y terminará con código `1`. Esto evita presentar
+como operativa una API que no puede acceder a su almacenamiento principal.
+
 ## Fuera del alcance del primer MVP
 
 - Inventario, recetas y producción.
@@ -219,5 +227,5 @@ repositorios y los servicios sin mezclar sus responsabilidades.
 
 ## Próximo paso
 
-Comprobar el comportamiento del backend cuando MySQL no está disponible y
-documentar la estrategia de arranque antes de comenzar el modelo del MVP.
+Definir el modelo conceptual mínimo del MVP, comenzando por las entidades del
+negocio y sus relaciones antes de crear nuevas migraciones SQL.
