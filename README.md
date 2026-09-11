@@ -24,8 +24,8 @@ adiciones, cancelaciones y cierre de la orden con trazabilidad histórica.
 
 **Bloque actual:** configuración de la conexión con MySQL.
 
-**Último avance verificado:** base de datos `sazora_db` creada en MySQL 8 con
-el juego de caracteres `utf8mb4` y la colación `utf8mb4_0900_ai_ci`.
+**Último avance verificado:** pool de conexiones configurado con `mysql2` y
+conexión del backend a `sazora_db` comprobada antes de iniciar Express.
 
 ## Checklist del proyecto
 
@@ -63,10 +63,12 @@ que funciona.
 - [x] Elegir migraciones SQL pequeñas y numeradas con seeds separados.
 - [ ] Crear la estructura para migraciones y seeds.
 - [x] Crear `sazora_db` en MySQL.
-- [ ] Configurar las variables de conexión.
-- [ ] Configurar el pool con `mysql2/promise`.
-- [ ] Comprobar la conexión desde el backend.
-- [ ] Crear consultas de verificación.
+- [x] Crear un usuario técnico con permisos limitados sobre `sazora_db`.
+- [x] Comprobar el acceso del usuario técnico desde MySQL Workbench.
+- [x] Configurar las variables de conexión.
+- [x] Configurar el pool con `mysql2/promise`.
+- [x] Comprobar la conexión desde el backend.
+- [x] Crear una consulta mínima de verificación.
 - [ ] Crear progresivamente tablas, llaves y restricciones.
 - [ ] Agregar índices justificados por las consultas.
 - [ ] Agregar datos iniciales mediante seeds controlados.
@@ -217,5 +219,5 @@ repositorios y los servicios sin mezclar sus responsabilidades.
 
 ## Próximo paso
 
-Crear un usuario de MySQL exclusivo para la API y concederle acceso solamente a
-`sazora_db`, evitando conectar el backend con la cuenta administrativa `root`.
+Comprobar el comportamiento del backend cuando MySQL no está disponible y
+documentar la estrategia de arranque antes de comenzar el modelo del MVP.
