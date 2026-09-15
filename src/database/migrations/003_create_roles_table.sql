@@ -1,6 +1,6 @@
--- Migración 003: creación de la tabla de roles.
+-- ?Migración 003: creación de la tabla de roles.
 --
--- Los roles definen las funciones que una persona puede desempeñar.
+-- *Los roles definen las funciones que una persona puede desempeñar.
 -- Son globales; posteriormente se asignarán dentro de cada negocio.
 
 USE sazora_db;

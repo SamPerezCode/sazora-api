@@ -1,6 +1,6 @@
--- Migración 002: creación de la tabla de negocios.
+-- ?Migración 002: creación de la tabla de negocios.
 --
--- Cada registro representa un restaurante, cafetería, panadería u otro
+-- *Cada registro representa un restaurante, cafetería, panadería u otro
 -- establecimiento independiente que utiliza Sazora.
 
 USE sazora_db;

@@ -1,6 +1,6 @@
--- Seed 001: roles iniciales de Sazora.
+-- ?Seed 001: roles iniciales de Sazora.
 --
--- Un seed agrega datos necesarios para que la aplicación pueda funcionar.
+-- ? Un seed agrega datos necesarios para que la aplicación pueda funcionar.
 -- Las comprobaciones NOT EXISTS permiten ejecutar el archivo nuevamente
 -- sin duplicar los roles.
 
