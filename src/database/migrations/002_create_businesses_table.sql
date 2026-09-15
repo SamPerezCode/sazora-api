@@ -5,6 +5,7 @@
 
 USE sazora_db;
 
+--! businesses representa a cada negocio independiente que utiliza Sazora.
 CREATE TABLE IF NOT EXISTS businesses (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     name VARCHAR(120) NOT NULL,
