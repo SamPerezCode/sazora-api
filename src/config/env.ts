@@ -19,6 +19,12 @@ const environmentSchema = z.object({
   DB_USER: z.string().trim().min(1, "DB_USER es obligatoria"),
 
   DB_PASSWORD: z.string().min(1, "DB_PASSWORD es obligatoria"),
+
+  JWT_SECRET: z
+    .string()
+    .min(64, "JWT_SECRET debe contener al menos 64 caracteres"),
+
+  JWT_EXPIRES_IN: z.enum(["15m", "1h", "8h", "1d", "7d"]).default("8h"),
 });
 
 const environment = environmentSchema.parse(process.env);

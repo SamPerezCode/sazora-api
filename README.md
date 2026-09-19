@@ -22,10 +22,11 @@ adiciones, cancelaciones y cierre de la orden con trazabilidad histórica.
 
 ## Estado actual
 
-**Bloque actual:** diseño conceptual de la base de datos del MVP.
+**Bloque actual:** catálogo administrativo del MVP.
 
-**Último avance verificado:** arranque correcto con MySQL disponible y fallo
-controlado ante credenciales inválidas, sin iniciar Express.
+**Último avance verificado:** módulo administrativo de áreas de preparación con
+creación, consulta, edición, desactivación y reactivación lógica, aislado por
+negocio y comprobado desde Postman.
 
 ## Checklist del proyecto
 
@@ -40,6 +41,7 @@ que funciona.
 - [x] Configurar TypeScript.
 - [ ] Crear la estructura inicial de directorios.
 - [x] Configurar variables de entorno.
+
 - [x] Crear `.gitignore` y proteger información sensible.
 - [x] Configurar ESLint.
 - [x] Configurar Prettier.
@@ -59,6 +61,11 @@ que funciona.
 
 - [ ] Diseñar el modelo conceptual del MVP.
 - [ ] Analizar entidades y relaciones.
+- [x] Definir el alcance multiempresa y el aislamiento entre negocios.
+- [x] Definir la relación entre usuarios, negocios y roles.
+- [x] Permitir varios roles por pertenencia mediante una relación intermedia.
+- [x] Definir la relación entre categorías y productos.
+- [x] Definir el tratamiento de adiciones, cancelaciones y reimpresiones.
 - [x] Elegir diseño conceptual previo con construcción progresiva por módulos.
 - [x] Elegir migraciones SQL pequeñas y numeradas con seeds separados.
 - [ ] Crear la estructura para migraciones y seeds.
@@ -80,9 +87,10 @@ que funciona.
 
 - [ ] Roles.
 - [ ] Usuarios.
-- [ ] Autenticación.
+- [x] Autenticación.
 - [ ] Autorización.
-- [ ] Categorías.
+- [x] Categorías.
+- [x] Áreas de preparación.
 - [ ] Productos.
 - [ ] Mesas.
 - [ ] Órdenes.
@@ -95,9 +103,9 @@ que funciona.
 
 ### Validación y seguridad
 
-- [ ] Validar entradas con Zod.
-- [ ] Almacenar contraseñas con hash de bcrypt.
-- [ ] Implementar autenticación con JWT.
+- [x] Validar entradas con Zod.
+- [x] Almacenar contraseñas con hash de bcrypt.
+- [x] Implementar autenticación con JWT.
 - [ ] Proteger variables sensibles.
 - [ ] Validar roles y permisos.
 - [ ] Validar transiciones de estado.
@@ -105,10 +113,10 @@ que funciona.
 
 ### Verificación
 
-- [ ] Preparar pruebas manuales con Postman.
+- [x] Preparar pruebas manuales con Postman.
 - [ ] Ejecutar consultas de comprobación en MySQL.
 - [ ] Verificar casos exitosos.
-- [ ] Verificar casos de error.
+- [x] Verificar casos de error.
 - [ ] Verificar transacciones y rollback.
 - [ ] Verificar permisos por rol.
 
@@ -127,8 +135,8 @@ que funciona.
 - [ ] Mantener un registro de comandos aprendidos.
 - [ ] Mantener un registro de consultas SQL aprendidas.
 - [ ] Documentar errores relevantes y su solución.
-- [ ] Documentar decisiones técnicas.
-- [ ] Documentar pendientes de etapas posteriores.
+- [x] Documentar decisiones técnicas.
+- [x] Documentar pendientes de etapas posteriores.
 
 ## Decisiones técnicas
 
@@ -216,6 +224,51 @@ mediante el pool. Si MySQL no está disponible o las credenciales son inválidas
 el proceso registrará el error y terminará con código `1`. Esto evita presentar
 como operativa una API que no puede acceder a su almacenamiento principal.
 
+### DT-012: alcance multiempresa
+
+Sazora permitirá alojar varios negocios independientes en una misma aplicación.
+Las entidades operativas estarán asociadas a un negocio y el backend obtendrá
+ese contexto desde la identidad autenticada, no desde un identificador enviado
+libremente por el cliente. El MVP comenzará con una sola panadería y no incluirá
+todavía sucursales, suscripciones ni administración global de la plataforma.
+
+### DT-013: pertenencia de usuarios a negocios
+
+`users` representará la identidad global de una persona y
+`business_memberships` relacionará esa identidad con `businesses` y `roles`.
+Así, las credenciales no tendrán que duplicarse si una persona participa en más
+de un negocio. El negocio y el rol activos formarán parte del contexto de
+autenticación utilizado por el backend para autorizar cada operación.
+
+### DT-014: varios roles por pertenencia
+
+Una pertenencia podrá tener varios roles mediante `business_membership_roles`.
+Esta tabla relacionará `business_memberships` con `roles` y evitará asignaciones
+duplicadas. El modelo permitirá que una persona cumpla varias funciones dentro
+del mismo negocio sin duplicar su identidad ni sus credenciales.
+
+### DT-015: categorías, productos y desactivación lógica
+
+Cada producto pertenecerá a una sola categoría y ambas entidades estarán
+asociadas a un negocio. Categorías y productos se desactivarán mediante un
+estado lógico en lugar de eliminarse físicamente. Un producto solo estará
+disponible para operaciones nuevas cuando tanto el producto como su categoría
+estén activos. Las órdenes históricas conservarán el producto y el precio
+registrado al momento de confirmar el pedido.
+
+### DT-016: modificaciones de una comanda
+
+Cada orden tendrá una sola comanda lógica. Una adición o cancelación posterior a
+su envío modificará su contenido vigente, incrementará su versión y generará
+una reimpresión identificada como modificada. Cada cambio e impresión conservará
+el usuario responsable y la fecha en sus respectivos registros de auditoría.
+
+Los productos podrán eliminarse físicamente mientras la orden sea un borrador
+que cocina no haya recibido. Después de confirmar la orden, un producto se
+marcará como cancelado y se excluirá del total, pero permanecerá en el historial
+con su motivo de cancelación. Así, una venta final no incluirá el producto sin
+perder la explicación de lo ocurrido durante la preparación.
+
 ## Fuera del alcance del primer MVP
 
 - Inventario, recetas y producción.
@@ -223,9 +276,45 @@ como operativa una API que no puede acceder a su almacenamiento principal.
 - Caja, arqueos y pagos en línea.
 - Facturación electrónica.
 - Integración con WhatsApp.
+- Integraciones con CRM externos.
 - Impresión térmica automática.
+- Planes, suscripciones y cobros recurrentes a los negocios.
+
+## Evolución posterior
+
+### Planes y suscripciones
+
+Sazora deberá permitir que cada negocio contrate un plan y pague una
+suscripción recurrente por el uso de la plataforma. Este sistema será
+independiente de los pagos realizados por los clientes de cada restaurante.
+
+La implementación futura deberá contemplar planes, periodos de prueba,
+renovaciones, cancelaciones, pagos fallidos, periodos de gracia y límites de
+funcionalidades. El estado de la suscripción no se almacenará en
+`businesses.is_active`, sino en entidades independientes relacionadas con el
+negocio.
+
+Sazora utilizará un proveedor externo para procesar los pagos y no almacenará
+directamente números de tarjetas. Los webhooks y eventos del proveedor deberán
+ser idempotentes y conservar trazabilidad.
+
+Este módulo se implementará después del MVP operativo y antes del lanzamiento
+comercial de la plataforma.
+
+### Integraciones con CRM
+
+Sazora deberá permitir que cada negocio conecte proveedores de CRM para
+sincronizar clientes, actividad comercial y, cuando exista el módulo
+correspondiente, ventas confirmadas. La integración pertenecerá al negocio,
+aunque se registrará qué usuario la autorizó mediante su pertenencia.
+
+Las credenciales externas se manejarán mediante OAuth o secretos cifrados; no
+se almacenarán directamente en `users` ni como texto visible. Cada proveedor se
+implementará mediante un adaptador aislado y las sincronizaciones, webhooks y
+errores conservarán trazabilidad. Esta capacidad se abordará después de definir
+clientes, caja, pagos y el evento que represente una venta definitiva.
 
 ## Próximo paso
 
-Definir el modelo conceptual mínimo del MVP, comenzando por las entidades del
-negocio y sus relaciones antes de crear nuevas migraciones SQL.
+Implementar productos relacionados con una categoría y un área de preparación
+del mismo negocio. El área determinará qué zona recibirá la comanda.
