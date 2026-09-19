@@ -1,4 +1,5 @@
-// Aplicación principal
+import { resolve } from "node:path";
+
 import express from "express";
 
 import { errorHandler } from "./middlewares/error-handler";
@@ -9,15 +10,11 @@ const app = express();
 
 app.use(express.json());
 
+app.use("/uploads", express.static(resolve(process.cwd(), "uploads")));
+
 app.use("/api", apiRouter);
 
 app.use(notFound);
 app.use(errorHandler);
 
 export { app };
-
-/*
-- notFound responde cuando ninguna ruta coincide.
-- errorHandler procesa los errores producidos antes de él.
-El orden importa. Los middlewares de errores deben colocarse después de las rutas.
-*/

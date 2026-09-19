@@ -68,6 +68,7 @@ MySQL protege la combinación `business_id` y `name`. El servicio transforma
 - [x] Reactivar un área produce HTTP 200.
 - [x] Enviar un estado que no es booleano produce HTTP 400.
 - [x] Cambiar el estado de un área inexistente produce HTTP 404.
+- [x] Consultar un área por su identificador produce HTTP 200.
 
 ## Activación y desactivación
 
@@ -103,6 +104,10 @@ identificador en `preparationAreaId`.
 El identificador creado se guarda en la variable de Postman
 `preparationAreaId` para utilizarlo en los siguientes endpoints.
 
-## Pendientes
+`GET /api/preparation-areas/:preparationAreaId` recupera un área específica
+del negocio autenticado y devuelve HTTP 404 cuando no existe en ese negocio.
 
-- Relacionar cada producto con su área de preparación.
+## Estado del módulo
+
+El flujo administrativo principal del área de preparación está completo y los
+productos ya utilizan esta relación para determinar su zona de comanda.

@@ -24,9 +24,9 @@ adiciones, cancelaciones y cierre de la orden con trazabilidad histórica.
 
 **Bloque actual:** catálogo administrativo del MVP.
 
-**Último avance verificado:** módulo administrativo de áreas de preparación con
-creación, consulta, edición, desactivación y reactivación lógica, aislado por
-negocio y comprobado desde Postman.
+**Último avance verificado:** imágenes opcionales de categorías y productos con
+carga, conversión a WebP, publicación, reemplazo y retiro comprobados desde
+Postman y el navegador.
 
 ## Checklist del proyecto
 
@@ -91,8 +91,8 @@ que funciona.
 - [ ] Autorización.
 - [x] Categorías.
 - [x] Áreas de preparación.
-- [ ] Productos.
-- [ ] Mesas.
+- [x] Productos.
+- [x] Mesas.
 - [ ] Órdenes.
 - [ ] Detalles de órdenes.
 - [ ] Comandas.
@@ -282,6 +282,15 @@ perder la explicación de lo ocurrido durante la preparación.
 
 ## Evolución posterior
 
+### Imágenes del catálogo
+
+Categorías y productos podrán tener una imagen opcional. MySQL no almacenará el
+archivo binario ni contenido Base64; guardará una referencia estable al archivo
+alojado en un servicio de almacenamiento de imágenes. La API deberá permitir
+asignar, reemplazar y retirar esa imagen, además de validar tipo, tamaño y
+propiedad por negocio. Este soporte se implementará después de cerrar el módulo
+de mesas y antes de comenzar las órdenes.
+
 ### Planes y suscripciones
 
 Sazora deberá permitir que cada negocio contrate un plan y pague una
@@ -316,5 +325,5 @@ clientes, caja, pagos y el evento que represente una venta definitiva.
 
 ## Próximo paso
 
-Implementar productos relacionados con una categoría y un área de preparación
-del mismo negocio. El área determinará qué zona recibirá la comanda.
+Comenzar el módulo operativo de órdenes sobre las mesas, productos, membresías y
+roles ya implementados.

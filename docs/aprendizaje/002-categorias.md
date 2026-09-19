@@ -128,6 +128,14 @@ necesario. La diferencia entre respuestas es:
 - [x] Reactivar una categoría produce HTTP 200.
 - [x] Enviar un estado que no es booleano produce HTTP 400.
 - [x] Cambiar el estado de una categoría inexistente produce HTTP 404.
+- [x] Consultar una categoría por su identificador produce HTTP 200.
+
+## Consulta individual
+
+`GET /api/categories/:categoryId` devuelve una categoría específica del
+negocio autenticado. El identificador se valida desde la URL y la consulta
+combina `business_id` e `id`, evitando acceder a categorías de otro negocio.
+
 - [ ] Enviar la petición con un usuario sin rol `ADMIN` produce HTTP 403.
 
 ## Activación y desactivación

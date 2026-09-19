@@ -12,6 +12,7 @@ type CategoryRow = RowDataPacket & {
   businessId: string;
   name: string;
   description: string | null;
+  imageUrl: string | null;
   displayOrder: number;
   isActive: number;
   createdAt: Date;
@@ -23,6 +24,7 @@ const mapCategoryRow = (row: CategoryRow): Category => ({
   businessId: row.businessId,
   name: row.name,
   description: row.description,
+  imageUrl: row.imageUrl,
   displayOrder: row.displayOrder,
   isActive: Boolean(row.isActive),
   createdAt: row.createdAt,
@@ -55,6 +57,7 @@ const createCategory = async (
         CAST(business_id AS CHAR) AS businessId,
         name,
         description,
+        image_url AS imageUrl,
         display_order AS displayOrder,
         is_active AS isActive,
         created_at AS createdAt,
@@ -87,6 +90,7 @@ const findCategoriesByBusinessId = async (
         CAST(business_id AS CHAR) AS businessId,
         name,
         description,
+        image_url AS imageUrl,
         display_order AS displayOrder,
         is_active AS isActive,
         created_at AS createdAt,
@@ -115,6 +119,7 @@ const findCategoryById = async (
         CAST(business_id AS CHAR) AS businessId,
         name,
         description,
+        image_url AS imageUrl,
         display_order AS displayOrder,
         is_active AS isActive,
         created_at AS createdAt,
@@ -186,10 +191,36 @@ const updateCategoryStatus = async (
   return category;
 };
 
+const updateCategoryImage = async (
+  businessId: string,
+  categoryId: string,
+  imageUrl: string | null,
+): Promise<Category> => {
+  await databasePool.execute<ResultSetHeader>(
+    `
+      UPDATE categories
+      SET image_url = ?
+      WHERE
+        business_id = ?
+        AND id = ?
+    `,
+    [imageUrl, businessId, categoryId],
+  );
+
+  const category = await findCategoryById(businessId, categoryId);
+
+  if (!category) {
+    throw new Error("No fue posible recuperar la categoría actualizada");
+  }
+
+  return category;
+};
+
 export {
   createCategory,
   findCategoriesByBusinessId,
   findCategoryById,
   updateCategory,
+  updateCategoryImage,
   updateCategoryStatus,
 };

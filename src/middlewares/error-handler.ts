@@ -2,6 +2,7 @@ import type { ErrorRequestHandler } from "express";
 import { ZodError } from "zod";
 
 import { AppError } from "../shared/errors/app-error";
+import { MulterError } from "multer";
 
 const errorHandler: ErrorRequestHandler = (
   error,
@@ -18,6 +19,36 @@ const errorHandler: ErrorRequestHandler = (
         field: issue.path.join("."),
         message: issue.message,
       })),
+    });
+
+    return;
+  }
+
+  if (error instanceof MulterError) {
+    if (error.code === "LIMIT_FILE_SIZE") {
+      response.status(413).json({
+        status: "error",
+        code: "IMAGE_TOO_LARGE",
+        message: "La imagen no puede superar 5 MB",
+      });
+
+      return;
+    }
+
+    if (error.code === "LIMIT_UNEXPECTED_FILE") {
+      response.status(400).json({
+        status: "error",
+        code: "INVALID_IMAGE_FIELD",
+        message: "El archivo debe enviarse en el campo image",
+      });
+
+      return;
+    }
+
+    response.status(400).json({
+      status: "error",
+      code: "IMAGE_UPLOAD_ERROR",
+      message: "No fue posible recibir la imagen",
     });
 
     return;

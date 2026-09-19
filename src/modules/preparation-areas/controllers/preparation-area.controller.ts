@@ -6,6 +6,7 @@ import { createPreparationArea } from "../services/create-preparation-area.servi
 import { listPreparationAreas } from "../services/list-preparation-areas.service";
 import { updatePreparationArea } from "../services/update-preparation-area.service";
 import { changePreparationAreaStatus } from "../services/update-preparation-area-status.service";
+import { getPreparationArea } from "../services/get-preparation-area.service";
 import { updatePreparationAreaStatusSchema } from "../schemas/update-preparation-area-status.schema";
 import {
   preparationAreaIdParamsSchema,
@@ -57,6 +58,35 @@ const listPreparationAreasController: RequestHandler = async (
     status: "success",
     data: {
       preparationAreas,
+    },
+  });
+};
+
+const getPreparationAreaController: RequestHandler = async (
+  request,
+  response,
+) => {
+  if (!request.auth) {
+    throw new AppError(
+      "Se requiere autenticación",
+      401,
+      "AUTHENTICATION_REQUIRED",
+    );
+  }
+
+  const { preparationAreaId } = preparationAreaIdParamsSchema.parse(
+    request.params,
+  );
+
+  const preparationArea = await getPreparationArea(
+    request.auth.businessId,
+    preparationAreaId,
+  );
+
+  response.status(200).json({
+    status: "success",
+    data: {
+      preparationArea,
     },
   });
 };
@@ -127,6 +157,7 @@ const updatePreparationAreaStatusController: RequestHandler = async (
 
 export {
   createPreparationAreaController,
+  getPreparationAreaController,
   listPreparationAreasController,
   updatePreparationAreaController,
   updatePreparationAreaStatusController,

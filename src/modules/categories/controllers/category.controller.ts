@@ -11,6 +11,9 @@ import { createCategory } from "../services/create-category.service";
 import { listCategories } from "../services/list-categories.service";
 import { updateCategory } from "../services/update-category.service";
 import { changeCategoryStatus } from "../services/update-category-status.service";
+import { getCategory } from "../services/get-category.service";
+import { removeCategoryImageReference } from "../services/remove-category-image.service";
+import { replaceCategoryImage } from "../services/update-category-image.service";
 
 const createCategoryController: RequestHandler = async (request, response) => {
   if (!request.auth) {
@@ -48,6 +51,27 @@ const listCategoriesController: RequestHandler = async (request, response) => {
     status: "success",
     data: {
       categories,
+    },
+  });
+};
+
+const getCategoryController: RequestHandler = async (request, response) => {
+  if (!request.auth) {
+    throw new AppError(
+      "Se requiere autenticación",
+      401,
+      "AUTHENTICATION_REQUIRED",
+    );
+  }
+
+  const { categoryId } = categoryIdParamsSchema.parse(request.params);
+
+  const category = await getCategory(request.auth.businessId, categoryId);
+
+  response.status(200).json({
+    status: "success",
+    data: {
+      category,
     },
   });
 };
@@ -109,9 +133,75 @@ const updateCategoryStatusController: RequestHandler = async (
   });
 };
 
+const updateCategoryImageController: RequestHandler = async (
+  request,
+  response,
+) => {
+  if (!request.auth) {
+    throw new AppError(
+      "Se requiere autenticación",
+      401,
+      "AUTHENTICATION_REQUIRED",
+    );
+  }
+
+  if (!request.file) {
+    throw new AppError(
+      "Debes enviar una imagen en el campo image",
+      400,
+      "IMAGE_REQUIRED",
+    );
+  }
+
+  const { categoryId } = categoryIdParamsSchema.parse(request.params);
+
+  const category = await replaceCategoryImage(
+    request.auth.businessId,
+    categoryId,
+    request.file.buffer,
+  );
+
+  response.status(200).json({
+    status: "success",
+    data: {
+      category,
+    },
+  });
+};
+
+const removeCategoryImageController: RequestHandler = async (
+  request,
+  response,
+) => {
+  if (!request.auth) {
+    throw new AppError(
+      "Se requiere autenticación",
+      401,
+      "AUTHENTICATION_REQUIRED",
+    );
+  }
+
+  const { categoryId } = categoryIdParamsSchema.parse(request.params);
+
+  const category = await removeCategoryImageReference(
+    request.auth.businessId,
+    categoryId,
+  );
+
+  response.status(200).json({
+    status: "success",
+    data: {
+      category,
+    },
+  });
+};
+
 export {
   createCategoryController,
+  getCategoryController,
   listCategoriesController,
+  removeCategoryImageController,
   updateCategoryController,
+  updateCategoryImageController,
   updateCategoryStatusController,
 };

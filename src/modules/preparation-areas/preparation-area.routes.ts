@@ -4,6 +4,7 @@ import { authenticate } from "../auth/middlewares/authenticate.middleware";
 import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
 import {
   createPreparationAreaController,
+  getPreparationAreaController,
   listPreparationAreasController,
   updatePreparationAreaController,
   updatePreparationAreaStatusController,
@@ -16,6 +17,13 @@ preparationAreaRouter.get(
   authenticate,
   authorizeRoles("ADMIN"),
   listPreparationAreasController,
+);
+
+preparationAreaRouter.get(
+  "/:preparationAreaId",
+  authenticate,
+  authorizeRoles("ADMIN"),
+  getPreparationAreaController,
 );
 
 preparationAreaRouter.post(
