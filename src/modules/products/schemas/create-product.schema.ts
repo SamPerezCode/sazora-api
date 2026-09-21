@@ -19,6 +19,8 @@ const createProductSchema = z
 
     preparationAreaId: databaseIdSchema,
 
+    fulfillmentMode: z.enum(["PREPARE_TO_ORDER", "READY_TO_SERVE"]),
+
     sku: z
       .string()
       .trim()

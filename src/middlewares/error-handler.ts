@@ -1,8 +1,20 @@
 import type { ErrorRequestHandler } from "express";
+import { MulterError } from "multer";
 import { ZodError } from "zod";
 
 import { AppError } from "../shared/errors/app-error";
-import { MulterError } from "multer";
+
+type JsonParseError = SyntaxError & {
+  status: number;
+  type: string;
+};
+
+const isJsonParseError = (error: unknown): error is JsonParseError =>
+  error instanceof SyntaxError &&
+  "status" in error &&
+  error.status === 400 &&
+  "type" in error &&
+  error.type === "entity.parse.failed";
 
 const errorHandler: ErrorRequestHandler = (
   error,
@@ -10,6 +22,16 @@ const errorHandler: ErrorRequestHandler = (
   response,
   _next,
 ) => {
+  if (isJsonParseError(error)) {
+    response.status(400).json({
+      status: "error",
+      code: "INVALID_JSON",
+      message: "El cuerpo de la petición no contiene un JSON válido",
+    });
+
+    return;
+  }
+
   if (error instanceof ZodError) {
     response.status(400).json({
       status: "error",

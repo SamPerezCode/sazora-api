@@ -4,6 +4,7 @@ import { databasePool } from "../../../database/pool";
 import type {
   CreateProductData,
   Product,
+  ProductFulfillmentMode,
   ProductListItem,
   UpdateProductData,
 } from "../product.types";
@@ -13,6 +14,7 @@ type ProductRow = RowDataPacket & {
   businessId: string;
   categoryId: string;
   preparationAreaId: string;
+  fulfillmentMode: ProductFulfillmentMode;
   sku: string | null;
   name: string;
   description: string | null;
@@ -36,6 +38,7 @@ const mapProductRow = (row: ProductRow): Product => ({
   businessId: row.businessId,
   categoryId: row.categoryId,
   preparationAreaId: row.preparationAreaId,
+  fulfillmentMode: row.fulfillmentMode,
   sku: row.sku,
   name: row.name,
   description: row.description,
@@ -66,6 +69,7 @@ const findProductById = async (
         CAST(business_id AS CHAR) AS businessId,
         CAST(category_id AS CHAR) AS categoryId,
         CAST(preparation_area_id AS CHAR) AS preparationAreaId,
+        fulfillment_mode AS fulfillmentMode,
         sku,
         name,
         description,
@@ -94,21 +98,23 @@ const createProduct = async (
 ): Promise<Product> => {
   const [result] = await databasePool.execute<ResultSetHeader>(
     `
-      INSERT INTO products (
-        business_id,
-        category_id,
-        preparation_area_id,
-        sku,
-        name,
-        description,
-        current_price
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `,
+    INSERT INTO products (
+      business_id,
+      category_id,
+      preparation_area_id,
+      fulfillment_mode,
+      sku,
+      name,
+      description,
+      current_price
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `,
     [
       businessId,
       data.categoryId,
       data.preparationAreaId,
+      data.fulfillmentMode,
       data.sku,
       data.name,
       data.description,
@@ -135,6 +141,7 @@ const findProductsByBusinessId = async (
         CAST(p.business_id AS CHAR) AS businessId,
         CAST(p.category_id AS CHAR) AS categoryId,
         CAST(p.preparation_area_id AS CHAR) AS preparationAreaId,
+        fulfillment_mode AS fulfillmentMode,
         p.sku,
         p.name,
         p.description,
@@ -181,6 +188,7 @@ const findProductDetailById = async (
         CAST(p.business_id AS CHAR) AS businessId,
         CAST(p.category_id AS CHAR) AS categoryId,
         CAST(p.preparation_area_id AS CHAR) AS preparationAreaId,
+        fulfillment_mode AS fulfillmentMode,
         p.sku,
         p.name,
         p.description,
@@ -225,21 +233,23 @@ const updateProduct = async (
 ): Promise<Product> => {
   await databasePool.execute<ResultSetHeader>(
     `
-      UPDATE products
-      SET
-        category_id = ?,
-        preparation_area_id = ?,
-        sku = ?,
-        name = ?,
-        description = ?,
-        current_price = ?
-      WHERE
-        business_id = ?
-        AND id = ?
-    `,
+    UPDATE products
+    SET
+      category_id = ?,
+      preparation_area_id = ?,
+      fulfillment_mode = ?,
+      sku = ?,
+      name = ?,
+      description = ?,
+      current_price = ?
+    WHERE
+      business_id = ?
+      AND id = ?
+  `,
     [
       data.categoryId,
       data.preparationAreaId,
+      data.fulfillmentMode,
       data.sku,
       data.name,
       data.description,

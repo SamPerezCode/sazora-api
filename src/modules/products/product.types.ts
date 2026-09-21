@@ -1,8 +1,11 @@
+type ProductFulfillmentMode = "PREPARE_TO_ORDER" | "READY_TO_SERVE";
+
 type Product = Readonly<{
   id: string;
   businessId: string;
   categoryId: string;
   preparationAreaId: string;
+  fulfillmentMode: ProductFulfillmentMode;
   sku: string | null;
   name: string;
   description: string | null;
@@ -25,6 +28,7 @@ type ProductListItem = Product &
 type CreateProductData = Readonly<{
   categoryId: string;
   preparationAreaId: string;
+  fulfillmentMode: ProductFulfillmentMode;
   sku: string | null;
   name: string;
   description: string | null;
@@ -34,10 +38,17 @@ type CreateProductData = Readonly<{
 type UpdateProductData = Readonly<{
   categoryId: string;
   preparationAreaId: string;
+  fulfillmentMode: ProductFulfillmentMode;
   sku: string | null;
   name: string;
   description: string | null;
   currentPrice: string;
 }>;
 
-export type { CreateProductData, Product, ProductListItem, UpdateProductData };
+export type {
+  CreateProductData,
+  Product,
+  ProductFulfillmentMode,
+  ProductListItem,
+  UpdateProductData,
+};

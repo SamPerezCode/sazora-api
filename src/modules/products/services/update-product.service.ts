@@ -70,6 +70,7 @@ const updateProduct = async (
     categoryId: input.categoryId ?? currentProduct.categoryId,
     preparationAreaId:
       input.preparationAreaId ?? currentProduct.preparationAreaId,
+    fulfillmentMode: input.fulfillmentMode ?? currentProduct.fulfillmentMode,
     sku: input.sku !== undefined ? input.sku : currentProduct.sku,
     name: input.name ?? currentProduct.name,
     description:

@@ -127,3 +127,28 @@ nombres y estados de su categoría y área de preparación, además de
 ## Estado del módulo
 
 El flujo administrativo principal de productos está completo.
+
+## Modo operativo del producto
+
+La migración `024_add_product_fulfillment_mode.sql` agregó
+`fulfillment_mode` al catálogo. Este campo distingue dos comportamientos:
+
+- `PREPARE_TO_ORDER`: el producto se elabora después de confirmar la orden.
+- `READY_TO_SERVE`: el producto ya está preparado y solamente debe recogerse y
+  entregarse.
+
+Los dos tipos conservan un área asignada. Para un producto listo, esa área puede
+representar Vitrina, Caja o Despacho; no significa que deba cocinarse, sino que
+identifica quién controla su entrega.
+
+`POST /api/products` exige `fulfillmentMode`. `PATCH
+/api/products/:productId` permite modificarlo parcialmente. El cambio afecta
+las líneas agregadas a órdenes futuras y no reescribe el historial de órdenes
+anteriores.
+
+## Pruebas del modo operativo
+
+- [x] Crear un producto `PREPARE_TO_ORDER` conserva el modo enviado.
+- [x] Crear un producto `READY_TO_SERVE` conserva el modo enviado.
+- [x] Editar únicamente `fulfillmentMode` devuelve HTTP 200.
+- [x] Consultar productos devuelve el modo operativo de cada registro.

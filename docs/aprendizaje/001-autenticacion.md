@@ -304,6 +304,13 @@ Al enviar un objeto vacío, la API respondió con `VALIDATION_ERROR` y HTTP 400.
 Esto ocurrió porque faltaban `email`, `password` y `businessSlug`. La respuesta
 confirmó que el esquema y el manejo central de errores funcionaban.
 
+### JSON mal formado
+
+`express.json()` genera un error de sintaxis antes de que Zod reciba el cuerpo
+cuando el JSON tiene comillas, comas o variables mal ubicadas. El manejador
+central reconoce ahora `entity.parse.failed` y responde HTTP 400 con el código
+`INVALID_JSON`, en lugar de clasificarlo como un error interno HTTP 500.
+
 ### Credenciales incorrectas
 
 Al utilizar una contraseña incorrecta, la API respondió con

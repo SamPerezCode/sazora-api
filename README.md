@@ -22,11 +22,10 @@ adiciones, cancelaciones y cierre de la orden con trazabilidad histórica.
 
 ## Estado actual
 
-**Bloque actual:** catálogo administrativo del MVP.
+**Bloque actual:** flujo operativo de órdenes del MVP.
 
-**Último avance verificado:** imágenes opcionales de categorías y productos con
-carga, conversión a WebP, publicación, reemplazo y retiro comprobados desde
-Postman y el navegador.
+**Último avance verificado:** ciclo operativo completo de órdenes con comandas,
+productos listos o preparados, adiciones, cancelaciones, entrega y cierre.
 
 ## Checklist del proyecto
 
@@ -80,25 +79,25 @@ que funciona.
 - [ ] Crear progresivamente tablas, llaves y restricciones.
 - [ ] Agregar índices justificados por las consultas.
 - [ ] Agregar datos iniciales mediante seeds controlados.
-- [ ] Implementar transacciones y rollback.
-- [ ] Verificar las reglas de historial y trazabilidad.
+- [x] Implementar transacciones y rollback.
+- [x] Verificar las reglas de historial y trazabilidad.
 
 ### Módulos del MVP
 
 - [ ] Roles.
 - [ ] Usuarios.
 - [x] Autenticación.
-- [ ] Autorización.
+- [x] Autorización.
 - [x] Categorías.
 - [x] Áreas de preparación.
 - [x] Productos.
 - [x] Mesas.
-- [ ] Órdenes.
-- [ ] Detalles de órdenes.
-- [ ] Comandas.
-- [ ] Adiciones.
-- [ ] Cancelaciones.
-- [ ] Historial de estados.
+- [x] Órdenes.
+- [x] Detalles de órdenes.
+- [x] Comandas.
+- [x] Adiciones.
+- [x] Cancelaciones.
+- [x] Historial de estados.
 - [ ] Registro de reimpresiones.
 
 ### Validación y seguridad
@@ -107,9 +106,9 @@ que funciona.
 - [x] Almacenar contraseñas con hash de bcrypt.
 - [x] Implementar autenticación con JWT.
 - [ ] Proteger variables sensibles.
-- [ ] Validar roles y permisos.
-- [ ] Validar transiciones de estado.
-- [ ] Evitar confiar en precios o totales enviados por el frontend.
+- [x] Validar roles y permisos.
+- [x] Validar transiciones de estado.
+- [x] Evitar confiar en precios o totales enviados por el frontend.
 
 ### Verificación
 
@@ -269,6 +268,56 @@ marcará como cancelado y se excluirá del total, pero permanecerá en el histor
 con su motivo de cancelación. Así, una venta final no incluirá el producto sin
 perder la explicación de lo ocurrido durante la preparación.
 
+### DT-017: modalidades de servicio de una orden
+
+Las órdenes distinguirán la forma de entrega mediante `TABLE`, `TAKEAWAY` y
+`DELIVERY`. Solamente `TABLE` utilizará una mesa física y cada mesa podrá tener
+una sola orden activa. Las órdenes para llevar y a domicilio no ocuparán mesas
+y podrán coexistir varias al mismo tiempo.
+
+La modalidad no representará el canal donde nació el pedido. Un origen futuro
+como `POS`, `WEB`, WhatsApp o una integración externa se modelará por separado.
+
+### DT-018: impresión térmica mediante un agente local
+
+La confirmación de una orden no dependerá de una conexión directa con la
+impresora. El backend creará comandas y trabajos de impresión persistentes; un
+agente instalado en el establecimiento procesará la cola, enviará instrucciones
+ESC/POS y reportará éxito o fallo.
+
+Esta separación permitirá reintentar trabajos cuando falte papel, la impresora
+esté apagada o se interrumpa la red, sin perder ni revertir la orden. El agente
+físico se implementará cuando se conozcan el modelo y la conexión de la
+impresora térmica.
+
+### DT-019: preparación bajo pedido y productos listos para servir
+
+Los productos distinguirán su flujo mediante `fulfillmentMode`.
+`PREPARE_TO_ORDER` representará productos elaborados después de confirmar la
+orden, mientras que `READY_TO_SERVE` representará productos de vitrina,
+refrigerador o inventario preparado que solamente deben despacharse.
+
+El modo se copiará del catálogo a cada elemento de la orden para conservar el
+contexto histórico. Al confirmar, una línea preparada bajo pedido comenzará en
+`PENDING`; una línea lista para servir comenzará directamente en `READY`. Ambas
+permanecerán visibles en la comanda de su área hasta llegar a `DELIVERED` o
+`CANCELLED`, y la orden solo se considerará entregada cuando no queden líneas
+operativas pendientes.
+
+### DT-020: administración empresarial y administración de plataforma
+
+El rol `ADMIN` pertenece a un negocio y solo administrará los recursos del
+`businessId` contenido en su JWT. La administración interna de Sazora utilizará
+una autoridad global `PLATFORM_ADMIN`, rutas bajo `/api/platform` y tokens con
+un tipo de actor diferente; no se representará como una pertenencia ficticia a
+cada negocio.
+
+`business_memberships` seguirá representando la relación de una persona con un
+establecimiento. Los planes, suscripciones, periodos de prueba, cortesías y
+pagos se modelarán mediante entidades comerciales independientes, con historial
+propio. Estas funciones se implementarán después de validar el flujo completo
+de un negocio.
+
 ## Fuera del alcance del primer MVP
 
 - Inventario, recetas y producción.
@@ -277,7 +326,7 @@ perder la explicación de lo ocurrido durante la preparación.
 - Facturación electrónica.
 - Integración con WhatsApp.
 - Integraciones con CRM externos.
-- Impresión térmica automática.
+- Conexión física del agente local con una impresora térmica específica.
 - Planes, suscripciones y cobros recurrentes a los negocios.
 
 ## Evolución posterior
@@ -325,5 +374,6 @@ clientes, caja, pagos y el evento que represente una venta definitiva.
 
 ## Próximo paso
 
-Comenzar el módulo operativo de órdenes sobre las mesas, productos, membresías y
-roles ya implementados.
+Implementar la administración de empleados y sus roles para que un
+administrador pueda crear cuentas de meseros y personal de cocina. Después se
+completarán las acciones masivas de comandas y los trabajos de impresión.

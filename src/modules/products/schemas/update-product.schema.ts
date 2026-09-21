@@ -25,6 +25,8 @@ const updateProductSchema = z
 
     preparationAreaId: databaseIdSchema.optional(),
 
+    fulfillmentMode: z.enum(["PREPARE_TO_ORDER", "READY_TO_SERVE"]).optional(),
+
     sku: z
       .string()
       .trim()
