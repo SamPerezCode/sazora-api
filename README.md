@@ -24,8 +24,9 @@ adiciones, cancelaciones y cierre de la orden con trazabilidad histórica.
 
 **Bloque actual:** flujo operativo de órdenes del MVP.
 
-**Último avance verificado:** administración de empleados y cambio autenticado
-de contraseña con invalidación inmediata de todos los JWT anteriores.
+**Último avance verificado:** administración de empleados y recuperación de
+contraseña mediante tokens temporales de un solo uso, correo SMTP e
+invalidación inmediata de sesiones anteriores.
 
 ## Checklist del proyecto
 

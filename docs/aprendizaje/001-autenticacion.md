@@ -408,3 +408,67 @@ usan explícitamente el token del usuario cuya cuenta se desea probar.
 - [x] El token anterior deja de funcionar después del cambio.
 - [x] La contraseña anterior deja de permitir el inicio de sesión.
 - [x] La contraseña nueva permite iniciar sesión y obtener un token vigente.
+
+## Recuperación de contraseña
+
+El flujo público se divide en dos operaciones:
+
+```http
+POST /api/auth/password-recovery
+POST /api/auth/password-reset
+```
+
+La solicitud recibe únicamente el correo y siempre devuelve un mensaje neutral
+para evitar confirmar qué identidades existen. Si la cuenta está activa, genera
+un token criptográficamente aleatorio con vigencia de 30 minutos. MySQL guarda
+solamente su hash SHA-256; solicitar un token nuevo invalida los anteriores.
+
+Durante desarrollo, la respuesta incluye `developmentResetToken` para permitir
+las pruebas con Postman mientras no exista un proveedor de correo configurado.
+Este valor no se incluye cuando `NODE_ENV` es `production`.
+
+El restablecimiento recibe el token original y la contraseña nueva. La operación
+bloquea el token dentro de una transacción, comprueba que no esté vencido, usado
+ni invalidado, actualiza el hash de contraseña, marca el token como utilizado e
+invalida cualquier otra solicitud pendiente de la misma identidad.
+
+El restablecimiento también incrementa `auth_version`, por lo que los JWT
+anteriores dejan de funcionar en todas las pertenencias del usuario.
+
+## Pruebas de recuperación
+
+- [x] Un correo existente genera un token temporal en desarrollo.
+- [x] La base de datos almacena el hash y no el token original.
+- [x] Restablecer la contraseña con un token vigente devuelve HTTP 200.
+- [x] El mismo token no puede utilizarse dos veces.
+- [x] La contraseña anterior deja de funcionar.
+- [x] La contraseña nueva permite iniciar sesión.
+- [x] Los tokens de sesión anteriores quedan invalidados.
+
+## Entrega del correo de recuperación
+
+La aplicación utiliza un transportador SMTP mediante Nodemailer. La conexión se
+configura exclusivamente con variables de entorno para impedir que el usuario,
+la contraseña de aplicación y la dirección remitente entren al repositorio.
+
+El servicio de recuperación construye una URL con el token temporal y envía un
+mensaje en formatos de texto y HTML. El correo contiene el enlace, el tiempo de
+vigencia y una advertencia para ignorarlo cuando la recuperación no fue
+solicitada por el destinatario.
+
+Durante el desarrollo se utilizó Gmail con una contraseña de aplicación. La
+contraseña normal de la cuenta no se almacena ni se comparte con Sazora. El
+transportador SMTP está aislado para poder reemplazar Gmail por un proveedor
+transaccional sin modificar los endpoints ni la lógica de los tokens.
+
+La dirección local `http://localhost:5173/reset-password` representa la futura
+pantalla del frontend. Mientras esa pantalla no exista, el token recibido se
+utiliza directamente mediante Postman.
+
+## Pruebas de entrega de correo
+
+- [x] Nodemailer establece la conexión SMTP.
+- [x] Solicitar recuperación devuelve HTTP 202.
+- [x] El mensaje llega al correo del empleado.
+- [x] El correo contiene el enlace y el token correctos.
+- [x] Los secretos SMTP permanecen únicamente en `.env`.
