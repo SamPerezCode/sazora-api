@@ -3,6 +3,7 @@ type AccessTokenPayload = Readonly<{
   userId: string;
   businessId: string;
   membershipId: string;
+  authVersion: number;
   roles: string[];
 }>;
 

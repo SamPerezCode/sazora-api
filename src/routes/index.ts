@@ -7,12 +7,14 @@ import { orderRouter } from "../modules/orders/order.routes";
 import { preparationAreaRouter } from "../modules/preparation-areas/preparation-area.routes";
 import { productRouter } from "../modules/products/product.routes";
 import { restaurantTableRouter } from "../modules/restaurant-tables/restaurant-table.routes";
+import { employeeRouter } from "../modules/employees/employee.routes";
 import { healthRouter } from "./health.routes";
 
 const apiRouter = Router();
 
 apiRouter.use("/health", healthRouter);
 apiRouter.use("/auth", authRouter);
+apiRouter.use("/employees", employeeRouter);
 apiRouter.use("/categories", categoryRouter);
 apiRouter.use("/preparation-areas", preparationAreaRouter);
 apiRouter.use("/products", productRouter);

@@ -24,8 +24,8 @@ adiciones, cancelaciones y cierre de la orden con trazabilidad histórica.
 
 **Bloque actual:** flujo operativo de órdenes del MVP.
 
-**Último avance verificado:** ciclo operativo completo de órdenes con comandas,
-productos listos o preparados, adiciones, cancelaciones, entrega y cierre.
+**Último avance verificado:** administración de empleados y cambio autenticado
+de contraseña con invalidación inmediata de todos los JWT anteriores.
 
 ## Checklist del proyecto
 

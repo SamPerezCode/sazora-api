@@ -2,11 +2,11 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
 
-// Tipo de cada fila de MySQL
 type LoginIdentityRow = RowDataPacket & {
   userId: string;
   fullName: string;
   passwordHash: string;
+  authVersion: number;
   businessId: string;
   businessName: string;
   businessSlug: string;
@@ -14,11 +14,15 @@ type LoginIdentityRow = RowDataPacket & {
   roleCode: string;
 };
 
-// Identidad que utilizará la aplicación
+type ActiveSessionRow = RowDataPacket & {
+  roleCode: string;
+};
+
 type LoginIdentity = Readonly<{
   userId: string;
   fullName: string;
   passwordHash: string;
+  authVersion: number;
   businessId: string;
   businessName: string;
   businessSlug: string;
@@ -26,9 +30,20 @@ type LoginIdentity = Readonly<{
   roles: string[];
 }>;
 
+type ActiveSession = Readonly<{
+  roles: string[];
+}>;
+
 type FindLoginIdentityInput = Readonly<{
   email: string;
   businessSlug: string;
+}>;
+
+type FindActiveSessionInput = Readonly<{
+  userId: string;
+  businessId: string;
+  membershipId: string;
+  authVersion: number;
 }>;
 
 const findLoginIdentity = async ({
@@ -41,6 +56,7 @@ const findLoginIdentity = async ({
         CAST(u.id AS CHAR) AS userId,
         u.full_name AS fullName,
         u.password_hash AS passwordHash,
+        u.auth_version AS authVersion,
         CAST(b.id AS CHAR) AS businessId,
         b.name AS businessName,
         b.slug AS businessSlug,
@@ -78,10 +94,54 @@ const findLoginIdentity = async ({
     userId: firstRow.userId,
     fullName: firstRow.fullName,
     passwordHash: firstRow.passwordHash,
+    authVersion: firstRow.authVersion,
     businessId: firstRow.businessId,
     businessName: firstRow.businessName,
     businessSlug: firstRow.businessSlug,
     membershipId: firstRow.membershipId,
+    roles: [...new Set(rows.map((row) => row.roleCode))],
+  };
+};
+
+const findActiveSession = async ({
+  userId,
+  businessId,
+  membershipId,
+  authVersion,
+}: FindActiveSessionInput): Promise<ActiveSession | null> => {
+  const [rows] = await databasePool.execute<ActiveSessionRow[]>(
+    `
+      SELECT
+        r.code AS roleCode
+      FROM business_memberships AS bm
+      INNER JOIN users AS u
+        ON u.id = bm.user_id
+        AND u.is_active = TRUE
+      INNER JOIN businesses AS b
+        ON b.id = bm.business_id
+        AND b.is_active = TRUE
+      INNER JOIN business_membership_roles AS bmr
+        ON bmr.business_membership_id = bm.id
+        AND bmr.is_active = TRUE
+      INNER JOIN roles AS r
+        ON r.id = bmr.role_id
+        AND r.is_active = TRUE
+      WHERE
+        u.id = ?
+        AND b.id = ?
+        AND bm.id = ?
+        AND bm.is_active = TRUE
+        AND u.auth_version = ?
+      ORDER BY r.id
+    `,
+    [userId, businessId, membershipId, authVersion],
+  );
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return {
     roles: [...new Set(rows.map((row) => row.roleCode))],
   };
 };
@@ -97,5 +157,5 @@ const updateLastLogin = async (userId: string): Promise<void> => {
   );
 };
 
-export { findLoginIdentity, updateLastLogin };
-export type { LoginIdentity };
+export { findActiveSession, findLoginIdentity, updateLastLogin };
+export type { ActiveSession, LoginIdentity };

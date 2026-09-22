@@ -2,6 +2,7 @@
 import { Router } from "express";
 
 import {
+  changePasswordController,
   getCurrentSessionController,
   loginController,
 } from "./controllers/auth.controller";
@@ -12,6 +13,8 @@ const authRouter = Router();
 authRouter.post("/login", loginController);
 
 authRouter.get("/session", authenticate, getCurrentSessionController);
+
+authRouter.patch("/password", authenticate, changePasswordController);
 
 export { authRouter };
 

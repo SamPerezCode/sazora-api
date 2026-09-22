@@ -45,6 +45,7 @@ const login = async (input: LoginInput): Promise<LoginResult> => {
     userId: identity.userId,
     businessId: identity.businessId,
     membershipId: identity.membershipId,
+    authVersion: identity.authVersion,
     roles: identity.roles,
   });
 

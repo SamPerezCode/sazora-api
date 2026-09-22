@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 
 import { AppError } from "../../../shared/errors/app-error";
+import { findActiveSession } from "../repositories/auth.repository";
 import { verifyAccessToken } from "../services/token.service";
 
 const createAuthenticationError = (): AppError =>
@@ -10,7 +11,7 @@ const createAuthenticationError = (): AppError =>
     "AUTHENTICATION_REQUIRED",
   );
 
-const authenticate: RequestHandler = (request, _response, next) => {
+const authenticate: RequestHandler = async (request, _response, next) => {
   const authorizationHeader = request.header("authorization");
 
   if (!authorizationHeader) {
@@ -29,11 +30,28 @@ const authenticate: RequestHandler = (request, _response, next) => {
     throw createAuthenticationError();
   }
 
+  let tokenPayload;
+
   try {
-    request.auth = verifyAccessToken(token);
+    tokenPayload = verifyAccessToken(token);
   } catch {
     throw createAuthenticationError();
   }
+
+  const activeSession = await findActiveSession({
+    userId: tokenPayload.userId,
+    businessId: tokenPayload.businessId,
+    membershipId: tokenPayload.membershipId,
+    authVersion: tokenPayload.authVersion,
+  });
+  if (!activeSession) {
+    throw createAuthenticationError();
+  }
+
+  request.auth = {
+    ...tokenPayload,
+    roles: activeSession.roles,
+  };
 
   next();
 };

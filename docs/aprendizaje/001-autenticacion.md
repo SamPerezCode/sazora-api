@@ -364,3 +364,47 @@ con su acceso.
 
 Separar estas responsabilidades hace que el código sea más fácil de entender,
 probar y modificar.
+
+## Cambio autenticado de contraseña
+
+```http
+PATCH /api/auth/password
+```
+
+El endpoint permite que cualquier usuario autenticado cambie su propia
+contraseña. No recibe un identificador de empleado: la identidad se obtiene
+del JWT. Por tanto, la contraseña modificada siempre corresponde al propietario
+del token enviado.
+
+El cuerpo exige la contraseña actual, la nueva contraseña y su confirmación.
+El servicio comprueba el hash actual, impide reutilizar la misma contraseña,
+genera un hash nuevo con bcrypt y actualiza la credencial mediante una
+comparación optimista para evitar sobrescribir un cambio concurrente.
+
+## Versión de autenticación
+
+La migración `025_add_user_auth_version.sql` agregó `users.auth_version`. Esta
+versión se incluye en cada JWT y se contrasta con MySQL en todas las peticiones
+protegidas.
+
+Al cambiar una contraseña se incrementa `auth_version`. Como consecuencia,
+todos los tokens emitidos con la versión anterior dejan de ser válidos
+inmediatamente y el usuario debe iniciar sesión de nuevo. La invalidación se
+aplica a todas sus pertenencias porque la contraseña pertenece a la identidad
+global, no a un negocio específico.
+
+## Tokens separados en Postman
+
+Postman mantiene `accessToken` para el administrador y `employeeAccessToken`
+para el empleado. Los requests de login utilizan `No Auth` y cada script guarda
+la respuesta solamente en su variable correspondiente. Los requests personales
+usan explícitamente el token del usuario cuya cuenta se desea probar.
+
+## Pruebas del cambio de contraseña
+
+- [x] Administrador y empleado pueden cambiar su propia contraseña.
+- [x] La contraseña actual incorrecta es rechazada.
+- [x] La nueva contraseña debe ser distinta y estar confirmada.
+- [x] El token anterior deja de funcionar después del cambio.
+- [x] La contraseña anterior deja de permitir el inicio de sesión.
+- [x] La contraseña nueva permite iniciar sesión y obtener un token vigente.
