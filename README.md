@@ -85,8 +85,8 @@ que funciona.
 
 ### Módulos del MVP
 
-- [ ] Roles.
-- [ ] Usuarios.
+- [x] Roles.
+- [x] Usuarios.
 - [x] Autenticación.
 - [x] Autorización.
 - [x] Categorías.
@@ -99,7 +99,7 @@ que funciona.
 - [x] Adiciones.
 - [x] Cancelaciones.
 - [x] Historial de estados.
-- [ ] Registro de reimpresiones.
+- [x] Registro de reimpresiones.
 
 ### Validación y seguridad
 
@@ -375,6 +375,6 @@ clientes, caja, pagos y el evento que represente una venta definitiva.
 
 ## Próximo paso
 
-Implementar la administración de empleados y sus roles para que un
-administrador pueda crear cuentas de meseros y personal de cocina. Después se
-completarán las acciones masivas de comandas y los trabajos de impresión.
+Construir y probar el frontend operativo del negocio piloto. La primera versión
+debe integrar autenticación, administración del catálogo, empleados, mesas,
+órdenes, comandas y las actualizaciones recibidas mediante Socket.IO.
