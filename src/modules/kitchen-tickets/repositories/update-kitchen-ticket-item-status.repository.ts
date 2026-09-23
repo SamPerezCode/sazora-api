@@ -45,6 +45,7 @@ type KitchenTicketItemRow = RowDataPacket & {
 type UpdateKitchenTicketItemStatusResult =
   | Readonly<{
       kind: "UPDATED";
+      orderId: string;
       item: KitchenTicketItem;
       orderDelivered: boolean;
     }>
@@ -349,6 +350,7 @@ const updateKitchenTicketItemStatus = async (
 
     return {
       kind: "UPDATED",
+      orderId: itemContext.orderId,
       item: mapKitchenTicketItemRow(updatedItem),
       orderDelivered,
     };

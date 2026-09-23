@@ -1,4 +1,5 @@
 import { AppError } from "../../../shared/errors/app-error";
+import { emitOrderStatusUpdated } from "../../../realtime/realtime.events";
 import type { OrderDetail } from "../order.types";
 import { closeOrder as closeOrderRecord } from "../repositories/close-order.repository";
 import { findOrderDetailById } from "../repositories/get-order.repository";
@@ -27,6 +28,16 @@ const closeDeliveredOrder = async (
       if (!order) {
         throw new Error("No fue posible recuperar la orden cerrada");
       }
+
+      emitOrderStatusUpdated({
+        businessId,
+        orderId: order.id,
+        previousStatus: "DELIVERED",
+        status: "CLOSED",
+        changedByMembershipId: membershipId,
+        changedAt:
+          order.closedAt?.toISOString() ?? order.updatedAt.toISOString(),
+      });
 
       return order;
     }

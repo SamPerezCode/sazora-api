@@ -50,6 +50,11 @@ const environmentSchema = z.object({
   PASSWORD_RESET_URL_BASE: z
     .string()
     .url("PASSWORD_RESET_URL_BASE debe ser una URL válida"),
+
+  CLIENT_ORIGIN: z
+    .string()
+    .url("CLIENT_ORIGIN debe ser una URL válida")
+    .default("http://localhost:5173"),
 });
 
 const environment = environmentSchema.parse(process.env);

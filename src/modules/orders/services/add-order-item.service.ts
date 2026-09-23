@@ -1,4 +1,5 @@
 import { AppError } from "../../../shared/errors/app-error";
+import { emitOrderItemsAdded } from "../../../realtime/realtime.events";
 import type { OrderItem } from "../order.types";
 import { addOrderItems as addOrderItemsRecords } from "../repositories/order-item.repository";
 import type { AddOrderItemsInput } from "../schemas/add-order-item.schema";
@@ -15,8 +16,26 @@ const addItemsToOrder = async (
   });
 
   switch (result.kind) {
-    case "CREATED":
+    case "CREATED": {
+      emitOrderItemsAdded({
+        businessId,
+        orderId,
+        orderStatus: result.orderStatus,
+        addedByMembershipId: membershipId,
+        orderItems: result.orderItems.map((orderItem) => ({
+          id: orderItem.id,
+          productId: orderItem.productId,
+          preparationAreaId: orderItem.preparationAreaId,
+          fulfillmentMode: orderItem.fulfillmentMode,
+          productName: orderItem.productName,
+          quantity: orderItem.quantity,
+          notes: orderItem.notes,
+          createdAt: orderItem.createdAt.toISOString(),
+        })),
+      });
+
       return result.orderItems;
+    }
 
     case "ORDER_NOT_FOUND":
       throw new AppError("La orden no existe", 404, "ORDER_NOT_FOUND");

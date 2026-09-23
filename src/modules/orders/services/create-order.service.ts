@@ -1,3 +1,4 @@
+import { emitOrderCreated } from "../../../realtime/realtime.events";
 import { AppError } from "../../../shared/errors/app-error";
 import type { Order } from "../order.types";
 import { createOrder as createOrderRecord } from "../repositories/order.repository";
@@ -14,8 +15,23 @@ const createOrder = async (
   });
 
   switch (result.kind) {
-    case "CREATED":
-      return result.order;
+    case "CREATED": {
+      const { order } = result;
+
+      emitOrderCreated({
+        businessId,
+        orderId: order.id,
+        restaurantTableId: order.restaurantTableId,
+        openedByMembershipId: order.openedByMembershipId,
+        serviceType: order.serviceType,
+        status: "OPEN",
+        customerCount: order.customerCount,
+        notes: order.notes,
+        createdAt: order.createdAt.toISOString(),
+      });
+
+      return order;
+    }
 
     case "TABLE_NOT_FOUND":
       throw new AppError(

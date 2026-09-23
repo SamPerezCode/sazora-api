@@ -1,4 +1,5 @@
 import { AppError } from "../../../shared/errors/app-error";
+import { emitOrderConfirmed } from "../../../realtime/realtime.events";
 import type { OrderDetail } from "../order.types";
 import {
   confirmOrder as confirmOrderRecord,
@@ -21,6 +22,14 @@ const confirmOrder = async (
   switch (result.kind) {
     case "CONFIRMED": {
       const order = await getOrder(businessId, orderId);
+
+      emitOrderConfirmed({
+        businessId,
+        orderId: order.id,
+        status: "CONFIRMED",
+        confirmedAt: order.confirmedAt?.toISOString() ?? null,
+        kitchenTickets: result.kitchenTickets,
+      });
 
       return {
         order,

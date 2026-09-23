@@ -1,9 +1,14 @@
 import { AppError } from "../../../shared/errors/app-error";
+import {
+  emitKitchenTicketItemStatusUpdated,
+  emitOrderStatusUpdated,
+} from "../../../realtime/realtime.events";
 import type { KitchenTicketItem } from "../kitchen-ticket.types";
 import { updateKitchenTicketItemStatus as updateKitchenTicketItemStatusRecord } from "../repositories/update-kitchen-ticket-item-status.repository";
 import type { UpdateKitchenTicketItemStatusInput } from "../schemas/update-kitchen-ticket-item-status.schema";
 
 type UpdateKitchenTicketItemStatusOutput = Readonly<{
+  orderId: string;
   item: KitchenTicketItem;
   orderDelivered: boolean;
 }>;
@@ -24,11 +29,36 @@ const changeKitchenTicketItemStatus = async (
   );
 
   switch (result.kind) {
-    case "UPDATED":
+    case "UPDATED": {
+      emitKitchenTicketItemStatusUpdated({
+        businessId,
+        orderId: result.orderId,
+        kitchenTicketId,
+        kitchenTicketItemId: result.item.id,
+        preparationStatus: result.item.preparationStatus,
+        orderDelivered: result.orderDelivered,
+        updatedAt: result.item.updatedAt.toISOString(),
+      });
+
+      if (result.orderDelivered) {
+        emitOrderStatusUpdated({
+          businessId,
+          orderId: result.orderId,
+          previousStatus: "CONFIRMED",
+          status: "DELIVERED",
+          changedByMembershipId: membershipId,
+          changedAt:
+            result.item.deliveredAt?.toISOString() ??
+            result.item.updatedAt.toISOString(),
+        });
+      }
+
       return {
+        orderId: result.orderId,
         item: result.item,
         orderDelivered: result.orderDelivered,
       };
+    }
 
     case "ITEM_NOT_FOUND":
       throw new AppError(

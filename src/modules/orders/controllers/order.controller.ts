@@ -102,6 +102,7 @@ const updateOrderController: RequestHandler = async (request, response) => {
 
   const order = await updateOrderDetails(
     request.auth.businessId,
+    request.auth.membershipId,
     orderId,
     input,
   );

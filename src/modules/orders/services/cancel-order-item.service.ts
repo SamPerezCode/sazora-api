@@ -1,5 +1,9 @@
 import { AppError } from "../../../shared/errors/app-error";
 import {
+  emitOrderItemCancelled,
+  emitOrderStatusUpdated,
+} from "../../../realtime/realtime.events";
+import {
   cancelOrderItem as cancelOrderItemRecord,
   type CancelledOrderItem,
 } from "../repositories/cancel-order-item.repository";
@@ -21,8 +25,36 @@ const cancelItemFromConfirmedOrder = async (
   );
 
   switch (result.kind) {
-    case "CANCELLED":
+    case "CANCELLED": {
+      const { cancellation } = result;
+
+      emitOrderItemCancelled({
+        businessId,
+        orderId,
+        orderItemId: cancellation.orderItemId,
+        kitchenTicketId: cancellation.kitchenTicketId,
+        kitchenTicketItemId: cancellation.kitchenTicketItemId,
+        kitchenTicketVersion: cancellation.kitchenTicketVersion,
+        preparationStatus: "CANCELLED",
+        orderStatus: cancellation.orderStatus,
+        cancellationReason: cancellation.cancellationReason,
+        cancelledByMembershipId: membershipId,
+        cancelledAt: cancellation.cancelledAt.toISOString(),
+      });
+
+      if (cancellation.orderStatus !== "CONFIRMED") {
+        emitOrderStatusUpdated({
+          businessId,
+          orderId,
+          previousStatus: "CONFIRMED",
+          status: cancellation.orderStatus,
+          changedByMembershipId: membershipId,
+          changedAt: cancellation.cancelledAt.toISOString(),
+        });
+      }
+
       return result.cancellation;
+    }
 
     case "ORDER_NOT_FOUND":
       throw new AppError("La orden no existe", 404, "ORDER_NOT_FOUND");

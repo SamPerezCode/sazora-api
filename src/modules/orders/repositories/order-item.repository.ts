@@ -59,6 +59,7 @@ type CreatedOrderItemContext = Readonly<{
 type AddOrderItemsResult =
   | Readonly<{
       kind: "CREATED";
+      orderStatus: OrderStatus;
       orderItems: OrderItem[];
     }>
   | Readonly<{
@@ -478,6 +479,7 @@ const addOrderItems = async (
 
     return {
       kind: "CREATED",
+      orderStatus: order.status,
       orderItems: createdOrderItems,
     };
   } catch (error) {

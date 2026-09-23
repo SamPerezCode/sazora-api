@@ -1,3 +1,4 @@
+import { emitOrderItemUpdated } from "../../../realtime/realtime.events";
 import { AppError } from "../../../shared/errors/app-error";
 import type { OrderItemDetail, UpdateOrderItemData } from "../order.types";
 import { updateOrderItem as updateOrderItemRecord } from "../repositories/update-order-item.repository";
@@ -31,8 +32,23 @@ const updateItemInOrder = async (
   );
 
   switch (result.kind) {
-    case "UPDATED":
-      return result.orderItem;
+    case "UPDATED": {
+      const { orderItem } = result;
+
+      emitOrderItemUpdated({
+        businessId,
+        orderId,
+        orderItemId: orderItem.id,
+        productName: orderItem.productName,
+        quantity: orderItem.quantity,
+        unitPrice: orderItem.unitPrice,
+        lineTotal: orderItem.lineTotal,
+        notes: orderItem.notes,
+        updatedAt: orderItem.updatedAt.toISOString(),
+      });
+
+      return orderItem;
+    }
 
     case "ORDER_NOT_FOUND":
       throw new AppError("La orden no existe", 404, "ORDER_NOT_FOUND");

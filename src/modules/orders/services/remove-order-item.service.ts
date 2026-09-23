@@ -1,3 +1,4 @@
+import { emitOrderItemRemoved } from "../../../realtime/realtime.events";
 import { AppError } from "../../../shared/errors/app-error";
 import { removeOrderItem as removeOrderItemRecord } from "../repositories/remove-order-item.repository";
 
@@ -10,6 +11,13 @@ const removeItemFromOrder = async (
 
   switch (result.kind) {
     case "REMOVED":
+      emitOrderItemRemoved({
+        businessId,
+        orderId,
+        orderItemId,
+        removedAt: new Date().toISOString(),
+      });
+
       return;
 
     case "ORDER_NOT_FOUND":
