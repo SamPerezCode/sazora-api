@@ -1,5 +1,5 @@
-import { AppError } from "../../../shared/errors/app-error";
 import { emitOrderConfirmed } from "../../../realtime/realtime.events";
+import { AppError } from "../../../shared/errors/app-error";
 import type { OrderDetail } from "../order.types";
 import {
   confirmOrder as confirmOrderRecord,
@@ -59,6 +59,13 @@ const confirmOrder = async (
         "Uno de los productos pertenece a un área de preparación desactivada",
         409,
         "PREPARATION_AREA_INACTIVE",
+      );
+
+    case "INVENTORY_ITEM_NOT_AVAILABLE":
+      throw new AppError(
+        `El artículo de inventario ${result.inventoryItemId} no existe o está inactivo`,
+        409,
+        "INVENTORY_ITEM_NOT_AVAILABLE",
       );
   }
 };

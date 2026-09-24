@@ -4,6 +4,7 @@ import { databasePool } from "../../../database/pool";
 import type { ProductFulfillmentMode } from "../../products/product.types";
 import type { KitchenPreparationStatus } from "../../kitchen-tickets/kitchen-ticket.types";
 import type { OrderStatus } from "../order.types";
+import { deductOrderInventory } from "./deduct-order-inventory.repository";
 
 type OrderStateRow = RowDataPacket & {
   status: OrderStatus;
@@ -39,6 +40,10 @@ type ConfirmOrderResult =
     }>
   | Readonly<{
       kind: "PREPARATION_AREA_INACTIVE";
+    }>
+  | Readonly<{
+      kind: "INVENTORY_ITEM_NOT_AVAILABLE";
+      inventoryItemId: string;
     }>;
 
 const confirmOrder = async (
@@ -84,23 +89,23 @@ const confirmOrder = async (
 
     const [orderItemRows] = await connection.execute<OrderItemToConfirmRow[]>(
       `
-        SELECT
-          CAST(oi.id AS CHAR) AS id,
-          CAST(oi.preparation_area_id AS CHAR)
-            AS preparationAreaId,
-          oi.fulfillment_mode AS fulfillmentMode,
-          pa.is_active AS preparationAreaIsActive
-        FROM order_items AS oi
-        INNER JOIN preparation_areas AS pa
-          ON pa.business_id = oi.business_id
-          AND pa.id = oi.preparation_area_id
-        WHERE
-          oi.business_id = ?
-          AND oi.order_id = ?
-          AND oi.status = 'ACTIVE'
-        ORDER BY oi.id ASC
-        FOR UPDATE
-      `,
+          SELECT
+            CAST(oi.id AS CHAR) AS id,
+            CAST(oi.preparation_area_id AS CHAR)
+              AS preparationAreaId,
+            oi.fulfillment_mode AS fulfillmentMode,
+            pa.is_active AS preparationAreaIsActive
+          FROM order_items AS oi
+          INNER JOIN preparation_areas AS pa
+            ON pa.business_id = oi.business_id
+            AND pa.id = oi.preparation_area_id
+          WHERE
+            oi.business_id = ?
+            AND oi.order_id = ?
+            AND oi.status = 'ACTIVE'
+          ORDER BY oi.id ASC
+          FOR UPDATE
+        `,
       [businessId, orderId],
     );
 
@@ -120,6 +125,22 @@ const confirmOrder = async (
       };
     }
 
+    const inventoryResult = await deductOrderInventory(
+      connection,
+      businessId,
+      membershipId,
+      orderId,
+    );
+
+    if (inventoryResult.kind === "INVENTORY_ITEM_NOT_AVAILABLE") {
+      await connection.rollback();
+
+      return {
+        kind: "INVENTORY_ITEM_NOT_AVAILABLE",
+        inventoryItemId: inventoryResult.inventoryItemId,
+      };
+    }
+
     const itemsByPreparationArea = new Map<string, OrderItemToConfirmRow[]>();
 
     for (const orderItem of orderItemRows) {
@@ -136,15 +157,15 @@ const confirmOrder = async (
     for (const [preparationAreaId, orderItems] of itemsByPreparationArea) {
       const [ticketInsertResult] = await connection.execute<ResultSetHeader>(
         `
-          INSERT INTO kitchen_tickets (
-            business_id,
-            order_id,
-            preparation_area_id,
-            created_by_membership_id,
-            last_modified_by_membership_id
-          )
-          VALUES (?, ?, ?, ?, ?)
-        `,
+            INSERT INTO kitchen_tickets (
+              business_id,
+              order_id,
+              preparation_area_id,
+              created_by_membership_id,
+              last_modified_by_membership_id
+            )
+            VALUES (?, ?, ?, ?, ?)
+          `,
         [businessId, orderId, preparationAreaId, membershipId, membershipId],
       );
 

@@ -6,6 +6,7 @@ import {
 import type { KitchenTicketItem } from "../kitchen-ticket.types";
 import { updateKitchenTicketItemStatus as updateKitchenTicketItemStatusRecord } from "../repositories/update-kitchen-ticket-item-status.repository";
 import type { UpdateKitchenTicketItemStatusInput } from "../schemas/update-kitchen-ticket-item-status.schema";
+import { emitPublicOrderRequestPreparationUpdates } from "../../public-order-requests/services/emit-public-order-request-preparation.service";
 
 type UpdateKitchenTicketItemStatusOutput = Readonly<{
   orderId: string;
@@ -52,6 +53,20 @@ const changeKitchenTicketItemStatus = async (
             result.item.updatedAt.toISOString(),
         });
       }
+
+      await emitPublicOrderRequestPreparationUpdates({
+        businessId,
+        orderId: result.orderId,
+        updates: [
+          {
+            kitchenTicketId,
+            kitchenTicketItemId: result.item.id,
+            preparationStatus: result.item.preparationStatus,
+            orderDelivered: result.orderDelivered,
+            updatedAt: result.item.updatedAt.toISOString(),
+          },
+        ],
+      });
 
       return {
         orderId: result.orderId,

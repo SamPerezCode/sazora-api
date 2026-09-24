@@ -26,7 +26,11 @@ const createProductController: RequestHandler = async (request, response) => {
 
   const input = createProductSchema.parse(request.body);
 
-  const product = await createProduct(request.auth.businessId, input);
+  const product = await createProduct(
+    request.auth.businessId,
+    input,
+    request.file?.buffer,
+  );
 
   response.status(201).json({
     status: "success",

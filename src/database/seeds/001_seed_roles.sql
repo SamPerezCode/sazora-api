@@ -39,6 +39,28 @@ WHERE NOT EXISTS (
     WHERE code = 'KITCHEN'
 );
 
+INSERT INTO roles (code, name, description)
+SELECT
+    'PUBLIC_ORDER_MANAGER',
+    'Gestor de pedidos públicos',
+    'Gestiona solicitudes creadas desde el menú público.'
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM roles
+    WHERE code = 'PUBLIC_ORDER_MANAGER'
+);
+
+INSERT INTO roles (code, name, description)
+SELECT
+    'DELIVERY_DRIVER',
+    'Domiciliario',
+    'Recibe, transporta y entrega pedidos a domicilio.'
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM roles
+    WHERE code = 'DELIVERY_DRIVER'
+);
+
 -- Verifica los datos iniciales.
 
 SELECT

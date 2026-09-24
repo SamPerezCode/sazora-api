@@ -5,6 +5,7 @@ import type {
   CreateProductData,
   Product,
   ProductFulfillmentMode,
+  ProductInventoryTrackingType,
   ProductListItem,
   UpdateProductData,
 } from "../product.types";
@@ -31,6 +32,9 @@ type ProductListRow = ProductRow & {
   preparationAreaName: string;
   preparationAreaIsActive: number;
   isAvailable: number;
+  isCombo: number;
+  hasInventory: number;
+  inventoryTrackingType: ProductInventoryTrackingType;
 };
 
 const mapProductRow = (row: ProductRow): Product => ({
@@ -56,7 +60,117 @@ const mapProductListRow = (row: ProductListRow): ProductListItem => ({
   preparationAreaName: row.preparationAreaName,
   preparationAreaIsActive: Boolean(row.preparationAreaIsActive),
   isAvailable: Boolean(row.isAvailable),
+  isCombo: Boolean(row.isCombo),
+  hasInventory: Boolean(row.hasInventory),
+  inventoryTrackingType: row.inventoryTrackingType,
 });
+
+const productListSelect = `
+  SELECT
+    CAST(p.id AS CHAR) AS id,
+    CAST(p.business_id AS CHAR)
+      AS businessId,
+    CAST(p.category_id AS CHAR)
+      AS categoryId,
+    CAST(p.preparation_area_id AS CHAR)
+      AS preparationAreaId,
+    p.fulfillment_mode AS fulfillmentMode,
+    p.sku,
+    p.name,
+    p.description,
+    p.image_url AS imageUrl,
+    CAST(p.current_price AS CHAR)
+      AS currentPrice,
+    p.is_active AS isActive,
+    p.created_at AS createdAt,
+    p.updated_at AS updatedAt,
+    c.name AS categoryName,
+    c.is_active AS categoryIsActive,
+    pa.name AS preparationAreaName,
+    pa.is_active AS preparationAreaIsActive,
+
+    (
+      p.is_active = TRUE
+      AND c.is_active = TRUE
+      AND pa.is_active = TRUE
+    ) AS isAvailable,
+
+    EXISTS (
+      SELECT 1
+      FROM product_combo_components AS pcc
+      WHERE
+        pcc.business_id = p.business_id
+        AND pcc.combo_product_id = p.id
+    ) AS isCombo,
+
+    EXISTS (
+      SELECT 1
+      FROM product_inventory_links AS pil
+      WHERE
+        pil.business_id = p.business_id
+        AND pil.product_id = p.id
+        AND pil.is_active = TRUE
+    ) AS hasInventory,
+
+    CASE
+      WHEN EXISTS (
+        SELECT 1
+        FROM product_combo_components AS pcc
+        WHERE
+          pcc.business_id = p.business_id
+          AND pcc.combo_product_id = p.id
+      )
+        THEN 'COMBO'
+
+      WHEN NOT EXISTS (
+        SELECT 1
+        FROM product_inventory_links AS pil
+        WHERE
+          pil.business_id = p.business_id
+          AND pil.product_id = p.id
+          AND pil.is_active = TRUE
+      )
+        THEN 'NONE'
+
+      WHEN NOT EXISTS (
+        SELECT 1
+        FROM product_inventory_links AS pil
+        INNER JOIN inventory_items AS ii
+          ON ii.business_id = pil.business_id
+          AND ii.id = pil.inventory_item_id
+        WHERE
+          pil.business_id = p.business_id
+          AND pil.product_id = p.id
+          AND pil.is_active = TRUE
+          AND ii.item_type <> 'RESALE_GOOD'
+      )
+        THEN 'RESALE'
+
+      WHEN NOT EXISTS (
+        SELECT 1
+        FROM product_inventory_links AS pil
+        INNER JOIN inventory_items AS ii
+          ON ii.business_id = pil.business_id
+          AND ii.id = pil.inventory_item_id
+        WHERE
+          pil.business_id = p.business_id
+          AND pil.product_id = p.id
+          AND pil.is_active = TRUE
+          AND ii.item_type <> 'FINISHED_GOOD'
+      )
+        THEN 'PRODUCTION'
+
+      ELSE 'CUSTOM'
+    END AS inventoryTrackingType
+
+  FROM products AS p
+  INNER JOIN categories AS c
+    ON c.business_id = p.business_id
+    AND c.id = p.category_id
+  INNER JOIN preparation_areas AS pa
+    ON pa.business_id = p.business_id
+    AND pa.id = p.preparation_area_id
+`;
 
 const findProductById = async (
   businessId: string,
@@ -64,26 +178,31 @@ const findProductById = async (
 ): Promise<Product | null> => {
   const [rows] = await databasePool.execute<ProductRow[]>(
     `
-      SELECT
-        CAST(id AS CHAR) AS id,
-        CAST(business_id AS CHAR) AS businessId,
-        CAST(category_id AS CHAR) AS categoryId,
-        CAST(preparation_area_id AS CHAR) AS preparationAreaId,
-        fulfillment_mode AS fulfillmentMode,
-        sku,
-        name,
-        description,
-        image_url AS imageUrl,
-        CAST(current_price AS CHAR) AS currentPrice,
-        is_active AS isActive,
-        created_at AS createdAt,
-        updated_at AS updatedAt
-      FROM products
-      WHERE
-        business_id = ?
-        AND id = ?
-      LIMIT 1
-    `,
+        SELECT
+          CAST(id AS CHAR) AS id,
+          CAST(business_id AS CHAR)
+            AS businessId,
+          CAST(category_id AS CHAR)
+            AS categoryId,
+          CAST(preparation_area_id AS CHAR)
+            AS preparationAreaId,
+          fulfillment_mode
+            AS fulfillmentMode,
+          sku,
+          name,
+          description,
+          image_url AS imageUrl,
+          CAST(current_price AS CHAR)
+            AS currentPrice,
+          is_active AS isActive,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM products
+        WHERE
+          business_id = ?
+          AND id = ?
+        LIMIT 1
+      `,
     [businessId, productId],
   );
 
@@ -95,21 +214,23 @@ const findProductById = async (
 const createProduct = async (
   businessId: string,
   data: CreateProductData,
+  imageUrl: string | null = null,
 ): Promise<Product> => {
   const [result] = await databasePool.execute<ResultSetHeader>(
     `
-    INSERT INTO products (
-      business_id,
-      category_id,
-      preparation_area_id,
-      fulfillment_mode,
-      sku,
-      name,
-      description,
-      current_price
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `,
+        INSERT INTO products (
+          business_id,
+          category_id,
+          preparation_area_id,
+          fulfillment_mode,
+          sku,
+          name,
+          description,
+          image_url,
+          current_price
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
     [
       businessId,
       data.categoryId,
@@ -118,6 +239,7 @@ const createProduct = async (
       data.sku,
       data.name,
       data.description,
+      imageUrl,
       data.currentPrice,
     ],
   );
@@ -136,41 +258,12 @@ const findProductsByBusinessId = async (
 ): Promise<ProductListItem[]> => {
   const [rows] = await databasePool.execute<ProductListRow[]>(
     `
-      SELECT
-        CAST(p.id AS CHAR) AS id,
-        CAST(p.business_id AS CHAR) AS businessId,
-        CAST(p.category_id AS CHAR) AS categoryId,
-        CAST(p.preparation_area_id AS CHAR) AS preparationAreaId,
-        fulfillment_mode AS fulfillmentMode,
-        p.sku,
-        p.name,
-        p.description,
-        p.image_url AS imageUrl,
-        CAST(p.current_price AS CHAR) AS currentPrice,
-        p.is_active AS isActive,
-        p.created_at AS createdAt,
-        p.updated_at AS updatedAt,
-        c.name AS categoryName,
-        c.is_active AS categoryIsActive,
-        pa.name AS preparationAreaName,
-        pa.is_active AS preparationAreaIsActive,
-        (
-          p.is_active = TRUE
-          AND c.is_active = TRUE
-          AND pa.is_active = TRUE
-        ) AS isAvailable
-      FROM products AS p
-      INNER JOIN categories AS c
-        ON c.business_id = p.business_id
-        AND c.id = p.category_id
-      INNER JOIN preparation_areas AS pa
-        ON pa.business_id = p.business_id
-        AND pa.id = p.preparation_area_id
-      WHERE p.business_id = ?
-      ORDER BY
-        p.name ASC,
-        p.id ASC
-    `,
+        ${productListSelect}
+        WHERE p.business_id = ?
+        ORDER BY
+          p.name ASC,
+          p.id ASC
+      `,
     [businessId],
   );
 
@@ -183,41 +276,12 @@ const findProductDetailById = async (
 ): Promise<ProductListItem | null> => {
   const [rows] = await databasePool.execute<ProductListRow[]>(
     `
-      SELECT
-        CAST(p.id AS CHAR) AS id,
-        CAST(p.business_id AS CHAR) AS businessId,
-        CAST(p.category_id AS CHAR) AS categoryId,
-        CAST(p.preparation_area_id AS CHAR) AS preparationAreaId,
-        fulfillment_mode AS fulfillmentMode,
-        p.sku,
-        p.name,
-        p.description,
-        p.image_url AS imageUrl,
-        CAST(p.current_price AS CHAR) AS currentPrice,
-        p.is_active AS isActive,
-        p.created_at AS createdAt,
-        p.updated_at AS updatedAt,
-        c.name AS categoryName,
-        c.is_active AS categoryIsActive,
-        pa.name AS preparationAreaName,
-        pa.is_active AS preparationAreaIsActive,
-        (
-          p.is_active = TRUE
-          AND c.is_active = TRUE
-          AND pa.is_active = TRUE
-        ) AS isAvailable
-      FROM products AS p
-      INNER JOIN categories AS c
-        ON c.business_id = p.business_id
-        AND c.id = p.category_id
-      INNER JOIN preparation_areas AS pa
-        ON pa.business_id = p.business_id
-        AND pa.id = p.preparation_area_id
-      WHERE
-        p.business_id = ?
-        AND p.id = ?
-      LIMIT 1
-    `,
+        ${productListSelect}
+        WHERE
+          p.business_id = ?
+          AND p.id = ?
+        LIMIT 1
+      `,
     [businessId, productId],
   );
 
@@ -233,19 +297,19 @@ const updateProduct = async (
 ): Promise<Product> => {
   await databasePool.execute<ResultSetHeader>(
     `
-    UPDATE products
-    SET
-      category_id = ?,
-      preparation_area_id = ?,
-      fulfillment_mode = ?,
-      sku = ?,
-      name = ?,
-      description = ?,
-      current_price = ?
-    WHERE
-      business_id = ?
-      AND id = ?
-  `,
+      UPDATE products
+      SET
+        category_id = ?,
+        preparation_area_id = ?,
+        fulfillment_mode = ?,
+        sku = ?,
+        name = ?,
+        description = ?,
+        current_price = ?
+      WHERE
+        business_id = ?
+        AND id = ?
+    `,
     [
       data.categoryId,
       data.preparationAreaId,

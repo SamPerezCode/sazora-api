@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+const assignableEmployeeRoleSchema = z.enum([
+  "WAITER",
+  "KITCHEN",
+  "PUBLIC_ORDER_MANAGER",
+  "DELIVERY_DRIVER",
+]);
+
 const passwordSchema = z
   .string()
   .min(12, "La contraseña debe contener al menos 12 caracteres")
@@ -28,9 +35,9 @@ const createEmployeeSchema = z
     passwordConfirmation: z.string(),
 
     roles: z
-      .array(z.enum(["WAITER", "KITCHEN"]))
+      .array(assignableEmployeeRoleSchema)
       .min(1, "Debes asignar al menos un rol")
-      .max(2, "No puedes asignar más de dos roles")
+      .max(4, "No puedes asignar más de cuatro roles")
       .transform((roles) => [...new Set(roles)]),
   })
   .strict()

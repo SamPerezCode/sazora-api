@@ -1,4 +1,8 @@
 import { AppError } from "../../../shared/errors/app-error";
+import {
+  removeCatalogImage,
+  storeCatalogImage,
+} from "../../../shared/images/catalog-image.storage";
 import { findCategoryById } from "../../categories/repositories/category.repository";
 import { findPreparationAreaById } from "../../preparation-areas/repositories/preparation-area.repository";
 import type { Product } from "../product.types";
@@ -16,6 +20,7 @@ const hasMySqlErrorCode = (error: unknown, expectedCode: string): boolean => {
 const createProduct = async (
   businessId: string,
   input: CreateProductInput,
+  imageBuffer: Buffer | undefined,
 ): Promise<Product> => {
   const category = await findCategoryById(businessId, input.categoryId);
 
@@ -52,9 +57,26 @@ const createProduct = async (
     );
   }
 
+  let imageUrl: string | null = null;
+
   try {
-    return await createProductRecord(businessId, input);
+    if (imageBuffer) {
+      imageUrl = await storeCatalogImage(imageBuffer);
+    }
+
+    return await createProductRecord(businessId, input, imageUrl);
   } catch (error) {
+    if (imageUrl) {
+      try {
+        await removeCatalogImage(imageUrl);
+      } catch (cleanupError) {
+        console.error(
+          "No fue posible eliminar la imagen del producto fallido",
+          cleanupError,
+        );
+      }
+    }
+
     if (hasMySqlErrorCode(error, "ER_DUP_ENTRY")) {
       throw new AppError(
         "Ya existe un producto con ese SKU",

@@ -1,8 +1,15 @@
 import { Router } from "express";
 
 import { catalogImageUpload } from "../../shared/images/catalog-image-upload.middleware";
+import { catalogImageWithFieldsUpload } from "../../shared/images/catalog-image-with-fields-upload.middleware";
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
 import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { configureProductInventoryController } from "../product-inventory-links/controllers/configure-product-inventory.controller";
+import {
+  createComboProductController,
+  getComboProductController,
+  updateComboProductController,
+} from "./controllers/combo-product.controller";
 import {
   createProductController,
   getProductController,
@@ -22,18 +29,49 @@ productRouter.get(
   listProductsController,
 );
 
+productRouter.post(
+  "/",
+  authenticate,
+  authorizeRoles("ADMIN"),
+  catalogImageWithFieldsUpload,
+  createProductController,
+);
+
+productRouter.post(
+  "/combos",
+  authenticate,
+  authorizeRoles("ADMIN"),
+  catalogImageWithFieldsUpload,
+  createComboProductController,
+);
+
+productRouter.get(
+  "/combos/:comboProductId",
+  authenticate,
+  authorizeRoles("ADMIN"),
+  getComboProductController,
+);
+
+productRouter.patch(
+  "/combos/:comboProductId",
+  authenticate,
+  authorizeRoles("ADMIN"),
+  catalogImageWithFieldsUpload,
+  updateComboProductController,
+);
+
+productRouter.post(
+  "/:productId/inventory-setup",
+  authenticate,
+  authorizeRoles("ADMIN"),
+  configureProductInventoryController,
+);
+
 productRouter.get(
   "/:productId",
   authenticate,
   authorizeRoles("ADMIN"),
   getProductController,
-);
-
-productRouter.post(
-  "/",
-  authenticate,
-  authorizeRoles("ADMIN"),
-  createProductController,
 );
 
 productRouter.put(

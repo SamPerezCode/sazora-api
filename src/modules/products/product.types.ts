@@ -1,5 +1,8 @@
 type ProductFulfillmentMode = "PREPARE_TO_ORDER" | "READY_TO_SERVE";
 
+type ProductInventoryTrackingType =
+  "NONE" | "RESALE" | "PRODUCTION" | "COMBO" | "CUSTOM";
+
 type Product = Readonly<{
   id: string;
   businessId: string;
@@ -23,6 +26,9 @@ type ProductListItem = Product &
     preparationAreaName: string;
     preparationAreaIsActive: boolean;
     isAvailable: boolean;
+    isCombo: boolean;
+    hasInventory: boolean;
+    inventoryTrackingType: ProductInventoryTrackingType;
   }>;
 
 type CreateProductData = Readonly<{
@@ -49,6 +55,7 @@ export type {
   CreateProductData,
   Product,
   ProductFulfillmentMode,
+  ProductInventoryTrackingType,
   ProductListItem,
   UpdateProductData,
 };

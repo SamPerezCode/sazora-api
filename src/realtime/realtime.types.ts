@@ -128,11 +128,90 @@ interface OrderUpdatedPayload {
   updatedAt: string;
 }
 
+interface PublicOrderRequestCreatedPayload {
+  businessId: string;
+  requestId: string;
+  publicCode: string;
+  serviceType: "DELIVERY" | "TAKEAWAY";
+  customerName: string;
+  customerPhone: string;
+  itemCount: number;
+  subtotal: string;
+  createdAt: string;
+  recipientMembershipIds: readonly string[];
+}
+
 interface ClientToServerEvents {
   "session:ping": (acknowledge: (payload: SessionPingPayload) => void) => void;
 }
+interface PublicOrderRequestOrderConfirmedPayload {
+  businessId: string;
+  requestId: string;
+  publicCode: string;
+  orderId: string;
+  orderStatus: "CONFIRMED";
+  serviceType: "DELIVERY" | "TAKEAWAY";
+  confirmedByMembershipId: string;
+  confirmedAt: string | null;
+  kitchenTickets: readonly KitchenTicketCreatedSummary[];
+}
+
+interface PublicOrderRequestPreparationUpdatedPayload {
+  businessId: string;
+  requestId: string;
+  publicCode: string;
+  orderId: string;
+  serviceType: "DELIVERY" | "TAKEAWAY";
+  kitchenTicketId: string;
+  kitchenTicketItemId: string;
+  preparationStatus:
+    "PENDING" | "IN_PREPARATION" | "READY" | "DELIVERED" | "CANCELLED";
+  orderStatus: "CONFIRMED" | "DELIVERED";
+  orderDelivered: boolean;
+  updatedAt: string;
+}
+
+interface PublicOrderRequestOrderClosedPayload {
+  businessId: string;
+  requestId: string;
+  publicCode: string;
+  orderId: string;
+  serviceType: "DELIVERY" | "TAKEAWAY";
+  orderStatus: "CLOSED";
+  closedByMembershipId: string;
+  closedAt: string;
+}
+
+interface DeliveryStatusUpdatedPayload {
+  businessId: string;
+  deliveryId: string;
+  requestId: string;
+  publicCode: string;
+  orderId: string;
+  previousStatus:
+    | "PENDING_ASSIGNMENT"
+    | "ASSIGNED"
+    | "PICKED_UP"
+    | "OUT_FOR_DELIVERY"
+    | "DELIVERED"
+    | "CANCELLED";
+  status:
+    | "PENDING_ASSIGNMENT"
+    | "ASSIGNED"
+    | "PICKED_UP"
+    | "OUT_FOR_DELIVERY"
+    | "DELIVERED"
+    | "CANCELLED";
+  deliveryMode: "INTERNAL" | "EXTERNAL" | null;
+  externalProviderName: string | null;
+  assignedDriverMembershipId: string | null;
+  changedAt: string;
+}
 
 interface ServerToClientEvents {
+  "public-order-request:created": (
+    payload: PublicOrderRequestCreatedPayload,
+  ) => void;
   "session:ready": (payload: SessionReadyPayload) => void;
   "order:created": (payload: OrderCreatedPayload) => void;
   "order:confirmed": (payload: OrderConfirmedPayload) => void;
@@ -145,6 +224,19 @@ interface ServerToClientEvents {
   "order:item-removed": (payload: OrderItemRemovedPayload) => void;
   "order:item-cancelled": (payload: OrderItemCancelledPayload) => void;
   "order:updated": (payload: OrderUpdatedPayload) => void;
+  "public-order-request:status-updated": (
+    payload: PublicOrderRequestStatusUpdatedPayload,
+  ) => void;
+  "public-order-request:order-confirmed": (
+    payload: PublicOrderRequestOrderConfirmedPayload,
+  ) => void;
+  "public-order-request:preparation-updated": (
+    payload: PublicOrderRequestPreparationUpdatedPayload,
+  ) => void;
+  "public-order-request:order-closed": (
+    payload: PublicOrderRequestOrderClosedPayload,
+  ) => void;
+  "delivery:status-updated": (payload: DeliveryStatusUpdatedPayload) => void;
 }
 
 type InterServerEvents = Record<never, never>;
@@ -159,6 +251,17 @@ type RealtimeSocket = Socket<
   InterServerEvents,
   SocketData
 >;
+
+interface PublicOrderRequestStatusUpdatedPayload {
+  businessId: string;
+  requestId: string;
+  publicCode: string;
+  previousStatus: "NEW" | "CONTACTED" | "ACCEPTED" | "REJECTED" | "CANCELLED";
+  status: "NEW" | "CONTACTED" | "ACCEPTED" | "REJECTED" | "CANCELLED";
+  handledByMembershipId: string | null;
+  orderId: string | null;
+  changedAt: string;
+}
 
 export type {
   ClientToServerEvents,
@@ -180,4 +283,10 @@ export type {
   SessionPingPayload,
   SessionReadyPayload,
   SocketData,
+  PublicOrderRequestCreatedPayload,
+  PublicOrderRequestStatusUpdatedPayload,
+  PublicOrderRequestOrderConfirmedPayload,
+  PublicOrderRequestPreparationUpdatedPayload,
+  PublicOrderRequestOrderClosedPayload,
+  DeliveryStatusUpdatedPayload,
 };

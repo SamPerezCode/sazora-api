@@ -16,6 +16,8 @@ import type {
 
 type KitchenTicketSnapshotRow = RowDataPacket & {
   businessId: string;
+  businessName: string;
+  kitchenTicketFooter: string | null;
   kitchenTicketId: string;
   orderId: string;
   preparationAreaId: string;
@@ -129,6 +131,8 @@ const buildContentSnapshot = (
 
   return {
     businessId: ticket.businessId,
+    businessName: ticket.businessName,
+    kitchenTicketFooter: ticket.kitchenTicketFooter,
     kitchenTicketId: ticket.kitchenTicketId,
     orderId: ticket.orderId,
     preparationAreaId: ticket.preparationAreaId,
@@ -164,49 +168,55 @@ const createKitchenTicketPrint = async (
 
     const [snapshotRows] = await connection.execute<KitchenTicketSnapshotRow[]>(
       `
-        SELECT
-          CAST(kt.business_id AS CHAR) AS businessId,
-          CAST(kt.id AS CHAR) AS kitchenTicketId,
-          CAST(kt.order_id AS CHAR) AS orderId,
-          CAST(kt.preparation_area_id AS CHAR) AS preparationAreaId,
-          pa.name AS preparationAreaName,
-          kt.current_version AS ticketVersion,
-          o.service_type AS serviceType,
-          o.status AS orderStatus,
-          rt.code AS restaurantTableCode,
-          rt.name AS restaurantTableName,
-          o.notes AS orderNotes,
-          CAST(kti.id AS CHAR) AS kitchenTicketItemId,
-          CAST(kti.order_item_id AS CHAR) AS orderItemId,
-          oi.product_name AS productName,
-          oi.fulfillment_mode AS fulfillmentMode,
-          oi.quantity,
-          oi.notes AS itemNotes,
-          kti.preparation_status AS preparationStatus
-        FROM kitchen_tickets AS kt
-        INNER JOIN orders AS o
-          ON o.business_id = kt.business_id
-          AND o.id = kt.order_id
-        INNER JOIN preparation_areas AS pa
-          ON pa.business_id = kt.business_id
-          AND pa.id = kt.preparation_area_id
-        LEFT JOIN restaurant_tables AS rt
-          ON rt.business_id = o.business_id
-          AND rt.id = o.restaurant_table_id
-        INNER JOIN kitchen_ticket_items AS kti
-          ON kti.business_id = kt.business_id
-          AND kti.kitchen_ticket_id = kt.id
-        INNER JOIN order_items AS oi
-          ON oi.business_id = kti.business_id
-          AND oi.id = kti.order_item_id
-        WHERE
-          kt.business_id = ?
-          AND kt.id = ?
-        ORDER BY
-          kti.created_at ASC,
-          kti.id ASC
-        FOR UPDATE
-      `,
+    SELECT
+      CAST(kt.business_id AS CHAR) AS businessId,
+      b.name AS businessName,
+      bs.kitchen_ticket_footer AS kitchenTicketFooter,
+      CAST(kt.id AS CHAR) AS kitchenTicketId,
+      CAST(kt.order_id AS CHAR) AS orderId,
+      CAST(kt.preparation_area_id AS CHAR) AS preparationAreaId,
+      pa.name AS preparationAreaName,
+      kt.current_version AS ticketVersion,
+      o.service_type AS serviceType,
+      o.status AS orderStatus,
+      rt.code AS restaurantTableCode,
+      rt.name AS restaurantTableName,
+      o.notes AS orderNotes,
+      CAST(kti.id AS CHAR) AS kitchenTicketItemId,
+      CAST(kti.order_item_id AS CHAR) AS orderItemId,
+      oi.product_name AS productName,
+      oi.fulfillment_mode AS fulfillmentMode,
+      oi.quantity,
+      oi.notes AS itemNotes,
+      kti.preparation_status AS preparationStatus
+    FROM kitchen_tickets AS kt
+    INNER JOIN businesses AS b
+      ON b.id = kt.business_id
+    INNER JOIN business_settings AS bs
+      ON bs.business_id = kt.business_id
+    INNER JOIN orders AS o
+      ON o.business_id = kt.business_id
+      AND o.id = kt.order_id
+    INNER JOIN preparation_areas AS pa
+      ON pa.business_id = kt.business_id
+      AND pa.id = kt.preparation_area_id
+    LEFT JOIN restaurant_tables AS rt
+      ON rt.business_id = o.business_id
+      AND rt.id = o.restaurant_table_id
+    INNER JOIN kitchen_ticket_items AS kti
+      ON kti.business_id = kt.business_id
+      AND kti.kitchen_ticket_id = kt.id
+    INNER JOIN order_items AS oi
+      ON oi.business_id = kti.business_id
+      AND oi.id = kti.order_item_id
+    WHERE
+      kt.business_id = ?
+      AND kt.id = ?
+    ORDER BY
+      kti.created_at ASC,
+      kti.id ASC
+    FOR UPDATE
+  `,
       [businessId, kitchenTicketId],
     );
 

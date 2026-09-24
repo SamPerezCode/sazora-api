@@ -1,6 +1,8 @@
-type BusinessRoleCode = "ADMIN" | "WAITER" | "KITCHEN";
+type BusinessRoleCode =
+  "ADMIN" | "WAITER" | "KITCHEN" | "PUBLIC_ORDER_MANAGER" | "DELIVERY_DRIVER";
 
-type AssignableEmployeeRoleCode = "WAITER" | "KITCHEN";
+type AssignableEmployeeRoleCode =
+  "WAITER" | "KITCHEN" | "PUBLIC_ORDER_MANAGER" | "DELIVERY_DRIVER";
 
 type Employee = Readonly<{
   userId: string;

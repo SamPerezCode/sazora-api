@@ -16,6 +16,8 @@ type KitchenTicketPrintSnapshotItem = Readonly<{
 
 type KitchenTicketPrintSnapshot = Readonly<{
   businessId: string;
+  businessName: string;
+  kitchenTicketFooter: string | null;
   kitchenTicketId: string;
   orderId: string;
   preparationAreaId: string;

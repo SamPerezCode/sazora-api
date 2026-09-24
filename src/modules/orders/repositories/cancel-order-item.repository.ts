@@ -3,6 +3,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { databasePool } from "../../../database/pool";
 import type { KitchenPreparationStatus } from "../../kitchen-tickets/kitchen-ticket.types";
 import type { OrderItemStatus, OrderStatus } from "../order.types";
+import { reverseOrderItemInventory } from "./reverse-order-item-inventory.repository";
 
 type OrderStateRow = RowDataPacket & {
   status: OrderStatus;
@@ -41,6 +42,7 @@ type CancelledOrderItem = Readonly<{
   preparationStatus: KitchenPreparationStatus;
   kitchenTicketVersion: number;
   orderStatus: OrderStatus;
+  inventoryReversalMovementId: string | null;
 }>;
 
 type CancelOrderItemResult =
@@ -75,14 +77,14 @@ const cancelOrderItem = async (
 
     const [orderRows] = await connection.execute<OrderStateRow[]>(
       `
-        SELECT status
-        FROM orders
-        WHERE
-          business_id = ?
-          AND id = ?
-        LIMIT 1
-        FOR UPDATE
-      `,
+          SELECT status
+          FROM orders
+          WHERE
+            business_id = ?
+            AND id = ?
+          LIMIT 1
+          FOR UPDATE
+        `,
       [businessId, orderId],
     );
 
@@ -111,9 +113,12 @@ const cancelOrderItem = async (
           SELECT
             oi.quantity,
             oi.status AS orderItemStatus,
-            CAST(kti.kitchen_ticket_id AS CHAR) AS kitchenTicketId,
-            CAST(kti.id AS CHAR) AS kitchenTicketItemId,
-            kti.preparation_status AS preparationStatus
+            CAST(kti.kitchen_ticket_id AS CHAR)
+              AS kitchenTicketId,
+            CAST(kti.id AS CHAR)
+              AS kitchenTicketItemId,
+            kti.preparation_status
+              AS preparationStatus
           FROM order_items AS oi
           INNER JOIN kitchen_ticket_items AS kti
             ON kti.business_id = oi.business_id
@@ -149,6 +154,28 @@ const cancelOrderItem = async (
         kind: "ORDER_ITEM_NOT_CANCELLABLE",
       };
     }
+
+    /*
+     * La devolución se realiza antes de marcar el
+     * producto como cancelado y dentro de la misma
+     * transacción.
+     *
+     * Si cualquier operación posterior falla,
+     * también se revierte el cambio de inventario.
+     */
+    const inventoryReversal = await reverseOrderItemInventory(
+      connection,
+      businessId,
+      membershipId,
+      orderId,
+      orderItemId,
+      reason,
+    );
+
+    const inventoryReversalMovementId =
+      inventoryReversal.kind === "NO_INVENTORY_MOVEMENT"
+        ? null
+        : inventoryReversal.movementId;
 
     await connection.execute<ResultSetHeader>(
       `
@@ -251,13 +278,13 @@ const cancelOrderItem = async (
 
     const [activeItemRows] = await connection.execute<CountRow[]>(
       `
-        SELECT CAST(COUNT(*) AS CHAR) AS total
-        FROM order_items
-        WHERE
-          business_id = ?
-          AND order_id = ?
-          AND status = 'ACTIVE'
-      `,
+          SELECT CAST(COUNT(*) AS CHAR) AS total
+          FROM order_items
+          WHERE
+            business_id = ?
+            AND order_id = ?
+            AND status = 'ACTIVE'
+        `,
       [businessId, orderId],
     );
 
@@ -290,7 +317,14 @@ const cancelOrderItem = async (
             new_status,
             reason
           )
-          VALUES (?, ?, ?, 'CONFIRMED', 'CANCELLED', ?)
+          VALUES (
+            ?,
+            ?,
+            ?,
+            'CONFIRMED',
+            'CANCELLED',
+            ?
+          )
         `,
         [businessId, orderId, membershipId, reason],
       );
@@ -299,16 +333,16 @@ const cancelOrderItem = async (
     } else {
       const [remainingKitchenItemRows] = await connection.execute<CountRow[]>(
         `
-          SELECT CAST(COUNT(*) AS CHAR) AS total
-          FROM kitchen_ticket_items
-          WHERE
-            business_id = ?
-            AND order_id = ?
-            AND preparation_status NOT IN (
-              'DELIVERED',
-              'CANCELLED'
-            )
-        `,
+            SELECT CAST(COUNT(*) AS CHAR) AS total
+            FROM kitchen_ticket_items
+            WHERE
+              business_id = ?
+              AND order_id = ?
+              AND preparation_status NOT IN (
+                'DELIVERED',
+                'CANCELLED'
+              )
+          `,
         [businessId, orderId],
       );
 
@@ -341,7 +375,14 @@ const cancelOrderItem = async (
               new_status,
               reason
             )
-            VALUES (?, ?, ?, 'CONFIRMED', 'DELIVERED', NULL)
+            VALUES (
+              ?,
+              ?,
+              ?,
+              'CONFIRMED',
+              'DELIVERED',
+              NULL
+            )
           `,
           [businessId, orderId, membershipId],
         );
@@ -352,28 +393,33 @@ const cancelOrderItem = async (
 
     const [cancelledItemRows] = await connection.execute<CancelledItemRow[]>(
       `
-        SELECT
-          CAST(oi.id AS CHAR) AS orderItemId,
-          oi.status AS orderItemStatus,
-          oi.cancellation_reason AS cancellationReason,
-          oi.cancelled_at AS cancelledAt,
-          CAST(kti.kitchen_ticket_id AS CHAR) AS kitchenTicketId,
-          CAST(kti.id AS CHAR) AS kitchenTicketItemId,
-          kti.preparation_status AS preparationStatus,
-          kt.current_version AS kitchenTicketVersion
-        FROM order_items AS oi
-        INNER JOIN kitchen_ticket_items AS kti
-          ON kti.business_id = oi.business_id
-          AND kti.order_item_id = oi.id
-        INNER JOIN kitchen_tickets AS kt
-          ON kt.business_id = kti.business_id
-          AND kt.id = kti.kitchen_ticket_id
-        WHERE
-          oi.business_id = ?
-          AND oi.order_id = ?
-          AND oi.id = ?
-        LIMIT 1
-      `,
+          SELECT
+            CAST(oi.id AS CHAR) AS orderItemId,
+            oi.status AS orderItemStatus,
+            oi.cancellation_reason
+              AS cancellationReason,
+            oi.cancelled_at AS cancelledAt,
+            CAST(kti.kitchen_ticket_id AS CHAR)
+              AS kitchenTicketId,
+            CAST(kti.id AS CHAR)
+              AS kitchenTicketItemId,
+            kti.preparation_status
+              AS preparationStatus,
+            kt.current_version
+              AS kitchenTicketVersion
+          FROM order_items AS oi
+          INNER JOIN kitchen_ticket_items AS kti
+            ON kti.business_id = oi.business_id
+            AND kti.order_item_id = oi.id
+          INNER JOIN kitchen_tickets AS kt
+            ON kt.business_id = kti.business_id
+            AND kt.id = kti.kitchen_ticket_id
+          WHERE
+            oi.business_id = ?
+            AND oi.order_id = ?
+            AND oi.id = ?
+          LIMIT 1
+        `,
       [businessId, orderId, orderItemId],
     );
 
@@ -397,6 +443,7 @@ const cancelOrderItem = async (
         preparationStatus: cancelledItem.preparationStatus,
         kitchenTicketVersion: cancelledItem.kitchenTicketVersion,
         orderStatus,
+        inventoryReversalMovementId,
       },
     };
   } catch (error) {
@@ -408,4 +455,5 @@ const cancelOrderItem = async (
 };
 
 export { cancelOrderItem };
+
 export type { CancelOrderItemResult, CancelledOrderItem };

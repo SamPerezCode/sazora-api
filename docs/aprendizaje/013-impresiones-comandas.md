@@ -158,6 +158,8 @@ Una reimpresión:
 `contentSnapshot` conserva:
 
 - Negocio, orden y comanda.
+- Nombre comercial del negocio utilizado como encabezado.
+- Texto configurable para el pie de la comanda.
 - Área de preparación.
 - Versión de la comanda.
 - Modalidad de servicio.
@@ -170,6 +172,14 @@ Una reimpresión:
 
 Esto permite reimprimir una versión histórica aunque el catálogo, la orden o la
 comanda cambien posteriormente.
+
+El encabezado se obtiene de `businesses.name` y el pie se obtiene de
+`business_settings.kitchen_ticket_footer` en el momento de crear la copia. La
+firma `SAZORA` es una identificación fija de la plataforma y no forma parte de
+la configuración editable del negocio.
+
+Las copias creadas antes de incorporar estos campos conservan su estructura
+original. No deben reescribirse, porque el historial de impresión es inmutable.
 
 ## 9. Aislamiento multiempresa
 
