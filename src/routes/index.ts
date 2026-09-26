@@ -18,6 +18,7 @@ import { inventoryItemRouter } from "../modules/inventory-items/inventory-item.r
 import { inventoryMovementRouter } from "../modules/inventory-movements/inventory-movement.routes";
 import { productionRouter } from "../modules/production/production.routes";
 import { productInventoryLinkRouter } from "../modules/product-inventory-links/product-inventory-link.routes";
+import { dashboardRouter } from "../modules/dashboard/dashboard.routes";
 
 import {
   publicOrderRequestRouter,
@@ -28,6 +29,7 @@ const apiRouter = Router();
 
 apiRouter.use("/health", healthRouter);
 apiRouter.use("/auth", authRouter);
+apiRouter.use("/dashboard", dashboardRouter);
 apiRouter.use("/public/businesses", publicMenuRouter);
 apiRouter.use("/business-settings", businessSettingsRouter);
 apiRouter.use("/employees", employeeRouter);
