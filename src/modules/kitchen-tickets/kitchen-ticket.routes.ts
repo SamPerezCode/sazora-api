@@ -16,28 +16,28 @@ const kitchenTicketRouter = Router();
 kitchenTicketRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN", "KITCHEN"),
+  authorizeRoles("ADMIN", "KITCHEN", "WAITER"),
   listKitchenTicketsController,
 );
 
 kitchenTicketRouter.get(
   "/:kitchenTicketId/prints",
   authenticate,
-  authorizeRoles("ADMIN", "KITCHEN"),
+  authorizeRoles("ADMIN", "KITCHEN", "WAITER"),
   listKitchenTicketPrintsController,
 );
 
 kitchenTicketRouter.post(
   "/:kitchenTicketId/prints",
   authenticate,
-  authorizeRoles("ADMIN", "KITCHEN"),
+  authorizeRoles("ADMIN", "KITCHEN", "WAITER"),
   createKitchenTicketPrintController,
 );
 
 kitchenTicketRouter.post(
   "/:kitchenTicketId/prints/:kitchenTicketPrintId/reprint",
   authenticate,
-  authorizeRoles("ADMIN", "KITCHEN"),
+  authorizeRoles("ADMIN", "KITCHEN", "WAITER"),
   reprintKitchenTicketController,
 );
 

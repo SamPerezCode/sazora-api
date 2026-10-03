@@ -15,14 +15,14 @@ const restaurantTableRouter = Router();
 restaurantTableRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizeRoles("ADMIN", "WAITER"),
   listRestaurantTablesController,
 );
 
 restaurantTableRouter.get(
   "/:restaurantTableId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizeRoles("ADMIN", "WAITER"),
   getRestaurantTableController,
 );
 

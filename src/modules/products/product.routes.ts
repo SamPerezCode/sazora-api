@@ -25,7 +25,7 @@ const productRouter = Router();
 productRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizeRoles("ADMIN", "WAITER"),
   listProductsController,
 );
 
@@ -48,7 +48,7 @@ productRouter.post(
 productRouter.get(
   "/combos/:comboProductId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizeRoles("ADMIN", "WAITER"),
   getComboProductController,
 );
 
@@ -70,7 +70,7 @@ productRouter.post(
 productRouter.get(
   "/:productId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizeRoles("ADMIN", "WAITER"),
   getProductController,
 );
 
