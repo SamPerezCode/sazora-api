@@ -1,14 +1,15 @@
 import { emitOrderCreated } from "../../../realtime/realtime.events";
 import { AppError } from "../../../shared/errors/app-error";
-import type { Order } from "../order.types";
+import type { OrderDetail } from "../order.types";
 import { createOrder as createOrderRecord } from "../repositories/order.repository";
 import type { CreateOrderInput } from "../schemas/create-order.schema";
+import { getOrder } from "./get-order.service";
 
 const createOrder = async (
   businessId: string,
   membershipId: string,
   input: CreateOrderInput,
-): Promise<Order> => {
+): Promise<OrderDetail> => {
   const result = await createOrderRecord(businessId, {
     ...input,
     openedByMembershipId: membershipId,
@@ -16,7 +17,7 @@ const createOrder = async (
 
   switch (result.kind) {
     case "CREATED": {
-      const { order } = result;
+      const order = await getOrder(businessId, result.order.id);
 
       emitOrderCreated({
         businessId,
@@ -52,6 +53,20 @@ const createOrder = async (
         "La mesa ya tiene una orden activa",
         409,
         "RESTAURANT_TABLE_OCCUPIED",
+      );
+
+    case "PRODUCT_NOT_FOUND":
+      throw new AppError(
+        "Uno de los productos no existe",
+        404,
+        "PRODUCT_NOT_FOUND",
+      );
+
+    case "PRODUCT_UNAVAILABLE":
+      throw new AppError(
+        "Uno de los productos no está disponible",
+        409,
+        "PRODUCT_UNAVAILABLE",
       );
   }
 };

@@ -5,6 +5,26 @@ const databaseIdSchema = z
   .trim()
   .regex(/^[1-9]\d*$/, "El identificador no es válido");
 
+const initialOrderItemSchema = z
+  .object({
+    productId: databaseIdSchema,
+
+    quantity: z
+      .number()
+      .int("La cantidad debe ser un número entero")
+      .min(1, "La cantidad debe ser mayor que cero")
+      .max(65535, "La cantidad no puede superar 65535"),
+
+    notes: z
+      .string()
+      .trim()
+      .max(500, "Las observaciones no pueden superar 500 caracteres")
+      .nullable()
+      .optional()
+      .transform((value) => (value && value.length > 0 ? value : null)),
+  })
+  .strict();
+
 const createOrderSchema = z
   .object({
     serviceType: z.enum(["TABLE", "TAKEAWAY", "DELIVERY"]),
@@ -30,6 +50,11 @@ const createOrderSchema = z
       .nullable()
       .optional()
       .transform((value) => (value && value.length > 0 ? value : null)),
+
+    items: z
+      .array(initialOrderItemSchema)
+      .min(1, "Debes enviar al menos un producto")
+      .max(50, "No puedes agregar más de 50 productos por petición"),
   })
   .strict()
   .superRefine((input, context) => {

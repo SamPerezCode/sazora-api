@@ -4,6 +4,9 @@ import { authenticate } from "../auth/middlewares/authenticate.middleware";
 import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
 import {
   addOrderItemsController,
+  cancelOrderController,
+  cancelOrderItemController,
+  closeOrderController,
   confirmOrderController,
   createOrderController,
   getOrderController,
@@ -11,8 +14,6 @@ import {
   removeOrderItemController,
   updateOrderController,
   updateOrderItemController,
-  cancelOrderItemController,
-  closeOrderController,
 } from "./controllers/order.controller";
 
 const orderRouter = Router();
@@ -43,6 +44,13 @@ orderRouter.patch(
   authenticate,
   authorizeRoles("ADMIN", "WAITER"),
   updateOrderController,
+);
+
+orderRouter.post(
+  "/:orderId/cancel",
+  authenticate,
+  authorizeRoles("ADMIN", "WAITER"),
+  cancelOrderController,
 );
 
 orderRouter.post(

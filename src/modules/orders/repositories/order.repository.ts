@@ -1,6 +1,7 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
+import type { ProductFulfillmentMode } from "../../products/product.types";
 import type {
   CreateOrderData,
   Order,
@@ -33,6 +34,15 @@ type ActiveOrderRow = RowDataPacket & {
   id: string;
 };
 
+type AvailableProductRow = RowDataPacket & {
+  id: string;
+  preparationAreaId: string;
+  fulfillmentMode: ProductFulfillmentMode;
+  name: string;
+  currentPrice: string;
+  isAvailable: number;
+};
+
 type CreateOrderResult =
   | Readonly<{
       kind: "CREATED";
@@ -46,6 +56,12 @@ type CreateOrderResult =
     }>
   | Readonly<{
       kind: "TABLE_OCCUPIED";
+    }>
+  | Readonly<{
+      kind: "PRODUCT_NOT_FOUND";
+    }>
+  | Readonly<{
+      kind: "PRODUCT_UNAVAILABLE";
     }>;
 
 const mapOrderRow = (row: OrderRow): Order => ({
@@ -77,15 +93,15 @@ const createOrder = async (
     if (data.serviceType === "TABLE") {
       const [tableRows] = await connection.execute<RestaurantTableStateRow[]>(
         `
-            SELECT
-              is_active AS isActive
-            FROM restaurant_tables
-            WHERE
-              business_id = ?
-              AND id = ?
-            LIMIT 1
-            FOR UPDATE
-          `,
+          SELECT
+            is_active AS isActive
+          FROM restaurant_tables
+          WHERE
+            business_id = ?
+            AND id = ?
+          LIMIT 1
+          FOR UPDATE
+        `,
         [businessId, data.restaurantTableId],
       );
 
@@ -109,19 +125,19 @@ const createOrder = async (
 
       const [activeOrderRows] = await connection.execute<ActiveOrderRow[]>(
         `
-            SELECT
-              CAST(id AS CHAR) AS id
-            FROM orders
-            WHERE
-              business_id = ?
-              AND restaurant_table_id = ?
-              AND status IN (
-                'OPEN',
-                'CONFIRMED',
-                'DELIVERED'
-              )
-            LIMIT 1
-          `,
+          SELECT
+            CAST(id AS CHAR) AS id
+          FROM orders
+          WHERE
+            business_id = ?
+            AND restaurant_table_id = ?
+            AND status IN (
+              'OPEN',
+              'CONFIRMED',
+              'DELIVERED'
+            )
+          LIMIT 1
+        `,
         [businessId, data.restaurantTableId],
       );
 
@@ -134,18 +150,76 @@ const createOrder = async (
       }
     }
 
+    const productIds = [...new Set(data.items.map((item) => item.productId))];
+
+    const productPlaceholders = productIds.map(() => "?").join(", ");
+
+    const [productRows] = await connection.execute<AvailableProductRow[]>(
+      `
+        SELECT
+          CAST(p.id AS CHAR) AS id,
+          CAST(p.preparation_area_id AS CHAR)
+            AS preparationAreaId,
+          p.fulfillment_mode AS fulfillmentMode,
+          p.name,
+          CAST(p.current_price AS CHAR)
+            AS currentPrice,
+          (
+            p.is_active = TRUE
+            AND c.is_active = TRUE
+            AND pa.is_active = TRUE
+          ) AS isAvailable
+        FROM products AS p
+        INNER JOIN categories AS c
+          ON c.business_id = p.business_id
+          AND c.id = p.category_id
+        INNER JOIN preparation_areas AS pa
+          ON pa.business_id = p.business_id
+          AND pa.id = p.preparation_area_id
+        WHERE
+          p.business_id = ?
+          AND p.id IN (${productPlaceholders})
+        FOR SHARE
+      `,
+      [businessId, ...productIds],
+    );
+
+    const productsById = new Map(
+      productRows.map((product) => [product.id, product]),
+    );
+
+    for (const item of data.items) {
+      const product = productsById.get(item.productId);
+
+      if (!product) {
+        await connection.rollback();
+
+        return {
+          kind: "PRODUCT_NOT_FOUND",
+        };
+      }
+
+      if (!product.isAvailable) {
+        await connection.rollback();
+
+        return {
+          kind: "PRODUCT_UNAVAILABLE",
+        };
+      }
+    }
+
     const [insertResult] = await connection.execute<ResultSetHeader>(
       `
-          INSERT INTO orders (
-            business_id,
-            restaurant_table_id,
-            opened_by_membership_id,
-            service_type,
-            customer_count,
-            notes
-          )
-          VALUES (?, ?, ?, ?, ?, ?)
-        `,
+        INSERT INTO orders (
+          business_id,
+          restaurant_table_id,
+          opened_by_membership_id,
+          service_type,
+          customer_count,
+          notes
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+      `,
       [
         businessId,
         data.restaurantTableId,
@@ -173,12 +247,89 @@ const createOrder = async (
       [businessId, orderId, data.openedByMembershipId],
     );
 
+    for (const item of data.items) {
+      const product = productsById.get(item.productId);
+
+      if (!product) {
+        throw new Error(
+          "No fue posible recuperar un producto previamente validado",
+        );
+      }
+
+      const [orderItemInsertResult] = await connection.execute<ResultSetHeader>(
+        `
+            INSERT INTO order_items (
+              business_id,
+              order_id,
+              product_id,
+              preparation_area_id,
+              fulfillment_mode,
+              added_by_membership_id,
+              product_name,
+              quantity,
+              unit_price,
+              notes
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+        [
+          businessId,
+          orderId,
+          product.id,
+          product.preparationAreaId,
+          product.fulfillmentMode,
+          data.openedByMembershipId,
+          product.name,
+          item.quantity,
+          product.currentPrice,
+          item.notes,
+        ],
+      );
+
+      const orderItemId = orderItemInsertResult.insertId.toString();
+
+      await connection.execute<ResultSetHeader>(
+        `
+          INSERT INTO order_item_changes (
+            business_id,
+            order_item_id,
+            changed_by_membership_id,
+            change_type,
+            previous_quantity,
+            new_quantity,
+            previous_notes,
+            new_notes,
+            reason
+          )
+          VALUES (
+            ?,
+            ?,
+            ?,
+            'ADDED',
+            NULL,
+            ?,
+            NULL,
+            ?,
+            NULL
+          )
+        `,
+        [
+          businessId,
+          orderItemId,
+          data.openedByMembershipId,
+          item.quantity,
+          item.notes,
+        ],
+      );
+    }
+
     const [orderRows] = await connection.execute<OrderRow[]>(
       `
         SELECT
           CAST(id AS CHAR) AS id,
           CAST(business_id AS CHAR) AS businessId,
-          CAST(restaurant_table_id AS CHAR) AS restaurantTableId,
+          CAST(restaurant_table_id AS CHAR)
+            AS restaurantTableId,
           CAST(opened_by_membership_id AS CHAR)
             AS openedByMembershipId,
           service_type AS serviceType,

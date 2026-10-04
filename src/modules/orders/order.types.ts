@@ -43,18 +43,19 @@ type OrderItem = Readonly<{
   updatedAt: Date;
 }>;
 
+type NewOrderItemData = Readonly<{
+  productId: string;
+  quantity: number;
+  notes: string | null;
+}>;
+
 type CreateOrderData = Readonly<{
   restaurantTableId: string | null;
   openedByMembershipId: string;
   serviceType: OrderServiceType;
   customerCount: number | null;
   notes: string | null;
-}>;
-
-type NewOrderItemData = Readonly<{
-  productId: string;
-  quantity: number;
-  notes: string | null;
+  items: readonly NewOrderItemData[];
 }>;
 
 type AddOrderItemsData = Readonly<{

@@ -6,11 +6,16 @@ import {
   orderIdParamsSchema,
   orderItemIdParamsSchema,
 } from "../schemas/add-order-item.schema";
+import { cancelOrderItemSchema } from "../schemas/cancel-order-item.schema";
+import { cancelOrderSchema } from "../schemas/cancel-order.schema";
 import { createOrderSchema } from "../schemas/create-order.schema";
 import { listOrdersQuerySchema } from "../schemas/list-orders.schema";
 import { updateOrderItemSchema } from "../schemas/update-order-item.schema";
 import { updateOrderSchema } from "../schemas/update-order.schema";
 import { addItemsToOrder } from "../services/add-order-item.service";
+import { cancelItemFromConfirmedOrder } from "../services/cancel-order-item.service";
+import { cancelOpenOrder } from "../services/cancel-order.service";
+import { closeDeliveredOrder } from "../services/close-order.service";
 import { confirmOrder } from "../services/confirm-order.service";
 import { createOrder } from "../services/create-order.service";
 import { getOrder } from "../services/get-order.service";
@@ -18,9 +23,6 @@ import { listOrders } from "../services/list-orders.service";
 import { removeItemFromOrder } from "../services/remove-order-item.service";
 import { updateItemInOrder } from "../services/update-order-item.service";
 import { updateOrderDetails } from "../services/update-order.service";
-import { cancelOrderItemSchema } from "../schemas/cancel-order-item.schema";
-import { cancelItemFromConfirmedOrder } from "../services/cancel-order-item.service";
-import { closeDeliveredOrder } from "../services/close-order.service";
 
 const createOrderController: RequestHandler = async (request, response) => {
   if (!request.auth) {
@@ -115,6 +117,31 @@ const updateOrderController: RequestHandler = async (request, response) => {
   });
 };
 
+const cancelOrderController: RequestHandler = async (request, response) => {
+  if (!request.auth) {
+    throw new AppError(
+      "Se requiere autenticación",
+      401,
+      "AUTHENTICATION_REQUIRED",
+    );
+  }
+
+  const { orderId } = orderIdParamsSchema.parse(request.params);
+  const input = cancelOrderSchema.parse(request.body);
+
+  const result = await cancelOpenOrder(
+    request.auth.businessId,
+    request.auth.membershipId,
+    orderId,
+    input,
+  );
+
+  response.status(200).json({
+    status: "success",
+    data: result,
+  });
+};
+
 const confirmOrderController: RequestHandler = async (request, response) => {
   if (!request.auth) {
     throw new AppError(
@@ -148,7 +175,6 @@ const addOrderItemsController: RequestHandler = async (request, response) => {
   }
 
   const { orderId } = orderIdParamsSchema.parse(request.params);
-
   const input = addOrderItemsSchema.parse(request.body);
 
   const orderItems = await addItemsToOrder(
@@ -272,6 +298,7 @@ const closeOrderController: RequestHandler = async (request, response) => {
 
 export {
   addOrderItemsController,
+  cancelOrderController,
   cancelOrderItemController,
   closeOrderController,
   confirmOrderController,
