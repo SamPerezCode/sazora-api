@@ -1,26 +1,46 @@
-import { emitOrderStatusUpdated } from "../../../realtime/realtime.events";
+import {
+  emitOrderItemCancelled,
+  emitOrderStatusUpdated,
+} from "../../../realtime/realtime.events";
 import { AppError } from "../../../shared/errors/app-error";
 import type { OrderDetail } from "../order.types";
-import { cancelOpenOrder as cancelOpenOrderRecord } from "../repositories/cancel-order.repository";
+import {
+  cancelOrder as cancelOrderRecord,
+  type CancelledConfirmedItem,
+} from "../repositories/cancel-order.repository";
 import type { CancelOrderInput } from "../schemas/cancel-order.schema";
 import { getOrder } from "./get-order.service";
 
-type CancelOpenOrderOutput = Readonly<{
+type CancelledOrderItemOutput = Readonly<{
+  orderItemId: string;
+  kitchenTicketId: string;
+  kitchenTicketItemId: string;
+  kitchenTicketVersion: number;
+  previousPreparationStatus: CancelledConfirmedItem["previousPreparationStatus"];
+  preparationStatus: "CANCELLED";
+  inventoryReversalMovementId: string | null;
+  cancelledAt: string;
+}>;
+
+type CancelOrderOutput = Readonly<{
   order: OrderDetail;
   cancellation: Readonly<{
     reason: string;
+    previousStatus: "OPEN" | "CONFIRMED";
+    status: "CANCELLED";
     cancelledByMembershipId: string;
     cancelledItemCount: number;
+    cancelledItems: readonly CancelledOrderItemOutput[];
   }>;
 }>;
 
-const cancelOpenOrder = async (
+const cancelOrder = async (
   businessId: string,
   membershipId: string,
   orderId: string,
   input: CancelOrderInput,
-): Promise<CancelOpenOrderOutput> => {
-  const result = await cancelOpenOrderRecord(
+): Promise<CancelOrderOutput> => {
+  const result = await cancelOrderRecord(
     businessId,
     membershipId,
     orderId,
@@ -31,22 +51,54 @@ const cancelOpenOrder = async (
     case "CANCELLED": {
       const order = await getOrder(businessId, orderId);
 
+      const cancelledItems = result.cancelledItems.map((cancelledItem) => ({
+        orderItemId: cancelledItem.orderItemId,
+        kitchenTicketId: cancelledItem.kitchenTicketId,
+        kitchenTicketItemId: cancelledItem.kitchenTicketItemId,
+        kitchenTicketVersion: cancelledItem.kitchenTicketVersion,
+        previousPreparationStatus: cancelledItem.previousPreparationStatus,
+        preparationStatus: "CANCELLED" as const,
+        inventoryReversalMovementId: cancelledItem.inventoryReversalMovementId,
+        cancelledAt: cancelledItem.cancelledAt.toISOString(),
+      }));
+
+      for (const cancelledItem of cancelledItems) {
+        emitOrderItemCancelled({
+          businessId,
+          orderId,
+          orderItemId: cancelledItem.orderItemId,
+          kitchenTicketId: cancelledItem.kitchenTicketId,
+          kitchenTicketItemId: cancelledItem.kitchenTicketItemId,
+          kitchenTicketVersion: cancelledItem.kitchenTicketVersion,
+          preparationStatus: "CANCELLED",
+          orderStatus: "CANCELLED",
+          cancellationReason: input.reason,
+          cancelledByMembershipId: membershipId,
+          cancelledAt: cancelledItem.cancelledAt,
+        });
+      }
+
+      const changedAt =
+        order.cancelledAt?.toISOString() ?? order.updatedAt.toISOString();
+
       emitOrderStatusUpdated({
         businessId,
         orderId: order.id,
-        previousStatus: "OPEN",
+        previousStatus: result.previousStatus,
         status: "CANCELLED",
         changedByMembershipId: membershipId,
-        changedAt:
-          order.cancelledAt?.toISOString() ?? order.updatedAt.toISOString(),
+        changedAt,
       });
 
       return {
         order,
         cancellation: {
           reason: input.reason,
+          previousStatus: result.previousStatus,
+          status: "CANCELLED",
           cancelledByMembershipId: membershipId,
           cancelledItemCount: result.cancelledItemCount,
+          cancelledItems,
         },
       };
     }
@@ -54,14 +106,22 @@ const cancelOpenOrder = async (
     case "ORDER_NOT_FOUND":
       throw new AppError("La orden no existe", 404, "ORDER_NOT_FOUND");
 
-    case "ORDER_NOT_OPEN":
+    case "ORDER_NOT_CANCELLABLE":
       throw new AppError(
-        "Solo se pueden cancelar órdenes abiertas desde este endpoint",
+        `No se puede cancelar una orden en estado ${result.currentStatus}`,
         409,
-        "ORDER_NOT_OPEN",
+        "ORDER_NOT_CANCELLABLE",
+      );
+
+    case "ORDER_HAS_DELIVERED_ITEMS":
+      throw new AppError(
+        "No se puede cancelar completamente una orden que ya tiene productos entregados",
+        409,
+        "ORDER_HAS_DELIVERED_ITEMS",
       );
   }
 };
 
-export { cancelOpenOrder };
-export type { CancelOpenOrderOutput };
+export { cancelOrder };
+
+export type { CancelOrderOutput };

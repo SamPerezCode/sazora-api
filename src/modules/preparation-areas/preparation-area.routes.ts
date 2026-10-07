@@ -12,20 +12,30 @@ import {
 
 const preparationAreaRouter = Router();
 
+/**
+ * ADMIN:
+ * Puede consultar todas las áreas para administrarlas.
+ *
+ * KITCHEN:
+ * Puede consultar las áreas para filtrar sus comandas.
+ */
 preparationAreaRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizeRoles("ADMIN", "KITCHEN"),
   listPreparationAreasController,
 );
 
 preparationAreaRouter.get(
   "/:preparationAreaId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizeRoles("ADMIN", "KITCHEN"),
   getPreparationAreaController,
 );
 
+/**
+ * Solamente ADMIN puede crear o modificar áreas.
+ */
 preparationAreaRouter.post(
   "/",
   authenticate,
