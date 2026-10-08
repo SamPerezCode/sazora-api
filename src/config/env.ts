@@ -24,7 +24,7 @@ const environmentSchema = z.object({
     .string()
     .min(64, "JWT_SECRET debe contener al menos 64 caracteres"),
 
-  JWT_EXPIRES_IN: z.enum(["15m", "1h", "8h", "1d", "7d"]).default("8h"),
+  JWT_EXPIRES_IN: z.enum(["15m", "1h", "8h", "1d", "7d"]).default("1d"),
 
   SMTP_HOST: z.string().trim().min(1, "SMTP_HOST es obligatoria"),
 
