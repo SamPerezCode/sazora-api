@@ -12,6 +12,7 @@ import { createOrderSchema } from "../schemas/create-order.schema";
 import { listOrdersQuerySchema } from "../schemas/list-orders.schema";
 import { updateOrderItemSchema } from "../schemas/update-order-item.schema";
 import { updateOrderSchema } from "../schemas/update-order.schema";
+import { cancelOrderItemQuantitySchema } from "../schemas/cancel-order-item-quantity.schema";
 import { addItemsToOrder } from "../services/add-order-item.service";
 import { cancelItemFromConfirmedOrder } from "../services/cancel-order-item.service";
 import { cancelOrder } from "../services/cancel-order.service";
@@ -23,6 +24,7 @@ import { listOrders } from "../services/list-orders.service";
 import { removeItemFromOrder } from "../services/remove-order-item.service";
 import { updateItemInOrder } from "../services/update-order-item.service";
 import { updateOrderDetails } from "../services/update-order.service";
+import { cancelQuantityFromConfirmedOrderItem } from "../services/cancel-order-item-quantity.service";
 
 const createOrderController: RequestHandler = async (request, response) => {
   if (!request.auth) {
@@ -297,10 +299,45 @@ const closeOrderController: RequestHandler = async (request, response) => {
   });
 };
 
+const cancelOrderItemQuantityController: RequestHandler = async (
+  request,
+  response,
+) => {
+  if (!request.auth) {
+    throw new AppError(
+      "Se requiere autenticación",
+      401,
+      "AUTHENTICATION_REQUIRED",
+    );
+  }
+
+  const { orderId, orderItemId } = orderItemIdParamsSchema.parse(
+    request.params,
+  );
+
+  const input = cancelOrderItemQuantitySchema.parse(request.body);
+
+  const adjustment = await cancelQuantityFromConfirmedOrderItem(
+    request.auth.businessId,
+    request.auth.membershipId,
+    orderId,
+    orderItemId,
+    input,
+  );
+
+  response.status(200).json({
+    status: "success",
+    data: {
+      adjustment,
+    },
+  });
+};
+
 export {
   addOrderItemsController,
   cancelOrderController,
   cancelOrderItemController,
+  cancelOrderItemQuantityController,
   closeOrderController,
   confirmOrderController,
   createOrderController,

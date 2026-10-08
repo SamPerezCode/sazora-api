@@ -237,6 +237,9 @@ interface ServerToClientEvents {
     payload: PublicOrderRequestOrderClosedPayload,
   ) => void;
   "delivery:status-updated": (payload: DeliveryStatusUpdatedPayload) => void;
+  "order:item-quantity-cancelled": (
+    payload: OrderItemQuantityCancelledPayload,
+  ) => void;
 }
 
 type InterServerEvents = Record<never, never>;
@@ -263,6 +266,22 @@ interface PublicOrderRequestStatusUpdatedPayload {
   changedAt: string;
 }
 
+interface OrderItemQuantityCancelledPayload {
+  businessId: string;
+  orderId: string;
+  orderItemId: string;
+  kitchenTicketId: string;
+  kitchenTicketItemId: string;
+  kitchenTicketVersion: number;
+  previousQuantity: number;
+  cancelledQuantity: number;
+  remainingQuantity: number;
+  preparationStatus: "PENDING" | "IN_PREPARATION" | "READY";
+  cancellationReason: string;
+  cancelledByMembershipId: string;
+  adjustedAt: string;
+}
+
 export type {
   ClientToServerEvents,
   InterServerEvents,
@@ -272,6 +291,7 @@ export type {
   OrderCreatedPayload,
   OrderItemAddedPayloadItem,
   OrderItemCancelledPayload,
+  OrderItemQuantityCancelledPayload,
   OrderItemRemovedPayload,
   OrderItemsAddedPayload,
   OrderItemUpdatedPayload,

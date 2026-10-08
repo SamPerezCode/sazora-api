@@ -5,6 +5,7 @@ import type {
   OrderConfirmedPayload,
   OrderCreatedPayload,
   OrderItemCancelledPayload,
+  OrderItemQuantityCancelledPayload,
   OrderItemRemovedPayload,
   OrderItemsAddedPayload,
   OrderItemUpdatedPayload,
@@ -80,6 +81,14 @@ const emitOrderItemCancelled = (payload: OrderItemCancelledPayload): void => {
   getRealtimeServer()
     .to(getOperationalRooms(payload.businessId))
     .emit("order:item-cancelled", payload);
+};
+
+const emitOrderItemQuantityCancelled = (
+  payload: OrderItemQuantityCancelledPayload,
+): void => {
+  getRealtimeServer()
+    .to(getOperationalRooms(payload.businessId))
+    .emit("order:item-quantity-cancelled", payload);
 };
 
 const emitOrderUpdated = (payload: OrderUpdatedPayload): void => {
@@ -172,6 +181,7 @@ export {
   emitOrderConfirmed,
   emitOrderCreated,
   emitOrderItemCancelled,
+  emitOrderItemQuantityCancelled,
   emitOrderItemRemoved,
   emitOrderItemsAdded,
   emitOrderItemUpdated,

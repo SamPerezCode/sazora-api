@@ -6,6 +6,7 @@ import {
   addOrderItemsController,
   cancelOrderController,
   cancelOrderItemController,
+  cancelOrderItemQuantityController,
   closeOrderController,
   confirmOrderController,
   createOrderController,
@@ -79,6 +80,13 @@ orderRouter.patch(
   authenticate,
   authorizeRoles("ADMIN", "WAITER"),
   updateOrderItemController,
+);
+
+orderRouter.post(
+  "/:orderId/items/:orderItemId/cancel-quantity",
+  authenticate,
+  authorizeRoles("ADMIN", "WAITER"),
+  cancelOrderItemQuantityController,
 );
 
 orderRouter.post(
