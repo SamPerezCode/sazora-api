@@ -1,4 +1,7 @@
-import { emitOrderItemQuantityCancelled } from "../../../realtime/realtime.events";
+import {
+  emitInventoryChanged,
+  emitOrderItemQuantityCancelled,
+} from "../../../realtime/realtime.events";
 import { AppError } from "../../../shared/errors/app-error";
 import {
   cancelOrderItemQuantity,
@@ -41,6 +44,10 @@ const cancelQuantityFromConfirmedOrderItem = async (
         cancelledByMembershipId: membershipId,
         adjustedAt: adjustment.adjustedAt.toISOString(),
       });
+
+      if (adjustment.inventoryReversalMovementId !== null) {
+        emitInventoryChanged(businessId);
+      }
 
       return adjustment;
     }

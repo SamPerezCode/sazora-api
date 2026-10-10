@@ -1,5 +1,6 @@
 import type { RequestHandler } from "express";
 
+import { emitInventoryChanged } from "../../../realtime/realtime.events";
 import { AppError } from "../../../shared/errors/app-error";
 import {
   configureProductInventoryParamsSchema,
@@ -31,6 +32,8 @@ const configureProductInventoryController: RequestHandler = async (
     productId,
     input,
   );
+
+  emitInventoryChanged(request.auth.businessId);
 
   response.status(201).json({
     status: "success",

@@ -44,6 +44,14 @@ const configureProductInventory = async (
     );
   }
 
+  if (result.kind === "COMBO_INVENTORY_SETUP_NOT_ALLOWED") {
+    throw new AppError(
+      "El combo consume el inventario de sus componentes y debe gestionarse mediante su composición",
+      409,
+      "COMBO_INVENTORY_SETUP_NOT_ALLOWED",
+    );
+  }
+
   const [product, inventoryItem, link] = await Promise.all([
     findProductById(businessId, productId),
 

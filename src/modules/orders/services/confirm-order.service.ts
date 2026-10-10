@@ -1,4 +1,7 @@
-import { emitOrderConfirmed } from "../../../realtime/realtime.events";
+import {
+  emitInventoryChanged,
+  emitOrderConfirmed,
+} from "../../../realtime/realtime.events";
 import { AppError } from "../../../shared/errors/app-error";
 import type { OrderDetail } from "../order.types";
 import {
@@ -30,6 +33,10 @@ const confirmOrder = async (
         confirmedAt: order.confirmedAt?.toISOString() ?? null,
         kitchenTickets: result.kitchenTickets,
       });
+
+      if (result.inventoryChanged) {
+        emitInventoryChanged(businessId);
+      }
 
       return {
         order,

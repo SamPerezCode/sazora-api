@@ -1,5 +1,6 @@
 import { AppError } from "../../../shared/errors/app-error";
 import {
+  emitInventoryChanged,
   emitOrderItemCancelled,
   emitOrderStatusUpdated,
 } from "../../../realtime/realtime.events";
@@ -51,6 +52,10 @@ const cancelItemFromConfirmedOrder = async (
           changedByMembershipId: membershipId,
           changedAt: cancellation.cancelledAt.toISOString(),
         });
+      }
+
+      if (cancellation.inventoryReversalMovementId !== null) {
+        emitInventoryChanged(businessId);
       }
 
       return result.cancellation;

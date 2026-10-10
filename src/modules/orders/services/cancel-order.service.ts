@@ -1,4 +1,5 @@
 import {
+  emitInventoryChanged,
   emitOrderItemCancelled,
   emitOrderStatusUpdated,
 } from "../../../realtime/realtime.events";
@@ -89,6 +90,12 @@ const cancelOrder = async (
         changedByMembershipId: membershipId,
         changedAt,
       });
+
+      if (
+        cancelledItems.some((item) => item.inventoryReversalMovementId !== null)
+      ) {
+        emitInventoryChanged(businessId);
+      }
 
       return {
         order,

@@ -1,5 +1,6 @@
 import type { RequestHandler } from "express";
 
+import { emitInventoryChanged } from "../../../realtime/realtime.events";
 import { AppError } from "../../../shared/errors/app-error";
 import {
   createProductInventoryLinkSchema,
@@ -72,6 +73,8 @@ const createProductInventoryLinkController: RequestHandler = async (
 
   const link = await createProductInventoryLink(auth.businessId, input);
 
+  emitInventoryChanged(auth.businessId);
+
   response.status(201).json({
     status: "success",
     data: { link },
@@ -95,6 +98,8 @@ const updateProductInventoryLinkController: RequestHandler = async (
     productInventoryLinkId,
     input,
   );
+
+  emitInventoryChanged(auth.businessId);
 
   response.status(200).json({
     status: "success",
@@ -121,6 +126,8 @@ const updateProductInventoryLinkStatusController: RequestHandler = async (
     productInventoryLinkId,
     isActive,
   );
+
+  emitInventoryChanged(auth.businessId);
 
   response.status(200).json({
     status: "success",

@@ -1,5 +1,6 @@
 import type { RequestHandler } from "express";
 
+import { emitInventoryChanged } from "../../../realtime/realtime.events";
 import { AppError } from "../../../shared/errors/app-error";
 import { createProductSchema } from "../schemas/create-product.schema";
 import {
@@ -126,6 +127,8 @@ const updateProductStatusController: RequestHandler = async (
     productId,
     input,
   );
+
+  emitInventoryChanged(request.auth.businessId);
 
   response.status(200).json({
     status: "success",

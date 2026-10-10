@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { getBusinessRoleRoom, getMembershipRoom } from "./realtime.rooms";
 import { getRealtimeServer } from "./realtime.server";
 import type {
@@ -17,7 +19,32 @@ import type {
   PublicOrderRequestPreparationUpdatedPayload,
   PublicOrderRequestOrderClosedPayload,
   DeliveryStatusUpdatedPayload,
+  InventoryChangedPayload,
 } from "./realtime.types";
+
+const emitSafely = (eventName: string, operation: () => void): void => {
+  try {
+    operation();
+  } catch (error) {
+    // Los eventos son notificaciones posteriores al commit. Nunca deben
+    // convertir una escritura confirmada en un error reintentable por HTTP.
+    console.error(`No fue posible emitir ${eventName}`, error);
+  }
+};
+
+const emitInventoryChanged = (businessId: string): void => {
+  const payload: InventoryChangedPayload = {
+    eventId: randomUUID(),
+    businessId,
+    occurredAt: new Date().toISOString(),
+  };
+
+  emitSafely("inventory:changed", () => {
+    getRealtimeServer()
+      .to(getBusinessRoleRoom(businessId, "ADMIN"))
+      .emit("inventory:changed", payload);
+  });
+};
 
 const getOperationalRooms = (businessId: string): string[] => [
   getBusinessRoleRoom(businessId, "ADMIN"),
@@ -37,9 +64,11 @@ const emitOrderCreated = (payload: OrderCreatedPayload): void => {
 };
 
 const emitOrderConfirmed = (payload: OrderConfirmedPayload): void => {
-  getRealtimeServer()
-    .to(getOperationalRooms(payload.businessId))
-    .emit("order:confirmed", payload);
+  emitSafely("order:confirmed", () => {
+    getRealtimeServer()
+      .to(getOperationalRooms(payload.businessId))
+      .emit("order:confirmed", payload);
+  });
 };
 
 const emitKitchenTicketItemStatusUpdated = (
@@ -51,9 +80,11 @@ const emitKitchenTicketItemStatusUpdated = (
 };
 
 const emitOrderStatusUpdated = (payload: OrderStatusUpdatedPayload): void => {
-  getRealtimeServer()
-    .to(getOperationalRooms(payload.businessId))
-    .emit("order:status-updated", payload);
+  emitSafely("order:status-updated", () => {
+    getRealtimeServer()
+      .to(getOperationalRooms(payload.businessId))
+      .emit("order:status-updated", payload);
+  });
 };
 
 const emitOrderItemsAdded = (payload: OrderItemsAddedPayload): void => {
@@ -62,7 +93,9 @@ const emitOrderItemsAdded = (payload: OrderItemsAddedPayload): void => {
       ? getOperationalRooms(payload.businessId)
       : getOrderEditingRooms(payload.businessId);
 
-  getRealtimeServer().to(rooms).emit("order:items-added", payload);
+  emitSafely("order:items-added", () => {
+    getRealtimeServer().to(rooms).emit("order:items-added", payload);
+  });
 };
 
 const emitOrderItemUpdated = (payload: OrderItemUpdatedPayload): void => {
@@ -78,17 +111,21 @@ const emitOrderItemRemoved = (payload: OrderItemRemovedPayload): void => {
 };
 
 const emitOrderItemCancelled = (payload: OrderItemCancelledPayload): void => {
-  getRealtimeServer()
-    .to(getOperationalRooms(payload.businessId))
-    .emit("order:item-cancelled", payload);
+  emitSafely("order:item-cancelled", () => {
+    getRealtimeServer()
+      .to(getOperationalRooms(payload.businessId))
+      .emit("order:item-cancelled", payload);
+  });
 };
 
 const emitOrderItemQuantityCancelled = (
   payload: OrderItemQuantityCancelledPayload,
 ): void => {
-  getRealtimeServer()
-    .to(getOperationalRooms(payload.businessId))
-    .emit("order:item-quantity-cancelled", payload);
+  emitSafely("order:item-quantity-cancelled", () => {
+    getRealtimeServer()
+      .to(getOperationalRooms(payload.businessId))
+      .emit("order:item-quantity-cancelled", payload);
+  });
 };
 
 const emitOrderUpdated = (payload: OrderUpdatedPayload): void => {
@@ -177,6 +214,7 @@ const emitDeliveryStatusUpdated = (
 };
 
 export {
+  emitInventoryChanged,
   emitKitchenTicketItemStatusUpdated,
   emitOrderConfirmed,
   emitOrderCreated,

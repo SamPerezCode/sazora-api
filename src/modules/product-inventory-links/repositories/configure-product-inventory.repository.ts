@@ -7,6 +7,7 @@ type ProductSetupRow = RowDataPacket & {
   id: string;
   name: string;
   isActive: number;
+  isCombo: number;
 };
 
 type ExistingLinkRow = RowDataPacket & {
@@ -25,6 +26,9 @@ type ConfigureProductInventoryResult =
   | Readonly<{
       kind: "ALREADY_CONFIGURED";
       productInventoryLinkId: string;
+    }>
+  | Readonly<{
+      kind: "COMBO_INVENTORY_SETUP_NOT_ALLOWED";
     }>;
 
 const configureProductInventoryRecord = async (
@@ -43,7 +47,14 @@ const configureProductInventoryRecord = async (
           SELECT
             CAST(id AS CHAR) AS id,
             name,
-            is_active AS isActive
+            is_active AS isActive,
+            EXISTS (
+              SELECT 1
+              FROM product_combo_components AS pcc
+              WHERE
+                pcc.business_id = products.business_id
+                AND pcc.combo_product_id = products.id
+            ) AS isCombo
           FROM products
           WHERE
             business_id = ?
@@ -56,7 +67,23 @@ const configureProductInventoryRecord = async (
 
     const product = productRows[0];
 
-    if (product?.isActive !== 1) {
+    if (!product) {
+      await connection.rollback();
+
+      return {
+        kind: "PRODUCT_NOT_AVAILABLE",
+      };
+    }
+
+    if (product.isCombo === 1) {
+      await connection.rollback();
+
+      return {
+        kind: "COMBO_INVENTORY_SETUP_NOT_ALLOWED",
+      };
+    }
+
+    if (product.isActive !== 1) {
       await connection.rollback();
 
       return {

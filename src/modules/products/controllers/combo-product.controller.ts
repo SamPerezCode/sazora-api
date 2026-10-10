@@ -1,5 +1,6 @@
 import type { RequestHandler } from "express";
 
+import { emitInventoryChanged } from "../../../realtime/realtime.events";
 import { AppError } from "../../../shared/errors/app-error";
 import { createComboProductSchema } from "../schemas/create-combo-product.schema";
 import {
@@ -35,6 +36,8 @@ const createComboProductController: RequestHandler = async (
     input,
     request.file?.buffer,
   );
+
+  emitInventoryChanged(auth.businessId);
 
   response.status(201).json({
     status: "success",
@@ -85,6 +88,10 @@ const updateComboProductController: RequestHandler = async (
     input,
     request.file?.buffer,
   );
+
+  if (input.components !== undefined) {
+    emitInventoryChanged(auth.businessId);
+  }
 
   response.status(200).json({
     status: "success",

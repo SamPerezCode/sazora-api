@@ -9,6 +9,7 @@ import type {
   OrderItemStatus,
   OrderStatus,
 } from "../order.types";
+import { deductOrderInventory } from "./deduct-order-inventory.repository";
 
 type OrderStateRow = RowDataPacket & {
   status: OrderStatus;
@@ -61,6 +62,7 @@ type AddOrderItemsResult =
       kind: "CREATED";
       orderStatus: OrderStatus;
       orderItems: OrderItem[];
+      inventoryChanged: boolean;
     }>
   | Readonly<{
       kind: "ORDER_NOT_FOUND";
@@ -73,6 +75,10 @@ type AddOrderItemsResult =
     }>
   | Readonly<{
       kind: "PRODUCT_UNAVAILABLE";
+    }>
+  | Readonly<{
+      kind: "INVENTORY_ITEM_NOT_AVAILABLE";
+      inventoryItemId: string;
     }>;
 
 const mapOrderItemRow = (row: OrderItemRow): OrderItem => ({
@@ -427,6 +433,29 @@ const addOrderItems = async (
 
     const orderItemIds = createdItemContexts.map((item) => item.orderItemId);
 
+    let inventoryChanged = false;
+
+    if (order.status === "CONFIRMED") {
+      const inventoryResult = await deductOrderInventory(
+        connection,
+        businessId,
+        data.addedByMembershipId,
+        orderId,
+        orderItemIds,
+      );
+
+      if (inventoryResult.kind === "INVENTORY_ITEM_NOT_AVAILABLE") {
+        await connection.rollback();
+
+        return {
+          kind: "INVENTORY_ITEM_NOT_AVAILABLE",
+          inventoryItemId: inventoryResult.inventoryItemId,
+        };
+      }
+
+      inventoryChanged = inventoryResult.kind === "DEDUCTED";
+    }
+
     const orderItemPlaceholders = orderItemIds.map(() => "?").join(", ");
 
     const [orderItemRows] = await connection.execute<OrderItemRow[]>(
@@ -481,6 +510,7 @@ const addOrderItems = async (
       kind: "CREATED",
       orderStatus: order.status,
       orderItems: createdOrderItems,
+      inventoryChanged,
     };
   } catch (error) {
     await connection.rollback();

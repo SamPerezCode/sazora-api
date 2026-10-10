@@ -14,6 +14,12 @@ interface SessionPingPayload {
   serverTime: string;
 }
 
+interface InventoryChangedPayload {
+  eventId: string;
+  businessId: string;
+  occurredAt: string;
+}
+
 interface KitchenTicketCreatedSummary {
   id: string;
   preparationAreaId: string;
@@ -209,6 +215,7 @@ interface DeliveryStatusUpdatedPayload {
 }
 
 interface ServerToClientEvents {
+  "inventory:changed": (payload: InventoryChangedPayload) => void;
   "public-order-request:created": (
     payload: PublicOrderRequestCreatedPayload,
   ) => void;
@@ -285,6 +292,7 @@ interface OrderItemQuantityCancelledPayload {
 export type {
   ClientToServerEvents,
   InterServerEvents,
+  InventoryChangedPayload,
   KitchenTicketCreatedSummary,
   KitchenTicketItemStatusUpdatedPayload,
   OrderConfirmedPayload,

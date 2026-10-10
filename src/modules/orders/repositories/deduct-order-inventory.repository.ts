@@ -66,7 +66,12 @@ const deductOrderInventory = async (
   businessId: string,
   membershipId: string,
   orderId: string,
+  includedOrderItemIds?: readonly string[],
 ): Promise<DeductOrderInventoryResult> => {
+  const includedItemFilter = includedOrderItemIds?.length
+    ? `AND oi.id IN (${includedOrderItemIds.map(() => "?").join(", ")})`
+    : "";
+
   const [requirementRows] = await connection.execute<InventoryRequirementRow[]>(
     `
         SELECT
@@ -87,11 +92,12 @@ const deductOrderInventory = async (
           oi.business_id = ?
           AND oi.order_id = ?
           AND oi.status = 'ACTIVE'
+          ${includedItemFilter}
         ORDER BY
           oi.id ASC,
           pil.inventory_item_id ASC
       `,
-    [businessId, orderId],
+    [businessId, orderId, ...(includedOrderItemIds ?? [])],
   );
 
   if (requirementRows.length === 0) {

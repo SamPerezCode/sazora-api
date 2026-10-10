@@ -28,6 +28,7 @@ type ProductListItem = Product &
     isAvailable: boolean;
     isCombo: boolean;
     hasInventory: boolean;
+    canBeComboComponent: boolean;
     inventoryTrackingType: ProductInventoryTrackingType;
   }>;
 

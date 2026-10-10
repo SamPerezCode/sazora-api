@@ -28,6 +28,7 @@ type ConfirmOrderResult =
   | Readonly<{
       kind: "CONFIRMED";
       kitchenTickets: readonly CreatedKitchenTicket[];
+      inventoryChanged: boolean;
     }>
   | Readonly<{
       kind: "ORDER_NOT_FOUND";
@@ -274,6 +275,7 @@ const confirmOrder = async (
     return {
       kind: "CONFIRMED",
       kitchenTickets,
+      inventoryChanged: inventoryResult.kind === "DEDUCTED",
     };
   } catch (error) {
     await connection.rollback();

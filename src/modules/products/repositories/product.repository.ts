@@ -34,6 +34,7 @@ type ProductListRow = ProductRow & {
   isAvailable: number;
   isCombo: number;
   hasInventory: number;
+  canBeComboComponent: number;
   inventoryTrackingType: ProductInventoryTrackingType;
 };
 
@@ -62,6 +63,7 @@ const mapProductListRow = (row: ProductListRow): ProductListItem => ({
   isAvailable: Boolean(row.isAvailable),
   isCombo: Boolean(row.isCombo),
   hasInventory: Boolean(row.hasInventory),
+  canBeComboComponent: Boolean(row.canBeComboComponent),
   inventoryTrackingType: row.inventoryTrackingType,
 });
 
@@ -111,6 +113,23 @@ const productListSelect = `
         AND pil.product_id = p.id
         AND pil.is_active = TRUE
     ) AS hasInventory,
+
+    (
+      p.is_active = TRUE
+      AND EXISTS (
+        SELECT 1
+        FROM product_inventory_links AS pil
+        INNER JOIN inventory_items AS ii
+          ON ii.business_id = pil.business_id
+          AND ii.id = pil.inventory_item_id
+          AND ii.is_active = TRUE
+        WHERE
+          pil.business_id = p.business_id
+          AND pil.product_id = p.id
+          AND pil.is_active = TRUE
+          AND pil.auto_deduct = TRUE
+      )
+    ) AS canBeComboComponent,
 
     CASE
       WHEN EXISTS (

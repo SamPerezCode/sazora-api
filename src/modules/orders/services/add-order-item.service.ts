@@ -1,5 +1,8 @@
 import { AppError } from "../../../shared/errors/app-error";
-import { emitOrderItemsAdded } from "../../../realtime/realtime.events";
+import {
+  emitInventoryChanged,
+  emitOrderItemsAdded,
+} from "../../../realtime/realtime.events";
 import type { OrderItem } from "../order.types";
 import { addOrderItems as addOrderItemsRecords } from "../repositories/order-item.repository";
 import type { AddOrderItemsInput } from "../schemas/add-order-item.schema";
@@ -34,6 +37,10 @@ const addItemsToOrder = async (
         })),
       });
 
+      if (result.inventoryChanged) {
+        emitInventoryChanged(businessId);
+      }
+
       return result.orderItems;
     }
 
@@ -59,6 +66,13 @@ const addItemsToOrder = async (
         "Uno de los productos no está disponible",
         409,
         "PRODUCT_UNAVAILABLE",
+      );
+
+    case "INVENTORY_ITEM_NOT_AVAILABLE":
+      throw new AppError(
+        `El artículo de inventario ${result.inventoryItemId} no existe o está inactivo`,
+        409,
+        "INVENTORY_ITEM_NOT_AVAILABLE",
       );
   }
 };
