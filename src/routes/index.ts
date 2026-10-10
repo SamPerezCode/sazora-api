@@ -20,6 +20,7 @@ import { productionRouter } from "../modules/production/production.routes";
 import { productInventoryLinkRouter } from "../modules/product-inventory-links/product-inventory-link.routes";
 import { dashboardRouter } from "../modules/dashboard/dashboard.routes";
 import { salesReportRouter } from "../modules/sales-reports/sales-report.routes";
+import { organizationProfileRouter } from "../modules/organization-profile/organization-profile.routes";
 
 import {
   publicOrderRequestRouter,
@@ -50,5 +51,6 @@ apiRouter.use("/inventory-items", inventoryItemRouter);
 apiRouter.use("/inventory-movements", inventoryMovementRouter);
 apiRouter.use("/production", productionRouter);
 apiRouter.use("/product-inventory-links", productInventoryLinkRouter);
+apiRouter.use("/organization-profile", organizationProfileRouter);
 
 export { apiRouter };
