@@ -21,6 +21,7 @@ import { productInventoryLinkRouter } from "../modules/product-inventory-links/p
 import { dashboardRouter } from "../modules/dashboard/dashboard.routes";
 import { salesReportRouter } from "../modules/sales-reports/sales-report.routes";
 import { organizationProfileRouter } from "../modules/organization-profile/organization-profile.routes";
+import { locationRouter } from "../modules/locations/location.routes";
 
 import {
   publicOrderRequestRouter,
@@ -35,6 +36,8 @@ apiRouter.use("/dashboard", dashboardRouter);
 apiRouter.use("/sales", salesReportRouter);
 apiRouter.use("/public/businesses", publicMenuRouter);
 apiRouter.use("/business-settings", businessSettingsRouter);
+apiRouter.use("/organization-profile", organizationProfileRouter);
+apiRouter.use("/locations", locationRouter);
 apiRouter.use("/employees", employeeRouter);
 apiRouter.use("/categories", categoryRouter);
 apiRouter.use("/preparation-areas", preparationAreaRouter);
@@ -51,6 +54,5 @@ apiRouter.use("/inventory-items", inventoryItemRouter);
 apiRouter.use("/inventory-movements", inventoryMovementRouter);
 apiRouter.use("/production", productionRouter);
 apiRouter.use("/product-inventory-links", productInventoryLinkRouter);
-apiRouter.use("/organization-profile", organizationProfileRouter);
 
 export { apiRouter };
