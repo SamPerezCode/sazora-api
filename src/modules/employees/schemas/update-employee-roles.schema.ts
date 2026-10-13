@@ -9,10 +9,11 @@ const updateEmployeeRolesSchema = z
           "KITCHEN",
           "PUBLIC_ORDER_MANAGER",
           "DELIVERY_DRIVER",
+          "PRODUCTION",
         ]),
       )
       .min(1, "Debes asignar al menos un rol")
-      .max(4, "No puedes asignar más de cuatro roles")
+      .max(5, "No puedes asignar más de cinco roles")
       .transform((roles) => [...new Set(roles)]),
   })
   .strict();

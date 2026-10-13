@@ -1,8 +1,17 @@
 type BusinessRoleCode =
-  "ADMIN" | "WAITER" | "KITCHEN" | "PUBLIC_ORDER_MANAGER" | "DELIVERY_DRIVER";
+  | "ADMIN"
+  | "WAITER"
+  | "KITCHEN"
+  | "PUBLIC_ORDER_MANAGER"
+  | "DELIVERY_DRIVER"
+  | "PRODUCTION";
 
 type AssignableEmployeeRoleCode =
-  "WAITER" | "KITCHEN" | "PUBLIC_ORDER_MANAGER" | "DELIVERY_DRIVER";
+  | "WAITER"
+  | "KITCHEN"
+  | "PUBLIC_ORDER_MANAGER"
+  | "DELIVERY_DRIVER"
+  | "PRODUCTION";
 
 type Employee = Readonly<{
   userId: string;

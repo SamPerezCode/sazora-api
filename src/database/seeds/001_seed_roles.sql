@@ -61,6 +61,17 @@ WHERE NOT EXISTS (
     WHERE code = 'DELIVERY_DRIVER'
 );
 
+INSERT INTO roles (code, name, description)
+SELECT
+    'PRODUCTION',
+    'Producción',
+    'Gestiona procesos de producción, productos terminados y operaciones de planta.'
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM roles
+    WHERE code = 'PRODUCTION'
+);
+
 -- Verifica los datos iniciales.
 
 SELECT

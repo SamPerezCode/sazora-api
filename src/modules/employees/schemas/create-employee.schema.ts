@@ -5,6 +5,7 @@ const assignableEmployeeRoleSchema = z.enum([
   "KITCHEN",
   "PUBLIC_ORDER_MANAGER",
   "DELIVERY_DRIVER",
+  "PRODUCTION",
 ]);
 
 const passwordSchema = z
@@ -37,7 +38,7 @@ const createEmployeeSchema = z
     roles: z
       .array(assignableEmployeeRoleSchema)
       .min(1, "Debes asignar al menos un rol")
-      .max(4, "No puedes asignar más de cuatro roles")
+      .max(5, "No puedes asignar más de cinco roles")
       .transform((roles) => [...new Set(roles)]),
   })
   .strict()
