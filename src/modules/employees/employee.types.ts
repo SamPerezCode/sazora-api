@@ -1,3 +1,5 @@
+import type { SessionLocationAccess } from "../auth/auth.types";
+
 type BusinessRoleCode =
   | "ADMIN"
   | "WAITER"
@@ -27,6 +29,12 @@ type Employee = Readonly<{
   updatedAt: Date;
 }>;
 
+type EmployeeListItem = Readonly<
+  Employee & {
+    locationAccess: SessionLocationAccess;
+  }
+>;
+
 type CreateEmployeeData = Readonly<{
   fullName: string;
   email: string;
@@ -39,4 +47,5 @@ export type {
   BusinessRoleCode,
   CreateEmployeeData,
   Employee,
+  EmployeeListItem,
 };
