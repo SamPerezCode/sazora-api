@@ -1,7 +1,9 @@
 import type { RequestHandler } from "express";
 
+import type { AuthenticatedSession } from "../../auth/auth.types";
 import { AppError } from "../../../shared/errors/app-error";
 import { createPreparationAreaSchema } from "../schemas/create-preparation-area.schema";
+import { preparationAreaQuerySchema } from "../schemas/preparation-area-query.schema";
 import { createPreparationArea } from "../services/create-preparation-area.service";
 import { listPreparationAreas } from "../services/list-preparation-areas.service";
 import { updatePreparationArea } from "../services/update-preparation-area.service";
@@ -13,10 +15,9 @@ import {
   updatePreparationAreaSchema,
 } from "../schemas/update-preparation-area.schema";
 
-const createPreparationAreaController: RequestHandler = async (
-  request,
-  response,
-) => {
+const requireAuth = (
+  request: Parameters<RequestHandler>[0],
+): AuthenticatedSession => {
   if (!request.auth) {
     throw new AppError(
       "Se requiere autenticación",
@@ -25,18 +26,55 @@ const createPreparationAreaController: RequestHandler = async (
     );
   }
 
+  return request.auth;
+};
+
+const resolveLocationScope = (
+  auth: AuthenticatedSession,
+  requestedLocationId?: string,
+): string | undefined => {
+  if (auth.roles.includes("ADMIN")) {
+    return requestedLocationId;
+  }
+
+  const locationId =
+    requestedLocationId ?? auth.locationAccess.defaultLocationId;
+
+  if (!locationId) {
+    throw new AppError(
+      "Debes tener una ubicación predeterminada para consultar las áreas",
+      409,
+      "DEFAULT_LOCATION_REQUIRED",
+    );
+  }
+
+  const hasAccess = auth.locationAccess.locations.some(
+    (location) => location.id === locationId,
+  );
+
+  if (!hasAccess) {
+    throw new AppError(
+      "No tienes acceso a esta ubicación",
+      403,
+      "LOCATION_ACCESS_DENIED",
+    );
+  }
+
+  return locationId;
+};
+
+const createPreparationAreaController: RequestHandler = async (
+  request,
+  response,
+) => {
+  const auth = requireAuth(request);
   const input = createPreparationAreaSchema.parse(request.body);
 
-  const preparationArea = await createPreparationArea(
-    request.auth.businessId,
-    input,
-  );
+  const preparationArea = await createPreparationArea(auth.businessId, input);
 
   response.status(201).json({
     status: "success",
-    data: {
-      preparationArea,
-    },
+    data: { preparationArea },
   });
 };
 
@@ -44,21 +82,20 @@ const listPreparationAreasController: RequestHandler = async (
   request,
   response,
 ) => {
-  if (!request.auth) {
-    throw new AppError(
-      "Se requiere autenticación",
-      401,
-      "AUTHENTICATION_REQUIRED",
-    );
-  }
+  const auth = requireAuth(request);
+  const query = preparationAreaQuerySchema.parse(request.query);
+  const isAdmin = auth.roles.includes("ADMIN");
 
-  const preparationAreas = await listPreparationAreas(request.auth.businessId);
+  const locationId = resolveLocationScope(auth, query.locationId);
+
+  const preparationAreas = await listPreparationAreas(auth.businessId, {
+    ...(locationId === undefined ? {} : { locationId }),
+    activeOnly: isAdmin ? query.activeOnly : true,
+  });
 
   response.status(200).json({
     status: "success",
-    data: {
-      preparationAreas,
-    },
+    data: { preparationAreas },
   });
 };
 
@@ -66,28 +103,27 @@ const getPreparationAreaController: RequestHandler = async (
   request,
   response,
 ) => {
-  if (!request.auth) {
-    throw new AppError(
-      "Se requiere autenticación",
-      401,
-      "AUTHENTICATION_REQUIRED",
-    );
-  }
-
+  const auth = requireAuth(request);
+  const query = preparationAreaQuerySchema.parse(request.query);
   const { preparationAreaId } = preparationAreaIdParamsSchema.parse(
     request.params,
   );
 
+  const isAdmin = auth.roles.includes("ADMIN");
+  const locationId = resolveLocationScope(auth, query.locationId);
+
   const preparationArea = await getPreparationArea(
-    request.auth.businessId,
+    auth.businessId,
     preparationAreaId,
+    {
+      ...(locationId === undefined ? {} : { locationId }),
+      activeOnly: !isAdmin,
+    },
   );
 
   response.status(200).json({
     status: "success",
-    data: {
-      preparationArea,
-    },
+    data: { preparationArea },
   });
 };
 
@@ -95,14 +131,7 @@ const updatePreparationAreaController: RequestHandler = async (
   request,
   response,
 ) => {
-  if (!request.auth) {
-    throw new AppError(
-      "Se requiere autenticación",
-      401,
-      "AUTHENTICATION_REQUIRED",
-    );
-  }
-
+  const auth = requireAuth(request);
   const { preparationAreaId } = preparationAreaIdParamsSchema.parse(
     request.params,
   );
@@ -110,16 +139,14 @@ const updatePreparationAreaController: RequestHandler = async (
   const input = updatePreparationAreaSchema.parse(request.body);
 
   const preparationArea = await updatePreparationArea(
-    request.auth.businessId,
+    auth.businessId,
     preparationAreaId,
     input,
   );
 
   response.status(200).json({
     status: "success",
-    data: {
-      preparationArea,
-    },
+    data: { preparationArea },
   });
 };
 
@@ -127,14 +154,7 @@ const updatePreparationAreaStatusController: RequestHandler = async (
   request,
   response,
 ) => {
-  if (!request.auth) {
-    throw new AppError(
-      "Se requiere autenticación",
-      401,
-      "AUTHENTICATION_REQUIRED",
-    );
-  }
-
+  const auth = requireAuth(request);
   const { preparationAreaId } = preparationAreaIdParamsSchema.parse(
     request.params,
   );
@@ -142,16 +162,14 @@ const updatePreparationAreaStatusController: RequestHandler = async (
   const input = updatePreparationAreaStatusSchema.parse(request.body);
 
   const preparationArea = await changePreparationAreaStatus(
-    request.auth.businessId,
+    auth.businessId,
     preparationAreaId,
     input,
   );
 
   response.status(200).json({
     status: "success",
-    data: {
-      preparationArea,
-    },
+    data: { preparationArea },
   });
 };
 

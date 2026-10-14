@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+const databaseIdSchema = z
+  .string()
+  .regex(/^[1-9]\d*$/, "El identificador de ubicación no es válido");
+
 const createPreparationAreaSchema = z
   .object({
     name: z
@@ -22,6 +26,15 @@ const createPreparationAreaSchema = z
       .min(0, "El orden no puede ser negativo")
       .max(65535, "El orden no puede superar 65535")
       .default(0),
+
+    locationIds: z
+      .array(databaseIdSchema)
+      .min(1, "Debes asignar el área al menos a una ubicación")
+      .max(100, "No puedes asignar más de 100 ubicaciones")
+      .refine(
+        (locationIds) => new Set(locationIds).size === locationIds.length,
+        "No puedes repetir ubicaciones",
+      ),
   })
   .strict();
 

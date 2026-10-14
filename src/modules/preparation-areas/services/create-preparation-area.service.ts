@@ -16,7 +16,17 @@ const createPreparationArea = async (
   input: CreatePreparationAreaInput,
 ): Promise<PreparationArea> => {
   try {
-    return await createPreparationAreaRecord(businessId, input);
+    const result = await createPreparationAreaRecord(businessId, input);
+
+    if (result.kind === "LOCATIONS_NOT_AVAILABLE") {
+      throw new AppError(
+        "Una o varias ubicaciones no existen, están inactivas o no pertenecen al negocio",
+        409,
+        "PREPARATION_AREA_LOCATIONS_NOT_AVAILABLE",
+      );
+    }
+
+    return result.preparationArea;
   } catch (error) {
     if (hasMySqlErrorCode(error, "ER_DUP_ENTRY")) {
       throw new AppError(

@@ -42,14 +42,33 @@ const updatePreparationArea = async (
         ? currentArea.description
         : input.description,
     displayOrder: input.displayOrder ?? currentArea.displayOrder,
+    locationIds: input.locationIds ?? null,
   };
 
   try {
-    return await updatePreparationAreaRecord(
+    const result = await updatePreparationAreaRecord(
       businessId,
       preparationAreaId,
       data,
     );
+
+    if (result.kind === "PREPARATION_AREA_NOT_FOUND") {
+      throw new AppError(
+        "El área de preparación no existe",
+        404,
+        "PREPARATION_AREA_NOT_FOUND",
+      );
+    }
+
+    if (result.kind === "LOCATIONS_NOT_AVAILABLE") {
+      throw new AppError(
+        "Una o varias ubicaciones no existen, están inactivas o no pertenecen al negocio",
+        409,
+        "PREPARATION_AREA_LOCATIONS_NOT_AVAILABLE",
+      );
+    }
+
+    return result.preparationArea;
   } catch (error) {
     if (hasMySqlErrorCode(error, "ER_DUP_ENTRY")) {
       throw new AppError(
