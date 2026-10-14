@@ -16,11 +16,29 @@ const createRestaurantTable = async (
   input: CreateRestaurantTableInput,
 ): Promise<RestaurantTable> => {
   try {
-    return await createRestaurantTableRecord(businessId, input);
+    const result = await createRestaurantTableRecord(businessId, input);
+
+    if (result.kind === "LOCATION_NOT_AVAILABLE") {
+      throw new AppError(
+        "La ubicación no existe, está inactiva o no pertenece al negocio",
+        409,
+        "RESTAURANT_TABLE_LOCATION_NOT_AVAILABLE",
+      );
+    }
+
+    if (result.kind === "LOCATION_NOT_POINT_OF_SALE") {
+      throw new AppError(
+        "Las mesas solamente pueden crearse en puntos de venta",
+        409,
+        "LOCATION_NOT_POINT_OF_SALE",
+      );
+    }
+
+    return result.restaurantTable;
   } catch (error) {
     if (hasMySqlErrorCode(error, "ER_DUP_ENTRY")) {
       throw new AppError(
-        "Ya existe una mesa con ese código",
+        "Ya existe una mesa con ese código en la ubicación",
         409,
         "RESTAURANT_TABLE_CODE_CONFLICT",
       );

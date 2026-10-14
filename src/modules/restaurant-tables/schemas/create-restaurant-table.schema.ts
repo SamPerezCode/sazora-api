@@ -2,6 +2,11 @@ import { z } from "zod";
 
 const createRestaurantTableSchema = z
   .object({
+    locationId: z
+      .string()
+      .trim()
+      .regex(/^[1-9]\d*$/, "El identificador de ubicación no es válido"),
+
     code: z
       .string()
       .trim()
