@@ -2,6 +2,7 @@ import type { RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
 import type { ProductFulfillmentMode } from "../../products/product.types";
+import type { KitchenWorkflowMode } from "../../kitchen-settings/kitchen-settings.types";
 import type {
   OrderDetail,
   OrderItemDetail,
@@ -14,6 +15,7 @@ type OrderDetailRow = RowDataPacket & {
   id: string;
   businessId: string;
   restaurantTableId: string | null;
+  kitchenWorkflowMode: KitchenWorkflowMode | null;
   openedByMembershipId: string;
   serviceType: OrderServiceType;
   status: OrderStatus;
@@ -99,6 +101,7 @@ const findOrderDetailById = async (
             AS openedByMembershipId,
           o.service_type AS serviceType,
           o.status,
+          o.kitchen_workflow_mode AS kitchenWorkflowMode,
           o.customer_count AS customerCount,
           o.notes,
           CAST(
@@ -191,6 +194,7 @@ const findOrderDetailById = async (
       openedByMembershipId: order.openedByMembershipId,
       serviceType: order.serviceType,
       status: order.status,
+      kitchenWorkflowMode: order.kitchenWorkflowMode,
       customerCount: order.customerCount,
       notes: order.notes,
       subtotal: order.subtotal,

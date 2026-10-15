@@ -5,9 +5,15 @@ import type { ProductFulfillmentMode } from "../../products/product.types";
 import type { KitchenPreparationStatus } from "../../kitchen-tickets/kitchen-ticket.types";
 import type { OrderStatus } from "../order.types";
 import { deductOrderInventory } from "./deduct-order-inventory.repository";
+import type { KitchenWorkflowMode } from "../../kitchen-settings/kitchen-settings.types";
 
 type OrderStateRow = RowDataPacket & {
   status: OrderStatus;
+  locationId: string;
+};
+
+type KitchenWorkflowRow = RowDataPacket & {
+  workflowMode: KitchenWorkflowMode;
 };
 
 type OrderItemToConfirmRow = RowDataPacket & {
@@ -59,7 +65,9 @@ const confirmOrder = async (
 
     const [orderRows] = await connection.execute<OrderStateRow[]>(
       `
-        SELECT status
+        SELECT
+          status,
+          CAST(location_id AS CHAR) AS locationId
         FROM orders
         WHERE
           business_id = ?
@@ -69,7 +77,6 @@ const confirmOrder = async (
       `,
       [businessId, orderId],
     );
-
     const order = orderRows[0];
 
     if (!order) {
@@ -87,6 +94,29 @@ const confirmOrder = async (
         kind: "ORDER_NOT_OPEN",
       };
     }
+
+    const [workflowRows] = await connection.execute<KitchenWorkflowRow[]>(
+      `
+    SELECT
+      COALESCE(
+        lks.workflow_mode,
+        'PRINT_AND_SCREEN'
+      ) AS workflowMode
+    FROM business_locations AS bl
+    LEFT JOIN location_kitchen_settings AS lks
+      ON lks.business_id = bl.business_id
+      AND lks.location_id = bl.id
+    WHERE
+      bl.business_id = ?
+      AND bl.id = ?
+      AND bl.is_active = TRUE
+      AND bl.location_type = 'POINT_OF_SALE'
+    LIMIT 1
+  `,
+      [businessId, order.locationId],
+    );
+
+    const workflowMode = workflowRows[0]?.workflowMode ?? "PRINT_AND_SCREEN";
 
     const [orderItemRows] = await connection.execute<OrderItemToConfirmRow[]>(
       `
@@ -247,12 +277,13 @@ const confirmOrder = async (
         UPDATE orders
         SET
           status = 'CONFIRMED',
+          kitchen_workflow_mode = ?,
           confirmed_at = CURRENT_TIMESTAMP(3)
         WHERE
           business_id = ?
           AND id = ?
       `,
-      [businessId, orderId],
+      [workflowMode, businessId, orderId],
     );
 
     await connection.execute<ResultSetHeader>(

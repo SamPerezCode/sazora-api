@@ -2,6 +2,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
 import type { ProductFulfillmentMode } from "../../products/product.types";
+import type { KitchenWorkflowMode } from "../../kitchen-settings/kitchen-settings.types";
 import type {
   CreateOrderData,
   Order,
@@ -21,6 +22,7 @@ type OrderRow = RowDataPacket & {
   openedByMembershipId: string;
   serviceType: OrderServiceType;
   status: OrderStatus;
+  kitchenWorkflowMode: KitchenWorkflowMode | null;
   customerCount: number | null;
   notes: string | null;
   confirmedAt: Date | null;
@@ -94,6 +96,7 @@ const mapOrderRow = (row: OrderRow): Order => ({
   openedByMembershipId: row.openedByMembershipId,
   serviceType: row.serviceType,
   status: row.status,
+  kitchenWorkflowMode: row.kitchenWorkflowMode,
   customerCount: row.customerCount,
   notes: row.notes,
   confirmedAt: row.confirmedAt,

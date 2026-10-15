@@ -3,6 +3,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { databasePool } from "../../../database/pool";
 import type { OrderStatus } from "../../orders/order.types";
 import type { ProductFulfillmentMode } from "../../products/product.types";
+import type { KitchenWorkflowMode } from "../../kitchen-settings/kitchen-settings.types";
 import type {
   KitchenPreparationStatus,
   KitchenProgressStatus,
@@ -15,6 +16,7 @@ type KitchenTicketItemContextRow = RowDataPacket & {
 
 type OrderStateRow = RowDataPacket & {
   status: OrderStatus;
+  kitchenWorkflowMode: KitchenWorkflowMode | null;
 };
 
 type KitchenTicketItemStateRow = RowDataPacket & {
@@ -57,6 +59,9 @@ type UpdateKitchenTicketItemStatusResult =
     }>
   | Readonly<{
       kind: "INVALID_TRANSITION";
+    }>
+  | Readonly<{
+      kind: "SCREEN_WORKFLOW_DISABLED";
     }>;
 
 const nextStatusByCurrentStatus: Record<
@@ -137,7 +142,9 @@ const updateKitchenTicketItemStatus = async (
 
     const [orderRows] = await connection.execute<OrderStateRow[]>(
       `
-        SELECT status
+        SELECT
+          status,
+          kitchen_workflow_mode AS kitchenWorkflowMode
         FROM orders
         WHERE
           business_id = ?
@@ -155,6 +162,14 @@ const updateKitchenTicketItemStatus = async (
 
       return {
         kind: "ORDER_NOT_CONFIRMED",
+      };
+    }
+
+    if (order.kitchenWorkflowMode !== "PRINT_AND_SCREEN") {
+      await connection.rollback();
+
+      return {
+        kind: "SCREEN_WORKFLOW_DISABLED",
       };
     }
 

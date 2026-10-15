@@ -91,6 +91,13 @@ const changeKitchenTicketStatus = async (
         409,
         "INVALID_KITCHEN_TICKET_STATUS_TRANSITION",
       );
+
+    case "SCREEN_WORKFLOW_DISABLED":
+      throw new AppError(
+        "Esta orden trabaja únicamente con comandas impresas",
+        409,
+        "KITCHEN_SCREEN_WORKFLOW_DISABLED",
+      );
   }
 };
 

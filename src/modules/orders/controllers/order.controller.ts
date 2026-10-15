@@ -26,6 +26,8 @@ import { updateItemInOrder } from "../services/update-order-item.service";
 import { updateOrderDetails } from "../services/update-order.service";
 import { cancelQuantityFromConfirmedOrderItem } from "../services/cancel-order-item-quantity.service";
 import type { AuthenticatedSession } from "../../auth/auth.types";
+import { deliverOrderWithoutKitchenScreen } from "../services/deliver-print-only-order.service";
+
 import {
   assertOrderLocationAccess,
   resolveOrderLocationScope,
@@ -244,6 +246,25 @@ const cancelOrderItemController: RequestHandler = async (request, response) => {
   });
 };
 
+const deliverPrintOnlyOrderController: RequestHandler = async (
+  request,
+  response,
+) => {
+  const { orderId } = orderIdParamsSchema.parse(request.params);
+  const auth = await requireOrderAccess(request, orderId);
+
+  const result = await deliverOrderWithoutKitchenScreen(
+    auth.businessId,
+    auth.membershipId,
+    orderId,
+  );
+
+  response.status(200).json({
+    status: "success",
+    data: result,
+  });
+};
+
 const closeOrderController: RequestHandler = async (request, response) => {
   const { orderId } = orderIdParamsSchema.parse(request.params);
   const auth = await requireOrderAccess(request, orderId);
@@ -301,4 +322,5 @@ export {
   removeOrderItemController,
   updateOrderController,
   updateOrderItemController,
+  deliverPrintOnlyOrderController,
 };

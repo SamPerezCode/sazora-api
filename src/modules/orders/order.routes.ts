@@ -15,6 +15,7 @@ import {
   removeOrderItemController,
   updateOrderController,
   updateOrderItemController,
+  deliverPrintOnlyOrderController,
 } from "./controllers/order.controller";
 
 const orderRouter = Router();
@@ -59,6 +60,13 @@ orderRouter.post(
   authenticate,
   authorizeRoles("ADMIN", "WAITER"),
   confirmOrderController,
+);
+
+orderRouter.post(
+  "/:orderId/deliver",
+  authenticate,
+  authorizeRoles("ADMIN", "WAITER"),
+  deliverPrintOnlyOrderController,
 );
 
 orderRouter.post(

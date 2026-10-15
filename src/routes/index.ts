@@ -22,6 +22,7 @@ import { dashboardRouter } from "../modules/dashboard/dashboard.routes";
 import { salesReportRouter } from "../modules/sales-reports/sales-report.routes";
 import { organizationProfileRouter } from "../modules/organization-profile/organization-profile.routes";
 import { locationRouter } from "../modules/locations/location.routes";
+import { kitchenSettingsRouter } from "../modules/kitchen-settings/kitchen-settings.routes";
 
 import {
   publicOrderRequestRouter,
@@ -39,6 +40,7 @@ apiRouter.use("/business-settings", businessSettingsRouter);
 apiRouter.use("/organization-profile", organizationProfileRouter);
 apiRouter.use("/locations", locationRouter);
 apiRouter.use("/employees", employeeRouter);
+apiRouter.use("/kitchen-settings", kitchenSettingsRouter);
 apiRouter.use("/categories", categoryRouter);
 apiRouter.use("/preparation-areas", preparationAreaRouter);
 apiRouter.use("/products", productRouter);

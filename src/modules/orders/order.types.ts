@@ -1,5 +1,6 @@
 import type { LocationType } from "../locations/location.types";
 import type { ProductFulfillmentMode } from "../products/product.types";
+import type { KitchenWorkflowMode } from "../kitchen-settings/kitchen-settings.types";
 
 type OrderServiceType = "TABLE" | "TAKEAWAY" | "DELIVERY";
 
@@ -24,6 +25,7 @@ type Order = Readonly<{
   openedByMembershipId: string;
   serviceType: OrderServiceType;
   status: OrderStatus;
+  kitchenWorkflowMode: KitchenWorkflowMode | null;
   customerCount: number | null;
   notes: string | null;
   confirmedAt: Date | null;

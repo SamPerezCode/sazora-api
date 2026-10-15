@@ -1,6 +1,7 @@
 import type { RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
+import type { KitchenWorkflowMode } from "../../kitchen-settings/kitchen-settings.types";
 import type {
   ListOrdersFilters,
   OrderListItem,
@@ -16,6 +17,7 @@ type OrderListRow = RowDataPacket & {
   openedByMembershipId: string;
   serviceType: OrderServiceType;
   status: OrderStatus;
+  kitchenWorkflowMode: KitchenWorkflowMode | null;
   customerCount: number | null;
   notes: string | null;
   restaurantTableCode: string | null;
@@ -46,6 +48,7 @@ const mapOrderListRow = (row: OrderListRow): OrderListItem => ({
   openedByMembershipId: row.openedByMembershipId,
   serviceType: row.serviceType,
   status: row.status,
+  kitchenWorkflowMode: row.kitchenWorkflowMode,
   customerCount: row.customerCount,
   notes: row.notes,
   restaurantTableCode: row.restaurantTableCode,
@@ -122,6 +125,7 @@ const findOrdersByBusinessId = async (
             AS openedByMembershipId,
           o.service_type AS serviceType,
           o.status,
+          o.kitchen_workflow_mode AS kitchenWorkflowMode,
           o.customer_count AS customerCount,
           o.notes,
           rt.code AS restaurantTableCode,
