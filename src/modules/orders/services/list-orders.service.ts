@@ -5,10 +5,13 @@ import type { ListOrdersQuery } from "../schemas/list-orders.schema";
 const listOrders = async (
   businessId: string,
   query: ListOrdersQuery,
+  locationId?: string,
 ): Promise<OrderListResult> => {
   const filters: ListOrdersFilters = {
     page: query.page,
     pageSize: query.pageSize,
+
+    ...(locationId === undefined ? {} : { locationId }),
 
     ...(query.status === undefined
       ? {}

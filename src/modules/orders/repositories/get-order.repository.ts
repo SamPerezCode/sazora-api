@@ -26,6 +26,11 @@ type OrderDetailRow = RowDataPacket & {
   cancelledAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  locationId: string;
+  locationCode: string;
+  locationName: string;
+  locationType: "PRODUCTION_WAREHOUSE" | "POINT_OF_SALE";
+  locationIsActive: number;
 };
 
 type OrderItemDetailRow = RowDataPacket & {
@@ -84,6 +89,11 @@ const findOrderDetailById = async (
         SELECT
           CAST(o.id AS CHAR) AS id,
           CAST(o.business_id AS CHAR) AS businessId,
+          CAST(o.location_id AS CHAR) AS locationId,
+          bl.code AS locationCode,
+          bl.name AS locationName,
+          bl.location_type AS locationType,
+          bl.is_active AS locationIsActive,
           CAST(o.restaurant_table_id AS CHAR) AS restaurantTableId,
           CAST(o.opened_by_membership_id AS CHAR)
             AS openedByMembershipId,
@@ -112,6 +122,9 @@ const findOrderDetailById = async (
           o.created_at AS createdAt,
           o.updated_at AS updatedAt
         FROM orders AS o
+        INNER JOIN business_locations AS bl
+        ON bl.business_id = o.business_id
+        AND bl.id = o.location_id
         WHERE
           o.business_id = ?
           AND o.id = ?
@@ -166,6 +179,14 @@ const findOrderDetailById = async (
     return {
       id: order.id,
       businessId: order.businessId,
+      locationId: order.locationId,
+      location: {
+        id: order.locationId,
+        code: order.locationCode,
+        name: order.locationName,
+        locationType: order.locationType,
+        isActive: Boolean(order.locationIsActive),
+      },
       restaurantTableId: order.restaurantTableId,
       openedByMembershipId: order.openedByMembershipId,
       serviceType: order.serviceType,

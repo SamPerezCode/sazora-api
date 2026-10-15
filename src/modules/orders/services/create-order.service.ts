@@ -8,11 +8,17 @@ import { getOrder } from "./get-order.service";
 const createOrder = async (
   businessId: string,
   membershipId: string,
+  locationId: string,
   input: CreateOrderInput,
 ): Promise<OrderDetail> => {
   const result = await createOrderRecord(businessId, {
-    ...input,
+    restaurantTableId: input.restaurantTableId,
     openedByMembershipId: membershipId,
+    serviceType: input.serviceType,
+    customerCount: input.customerCount,
+    notes: input.notes,
+    items: input.items,
+    locationId,
   });
 
   switch (result.kind) {
@@ -67,6 +73,34 @@ const createOrder = async (
         "Uno de los productos no está disponible",
         409,
         "PRODUCT_UNAVAILABLE",
+      );
+
+    case "LOCATION_NOT_AVAILABLE":
+      throw new AppError(
+        "El punto de venta no existe, está inactivo o no pertenece al negocio",
+        409,
+        "ORDER_LOCATION_NOT_AVAILABLE",
+      );
+
+    case "LOCATION_NOT_POINT_OF_SALE":
+      throw new AppError(
+        "Las órdenes de venta solamente pueden crearse en puntos de venta",
+        409,
+        "LOCATION_NOT_POINT_OF_SALE",
+      );
+
+    case "TABLE_LOCATION_MISMATCH":
+      throw new AppError(
+        "La mesa no pertenece al punto de venta de la orden",
+        409,
+        "ORDER_TABLE_LOCATION_MISMATCH",
+      );
+
+    case "PRODUCT_NOT_AVAILABLE_AT_LOCATION":
+      throw new AppError(
+        "Uno de los productos no está disponible en esta ubicación",
+        409,
+        "PRODUCT_NOT_AVAILABLE_AT_LOCATION",
       );
   }
 };

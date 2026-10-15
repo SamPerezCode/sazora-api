@@ -27,6 +27,8 @@ const initialOrderItemSchema = z
 
 const createOrderSchema = z
   .object({
+    locationId: databaseIdSchema.optional(),
+
     serviceType: z.enum(["TABLE", "TAKEAWAY", "DELIVERY"]),
 
     restaurantTableId: databaseIdSchema

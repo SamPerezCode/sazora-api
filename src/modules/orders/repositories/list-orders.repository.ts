@@ -28,6 +28,11 @@ type OrderListRow = RowDataPacket & {
   cancelledAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  locationId: string;
+  locationCode: string;
+  locationName: string;
+  locationType: "PRODUCTION_WAREHOUSE" | "POINT_OF_SALE";
+  locationIsActive: number;
 };
 
 type OrderCountRow = RowDataPacket & {
@@ -53,6 +58,14 @@ const mapOrderListRow = (row: OrderListRow): OrderListItem => ({
   cancelledAt: row.cancelledAt,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
+  locationId: row.locationId,
+  location: {
+    id: row.locationId,
+    code: row.locationCode,
+    name: row.locationName,
+    locationType: row.locationType,
+    isActive: Boolean(row.locationIsActive),
+  },
 });
 
 const findOrdersByBusinessId = async (
@@ -71,6 +84,10 @@ const findOrdersByBusinessId = async (
   if (filters.serviceType) {
     whereConditions.push("o.service_type = ?");
     queryValues.push(filters.serviceType);
+  }
+  if (filters.locationId) {
+    whereConditions.push("o.location_id = ?");
+    queryValues.push(filters.locationId);
   }
 
   const whereClause = whereConditions.join("\n          AND ");
@@ -96,6 +113,11 @@ const findOrdersByBusinessId = async (
           CAST(o.id AS CHAR) AS id,
           CAST(o.business_id AS CHAR) AS businessId,
           CAST(o.restaurant_table_id AS CHAR) AS restaurantTableId,
+          CAST(o.location_id AS CHAR) AS locationId,
+          bl.code AS locationCode,
+          bl.name AS locationName,
+          bl.location_type AS locationType,
+          bl.is_active AS locationIsActive,
           CAST(o.opened_by_membership_id AS CHAR)
             AS openedByMembershipId,
           o.service_type AS serviceType,
@@ -119,6 +141,9 @@ const findOrdersByBusinessId = async (
           o.created_at AS createdAt,
           o.updated_at AS updatedAt
         FROM orders AS o
+        INNER JOIN business_locations AS bl
+        ON bl.business_id = o.business_id
+          AND bl.id = o.location_id
         LEFT JOIN restaurant_tables AS rt
           ON rt.business_id = o.business_id
           AND rt.id = o.restaurant_table_id

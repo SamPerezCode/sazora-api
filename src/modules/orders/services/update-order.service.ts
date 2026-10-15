@@ -88,6 +88,13 @@ const updateOrderDetails = async (
         409,
         "RESTAURANT_TABLE_OCCUPIED",
       );
+
+    case "TABLE_LOCATION_MISMATCH":
+      throw new AppError(
+        "La mesa no pertenece al punto de venta de la orden",
+        409,
+        "ORDER_TABLE_LOCATION_MISMATCH",
+      );
   }
 };
 

@@ -13,9 +13,11 @@ type CurrentOrderRow = RowDataPacket & {
   restaurantTableId: string | null;
   customerCount: number | null;
   notes: string | null;
+  locationId: string;
 };
 
 type RestaurantTableStateRow = RowDataPacket & {
+  locationId: string;
   isActive: number;
 };
 
@@ -41,6 +43,9 @@ type UpdateOrderResult =
     }>
   | Readonly<{
       kind: "TABLE_OCCUPIED";
+    }>
+  | Readonly<{
+      kind: "TABLE_LOCATION_MISMATCH";
     }>;
 
 const updateOrder = async (
@@ -59,6 +64,7 @@ const updateOrder = async (
           status,
           service_type AS serviceType,
           CAST(restaurant_table_id AS CHAR) AS restaurantTableId,
+          CAST(location_id AS CHAR) AS locationId,
           customer_count AS customerCount,
           notes
         FROM orders
@@ -105,8 +111,10 @@ const updateOrder = async (
 
       const [tableRows] = await connection.execute<RestaurantTableStateRow[]>(
         `
-            SELECT is_active AS isActive
-            FROM restaurant_tables
+          SELECT
+            CAST(location_id AS CHAR) AS locationId,
+            is_active AS isActive
+          FROM restaurant_tables
             WHERE
               business_id = ?
               AND id = ?
@@ -123,6 +131,14 @@ const updateOrder = async (
 
         return {
           kind: "TABLE_NOT_FOUND",
+        };
+      }
+
+      if (restaurantTable.locationId !== currentOrder.locationId) {
+        await connection.rollback();
+
+        return {
+          kind: "TABLE_LOCATION_MISMATCH",
         };
       }
 

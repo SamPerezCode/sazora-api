@@ -1,7 +1,14 @@
 import { z } from "zod";
 
+const databaseIdSchema = z
+  .string()
+  .trim()
+  .regex(/^[1-9]\d*$/, "El identificador no es válido");
+
 const listOrdersQuerySchema = z
   .object({
+    locationId: databaseIdSchema.optional(),
+
     status: z
       .enum(["OPEN", "CONFIRMED", "DELIVERED", "CLOSED", "CANCELLED"])
       .optional(),

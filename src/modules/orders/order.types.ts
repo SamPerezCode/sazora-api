@@ -1,3 +1,4 @@
+import type { LocationType } from "../locations/location.types";
 import type { ProductFulfillmentMode } from "../products/product.types";
 
 type OrderServiceType = "TABLE" | "TAKEAWAY" | "DELIVERY";
@@ -6,9 +7,19 @@ type OrderStatus = "OPEN" | "CONFIRMED" | "DELIVERED" | "CLOSED" | "CANCELLED";
 
 type OrderItemStatus = "ACTIVE" | "CANCELLED";
 
+type OrderLocation = Readonly<{
+  id: string;
+  code: string;
+  name: string;
+  locationType: LocationType;
+  isActive: boolean;
+}>;
+
 type Order = Readonly<{
   id: string;
   businessId: string;
+  locationId: string;
+  location: OrderLocation;
   restaurantTableId: string | null;
   openedByMembershipId: string;
   serviceType: OrderServiceType;
@@ -50,6 +61,7 @@ type NewOrderItemData = Readonly<{
 }>;
 
 type CreateOrderData = Readonly<{
+  locationId: string;
   restaurantTableId: string | null;
   openedByMembershipId: string;
   serviceType: OrderServiceType;
@@ -83,6 +95,7 @@ type OrderListItem = Order &
   }>;
 
 type ListOrdersFilters = Readonly<{
+  locationId?: string;
   status?: OrderStatus;
   serviceType?: OrderServiceType;
   page: number;
@@ -123,6 +136,7 @@ export type {
   OrderItemStatus,
   OrderListItem,
   OrderListResult,
+  OrderLocation,
   OrderServiceType,
   OrderStatus,
   UpdateOrderData,

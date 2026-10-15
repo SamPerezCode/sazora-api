@@ -25,8 +25,15 @@ import { removeItemFromOrder } from "../services/remove-order-item.service";
 import { updateItemInOrder } from "../services/update-order-item.service";
 import { updateOrderDetails } from "../services/update-order.service";
 import { cancelQuantityFromConfirmedOrderItem } from "../services/cancel-order-item-quantity.service";
+import type { AuthenticatedSession } from "../../auth/auth.types";
+import {
+  assertOrderLocationAccess,
+  resolveOrderLocationScope,
+} from "../services/order-location-access.service";
 
-const createOrderController: RequestHandler = async (request, response) => {
+const requireAuth = (
+  request: Parameters<RequestHandler>[0],
+): AuthenticatedSession => {
   if (!request.auth) {
     throw new AppError(
       "Se requiere autenticación",
@@ -35,34 +42,54 @@ const createOrderController: RequestHandler = async (request, response) => {
     );
   }
 
+  return request.auth;
+};
+
+const requireOrderAccess = async (
+  request: Parameters<RequestHandler>[0],
+  orderId: string,
+): Promise<AuthenticatedSession> => {
+  const auth = requireAuth(request);
+
+  await assertOrderLocationAccess(auth, orderId);
+
+  return auth;
+};
+
+const createOrderController: RequestHandler = async (request, response) => {
+  const auth = requireAuth(request);
   const input = createOrderSchema.parse(request.body);
 
+  const locationId = resolveOrderLocationScope(auth, input.locationId, true);
+
+  if (!locationId) {
+    throw new AppError(
+      "Debes seleccionar el punto de venta",
+      400,
+      "ORDER_LOCATION_REQUIRED",
+    );
+  }
+
   const order = await createOrder(
-    request.auth.businessId,
-    request.auth.membershipId,
+    auth.businessId,
+    auth.membershipId,
+    locationId,
     input,
   );
 
   response.status(201).json({
     status: "success",
-    data: {
-      order,
-    },
+    data: { order },
   });
 };
 
 const listOrdersController: RequestHandler = async (request, response) => {
-  if (!request.auth) {
-    throw new AppError(
-      "Se requiere autenticación",
-      401,
-      "AUTHENTICATION_REQUIRED",
-    );
-  }
-
+  const auth = requireAuth(request);
   const query = listOrdersQuerySchema.parse(request.query);
 
-  const result = await listOrders(request.auth.businessId, query);
+  const locationId = resolveOrderLocationScope(auth, query.locationId, false);
+
+  const result = await listOrders(auth.businessId, query, locationId);
 
   response.status(200).json({
     status: "success",
@@ -71,17 +98,10 @@ const listOrdersController: RequestHandler = async (request, response) => {
 };
 
 const getOrderController: RequestHandler = async (request, response) => {
-  if (!request.auth) {
-    throw new AppError(
-      "Se requiere autenticación",
-      401,
-      "AUTHENTICATION_REQUIRED",
-    );
-  }
-
   const { orderId } = orderIdParamsSchema.parse(request.params);
+  const auth = await requireOrderAccess(request, orderId);
 
-  const order = await getOrder(request.auth.businessId, orderId);
+  const order = await getOrder(auth.businessId, orderId);
 
   response.status(200).json({
     status: "success",
@@ -92,21 +112,13 @@ const getOrderController: RequestHandler = async (request, response) => {
 };
 
 const updateOrderController: RequestHandler = async (request, response) => {
-  if (!request.auth) {
-    throw new AppError(
-      "Se requiere autenticación",
-      401,
-      "AUTHENTICATION_REQUIRED",
-    );
-  }
-
   const { orderId } = orderIdParamsSchema.parse(request.params);
-
+  const auth = await requireOrderAccess(request, orderId);
   const input = updateOrderSchema.parse(request.body);
 
   const order = await updateOrderDetails(
-    request.auth.businessId,
-    request.auth.membershipId,
+    auth.businessId,
+    auth.membershipId,
     orderId,
     input,
   );
@@ -120,21 +132,13 @@ const updateOrderController: RequestHandler = async (request, response) => {
 };
 
 const cancelOrderController: RequestHandler = async (request, response) => {
-  if (!request.auth) {
-    throw new AppError(
-      "Se requiere autenticación",
-      401,
-      "AUTHENTICATION_REQUIRED",
-    );
-  }
-
   const { orderId } = orderIdParamsSchema.parse(request.params);
-
+  const auth = await requireOrderAccess(request, orderId);
   const input = cancelOrderSchema.parse(request.body);
 
   const result = await cancelOrder(
-    request.auth.businessId,
-    request.auth.membershipId,
+    auth.businessId,
+    auth.membershipId,
     orderId,
     input,
   );
@@ -146,19 +150,12 @@ const cancelOrderController: RequestHandler = async (request, response) => {
 };
 
 const confirmOrderController: RequestHandler = async (request, response) => {
-  if (!request.auth) {
-    throw new AppError(
-      "Se requiere autenticación",
-      401,
-      "AUTHENTICATION_REQUIRED",
-    );
-  }
-
   const { orderId } = orderIdParamsSchema.parse(request.params);
+  const auth = await requireOrderAccess(request, orderId);
 
   const result = await confirmOrder(
-    request.auth.businessId,
-    request.auth.membershipId,
+    auth.businessId,
+    auth.membershipId,
     orderId,
   );
 
@@ -169,20 +166,13 @@ const confirmOrderController: RequestHandler = async (request, response) => {
 };
 
 const addOrderItemsController: RequestHandler = async (request, response) => {
-  if (!request.auth) {
-    throw new AppError(
-      "Se requiere autenticación",
-      401,
-      "AUTHENTICATION_REQUIRED",
-    );
-  }
-
   const { orderId } = orderIdParamsSchema.parse(request.params);
+  const auth = await requireOrderAccess(request, orderId);
   const input = addOrderItemsSchema.parse(request.body);
 
   const orderItems = await addItemsToOrder(
-    request.auth.businessId,
-    request.auth.membershipId,
+    auth.businessId,
+    auth.membershipId,
     orderId,
     input,
   );
@@ -196,22 +186,15 @@ const addOrderItemsController: RequestHandler = async (request, response) => {
 };
 
 const updateOrderItemController: RequestHandler = async (request, response) => {
-  if (!request.auth) {
-    throw new AppError(
-      "Se requiere autenticación",
-      401,
-      "AUTHENTICATION_REQUIRED",
-    );
-  }
-
   const { orderId, orderItemId } = orderItemIdParamsSchema.parse(
     request.params,
   );
 
+  const auth = await requireOrderAccess(request, orderId);
   const input = updateOrderItemSchema.parse(request.body);
 
   const orderItem = await updateItemInOrder(
-    request.auth.businessId,
+    auth.businessId,
     orderId,
     orderItemId,
     input,
@@ -226,41 +209,28 @@ const updateOrderItemController: RequestHandler = async (request, response) => {
 };
 
 const removeOrderItemController: RequestHandler = async (request, response) => {
-  if (!request.auth) {
-    throw new AppError(
-      "Se requiere autenticación",
-      401,
-      "AUTHENTICATION_REQUIRED",
-    );
-  }
-
   const { orderId, orderItemId } = orderItemIdParamsSchema.parse(
     request.params,
   );
 
-  await removeItemFromOrder(request.auth.businessId, orderId, orderItemId);
+  const auth = await requireOrderAccess(request, orderId);
+
+  await removeItemFromOrder(auth.businessId, orderId, orderItemId);
 
   response.status(204).send();
 };
 
 const cancelOrderItemController: RequestHandler = async (request, response) => {
-  if (!request.auth) {
-    throw new AppError(
-      "Se requiere autenticación",
-      401,
-      "AUTHENTICATION_REQUIRED",
-    );
-  }
-
   const { orderId, orderItemId } = orderItemIdParamsSchema.parse(
     request.params,
   );
 
+  const auth = await requireOrderAccess(request, orderId);
   const input = cancelOrderItemSchema.parse(request.body);
 
   const cancellation = await cancelItemFromConfirmedOrder(
-    request.auth.businessId,
-    request.auth.membershipId,
+    auth.businessId,
+    auth.membershipId,
     orderId,
     orderItemId,
     input,
@@ -275,19 +245,12 @@ const cancelOrderItemController: RequestHandler = async (request, response) => {
 };
 
 const closeOrderController: RequestHandler = async (request, response) => {
-  if (!request.auth) {
-    throw new AppError(
-      "Se requiere autenticación",
-      401,
-      "AUTHENTICATION_REQUIRED",
-    );
-  }
-
   const { orderId } = orderIdParamsSchema.parse(request.params);
+  const auth = await requireOrderAccess(request, orderId);
 
   const order = await closeDeliveredOrder(
-    request.auth.businessId,
-    request.auth.membershipId,
+    auth.businessId,
+    auth.membershipId,
     orderId,
   );
 
@@ -303,23 +266,16 @@ const cancelOrderItemQuantityController: RequestHandler = async (
   request,
   response,
 ) => {
-  if (!request.auth) {
-    throw new AppError(
-      "Se requiere autenticación",
-      401,
-      "AUTHENTICATION_REQUIRED",
-    );
-  }
-
   const { orderId, orderItemId } = orderItemIdParamsSchema.parse(
     request.params,
   );
 
+  const auth = await requireOrderAccess(request, orderId);
   const input = cancelOrderItemQuantitySchema.parse(request.body);
 
   const adjustment = await cancelQuantityFromConfirmedOrderItem(
-    request.auth.businessId,
-    request.auth.membershipId,
+    auth.businessId,
+    auth.membershipId,
     orderId,
     orderItemId,
     input,
@@ -332,7 +288,6 @@ const cancelOrderItemQuantityController: RequestHandler = async (
     },
   });
 };
-
 export {
   addOrderItemsController,
   cancelOrderController,

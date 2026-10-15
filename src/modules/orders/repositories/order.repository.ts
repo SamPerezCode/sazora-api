@@ -12,6 +12,11 @@ import type {
 type OrderRow = RowDataPacket & {
   id: string;
   businessId: string;
+  locationId: string;
+  locationCode: string;
+  locationName: string;
+  locationType: "PRODUCTION_WAREHOUSE" | "POINT_OF_SALE";
+  locationIsActive: number;
   restaurantTableId: string | null;
   openedByMembershipId: string;
   serviceType: OrderServiceType;
@@ -26,7 +31,13 @@ type OrderRow = RowDataPacket & {
   updatedAt: Date;
 };
 
+type LocationStateRow = RowDataPacket & {
+  locationType: "PRODUCTION_WAREHOUSE" | "POINT_OF_SALE";
+  isActive: number;
+};
+
 type RestaurantTableStateRow = RowDataPacket & {
+  locationId: string;
   isActive: number;
 };
 
@@ -62,11 +73,23 @@ type CreateOrderResult =
     }>
   | Readonly<{
       kind: "PRODUCT_UNAVAILABLE";
-    }>;
+    }>
+  | Readonly<{ kind: "LOCATION_NOT_AVAILABLE" }>
+  | Readonly<{ kind: "LOCATION_NOT_POINT_OF_SALE" }>
+  | Readonly<{ kind: "TABLE_LOCATION_MISMATCH" }>
+  | Readonly<{ kind: "PRODUCT_NOT_AVAILABLE_AT_LOCATION" }>;
 
 const mapOrderRow = (row: OrderRow): Order => ({
   id: row.id,
   businessId: row.businessId,
+  locationId: row.locationId,
+  location: {
+    id: row.locationId,
+    code: row.locationCode,
+    name: row.locationName,
+    locationType: row.locationType,
+    isActive: Boolean(row.locationIsActive),
+  },
   restaurantTableId: row.restaurantTableId,
   openedByMembershipId: row.openedByMembershipId,
   serviceType: row.serviceType,
@@ -90,18 +113,52 @@ const createOrder = async (
   try {
     await connection.beginTransaction();
 
+    const [locationRows] = await connection.execute<LocationStateRow[]>(
+      `
+    SELECT
+      location_type AS locationType,
+      is_active AS isActive
+    FROM business_locations
+    WHERE
+      business_id = ?
+      AND id = ?
+    LIMIT 1
+    FOR SHARE
+  `,
+      [businessId, data.locationId],
+    );
+
+    const location = locationRows[0];
+
+    if (!location || location.isActive === 0) {
+      await connection.rollback();
+
+      return {
+        kind: "LOCATION_NOT_AVAILABLE",
+      };
+    }
+
+    if (location.locationType !== "POINT_OF_SALE") {
+      await connection.rollback();
+
+      return {
+        kind: "LOCATION_NOT_POINT_OF_SALE",
+      };
+    }
+
     if (data.serviceType === "TABLE") {
       const [tableRows] = await connection.execute<RestaurantTableStateRow[]>(
         `
-          SELECT
-            is_active AS isActive
-          FROM restaurant_tables
-          WHERE
-            business_id = ?
-            AND id = ?
-          LIMIT 1
-          FOR UPDATE
-        `,
+    SELECT
+      CAST(location_id AS CHAR) AS locationId,
+      is_active AS isActive
+    FROM restaurant_tables
+    WHERE
+      business_id = ?
+      AND id = ?
+    LIMIT 1
+    FOR UPDATE
+  `,
         [businessId, data.restaurantTableId],
       );
 
@@ -112,6 +169,14 @@ const createOrder = async (
 
         return {
           kind: "TABLE_NOT_FOUND",
+        };
+      }
+
+      if (restaurantTable.locationId !== data.locationId) {
+        await connection.rollback();
+
+        return {
+          kind: "TABLE_LOCATION_MISMATCH",
         };
       }
 
@@ -210,18 +275,20 @@ const createOrder = async (
 
     const [insertResult] = await connection.execute<ResultSetHeader>(
       `
-        INSERT INTO orders (
-          business_id,
-          restaurant_table_id,
-          opened_by_membership_id,
-          service_type,
-          customer_count,
-          notes
-        )
-        VALUES (?, ?, ?, ?, ?, ?)
-      `,
+    INSERT INTO orders (
+      business_id,
+      location_id,
+      restaurant_table_id,
+      opened_by_membership_id,
+      service_type,
+      customer_count,
+      notes
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `,
       [
         businessId,
+        data.locationId,
         data.restaurantTableId,
         data.openedByMembershipId,
         data.serviceType,
@@ -325,29 +392,36 @@ const createOrder = async (
 
     const [orderRows] = await connection.execute<OrderRow[]>(
       `
-        SELECT
-          CAST(id AS CHAR) AS id,
-          CAST(business_id AS CHAR) AS businessId,
-          CAST(restaurant_table_id AS CHAR)
-            AS restaurantTableId,
-          CAST(opened_by_membership_id AS CHAR)
-            AS openedByMembershipId,
-          service_type AS serviceType,
-          status,
-          customer_count AS customerCount,
-          notes,
-          confirmed_at AS confirmedAt,
-          delivered_at AS deliveredAt,
-          closed_at AS closedAt,
-          cancelled_at AS cancelledAt,
-          created_at AS createdAt,
-          updated_at AS updatedAt
-        FROM orders
-        WHERE
-          business_id = ?
-          AND id = ?
-        LIMIT 1
-      `,
+    SELECT
+      CAST(o.id AS CHAR) AS id,
+      CAST(o.business_id AS CHAR) AS businessId,
+      CAST(o.location_id AS CHAR) AS locationId,
+      bl.code AS locationCode,
+      bl.name AS locationName,
+      bl.location_type AS locationType,
+      bl.is_active AS locationIsActive,
+      CAST(o.restaurant_table_id AS CHAR) AS restaurantTableId,
+      CAST(o.opened_by_membership_id AS CHAR)
+        AS openedByMembershipId,
+      o.service_type AS serviceType,
+      o.status,
+      o.customer_count AS customerCount,
+      o.notes,
+      o.confirmed_at AS confirmedAt,
+      o.delivered_at AS deliveredAt,
+      o.closed_at AS closedAt,
+      o.cancelled_at AS cancelledAt,
+      o.created_at AS createdAt,
+      o.updated_at AS updatedAt
+    FROM orders AS o
+    INNER JOIN business_locations AS bl
+      ON bl.business_id = o.business_id
+      AND bl.id = o.location_id
+    WHERE
+      o.business_id = ?
+      AND o.id = ?
+    LIMIT 1
+  `,
       [businessId, orderId],
     );
 
