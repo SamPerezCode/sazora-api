@@ -22,7 +22,7 @@ const preparationAreaRouter = Router();
 preparationAreaRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN", "KITCHEN"),
+  authorizeRoles("ADMIN", "KITCHEN", "WAITER"),
   listPreparationAreasController,
 );
 
