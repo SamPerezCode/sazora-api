@@ -10,12 +10,13 @@ import {
   closeOrderController,
   confirmOrderController,
   createOrderController,
+  deliverPrintOnlyOrderController,
   getOrderController,
+  getOrderKitchenHistoryController,
   listOrdersController,
   removeOrderItemController,
   updateOrderController,
   updateOrderItemController,
-  deliverPrintOnlyOrderController,
 } from "./controllers/order.controller";
 
 const orderRouter = Router();
@@ -35,12 +36,18 @@ orderRouter.post(
 );
 
 orderRouter.get(
+  "/:orderId/kitchen-history",
+  authenticate,
+  authorizeRoles("ADMIN", "WAITER"),
+  getOrderKitchenHistoryController,
+);
+
+orderRouter.get(
   "/:orderId",
   authenticate,
   authorizeRoles("ADMIN", "WAITER"),
   getOrderController,
 );
-
 orderRouter.patch(
   "/:orderId",
   authenticate,

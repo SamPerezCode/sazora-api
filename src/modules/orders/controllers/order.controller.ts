@@ -27,6 +27,7 @@ import { updateOrderDetails } from "../services/update-order.service";
 import { cancelQuantityFromConfirmedOrderItem } from "../services/cancel-order-item-quantity.service";
 import type { AuthenticatedSession } from "../../auth/auth.types";
 import { deliverOrderWithoutKitchenScreen } from "../services/deliver-print-only-order.service";
+import { getOrderKitchenHistory } from "../services/get-order-kitchen-history.service";
 
 import {
   assertOrderLocationAccess,
@@ -109,6 +110,24 @@ const getOrderController: RequestHandler = async (request, response) => {
     status: "success",
     data: {
       order,
+    },
+  });
+};
+
+const getOrderKitchenHistoryController: RequestHandler = async (
+  request,
+  response,
+) => {
+  const { orderId } = orderIdParamsSchema.parse(request.params);
+
+  const auth = await requireOrderAccess(request, orderId);
+
+  const kitchenHistory = await getOrderKitchenHistory(auth.businessId, orderId);
+
+  response.status(200).json({
+    status: "success",
+    data: {
+      kitchenHistory,
     },
   });
 };
@@ -317,10 +336,11 @@ export {
   closeOrderController,
   confirmOrderController,
   createOrderController,
+  deliverPrintOnlyOrderController,
   getOrderController,
+  getOrderKitchenHistoryController,
   listOrdersController,
   removeOrderItemController,
   updateOrderController,
   updateOrderItemController,
-  deliverPrintOnlyOrderController,
 };
