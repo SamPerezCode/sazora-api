@@ -1,6 +1,11 @@
+import { findLocationById } from "../../locations/repositories/location.repository";
 import { AppError } from "../../../shared/errors/app-error";
 import { createDashboardPeriod } from "../dashboard-period";
-import type { DashboardData, DashboardOrderSummary } from "../dashboard.types";
+import type {
+  DashboardData,
+  DashboardOrderSummary,
+  DashboardScope,
+} from "../dashboard.types";
 import {
   findDashboardBusinessContext,
   findDashboardCriticalInventory,
@@ -10,6 +15,7 @@ import {
   findDashboardTopProducts,
   findDashboardWeeklySales,
 } from "../repositories/dashboard.repository";
+import type { DashboardQuery } from "../schemas/dashboard.schema";
 
 const calculateSalesVariation = (
   summary: DashboardOrderSummary,
@@ -24,8 +30,53 @@ const calculateSalesVariation = (
   return (((todaySales - yesterdaySales) / yesterdaySales) * 100).toFixed(2);
 };
 
-const getDashboard = async (businessId: string): Promise<DashboardData> => {
-  const business = await findDashboardBusinessContext(businessId);
+const resolveDashboardScope = async (
+  businessId: string,
+  locationId: string | undefined,
+): Promise<DashboardScope> => {
+  if (!locationId) {
+    return {
+      type: "BUSINESS",
+      location: null,
+    };
+  }
+
+  const location = await findLocationById(businessId, locationId);
+
+  if (!location) {
+    throw new AppError("La ubicación no existe", 404, "LOCATION_NOT_FOUND");
+  }
+
+  if (!location.isActive) {
+    throw new AppError("La ubicación está inactiva", 409, "LOCATION_INACTIVE");
+  }
+
+  if (location.locationType !== "POINT_OF_SALE") {
+    throw new AppError(
+      "El dashboard de ventas solamente aplica a puntos de venta",
+      409,
+      "LOCATION_NOT_POINT_OF_SALE",
+    );
+  }
+
+  return {
+    type: "LOCATION",
+    location: {
+      id: location.id,
+      code: location.code,
+      name: location.name,
+    },
+  };
+};
+
+const getDashboard = async (
+  businessId: string,
+  query: DashboardQuery,
+): Promise<DashboardData> => {
+  const [business, scope] = await Promise.all([
+    findDashboardBusinessContext(businessId),
+    resolveDashboardScope(businessId, query.locationId),
+  ]);
 
   if (!business) {
     throw new AppError(
@@ -39,6 +90,8 @@ const getDashboard = async (businessId: string): Promise<DashboardData> => {
 
   const period = createDashboardPeriod(business.timezone, generatedAt);
 
+  const locationId = scope.type === "LOCATION" ? scope.location.id : undefined;
+
   const [
     orderSummary,
     deliverySummary,
@@ -47,11 +100,20 @@ const getDashboard = async (businessId: string): Promise<DashboardData> => {
     ordersInProgress,
     criticalInventory,
   ] = await Promise.all([
-    findDashboardOrderSummary(businessId, period),
-    findDashboardDeliverySummary(businessId, period),
-    findDashboardWeeklySales(businessId, period),
-    findDashboardTopProducts(businessId, period),
-    findDashboardOrdersInProgress(businessId),
+    findDashboardOrderSummary(businessId, period, locationId),
+
+    findDashboardDeliverySummary(businessId, period, locationId),
+
+    findDashboardWeeklySales(businessId, period, locationId),
+
+    findDashboardTopProducts(businessId, period, locationId),
+
+    findDashboardOrdersInProgress(businessId, locationId),
+
+    /*
+     * Temporalmente continúa siendo global.
+     * No recibe locationId.
+     */
     findDashboardCriticalInventory(businessId),
   ]);
 
@@ -66,26 +128,44 @@ const getDashboard = async (businessId: string): Promise<DashboardData> => {
     total: weeklySalesByDay.get(dayIndex) ?? "0.00",
   }));
 
+  const operationalScope = scope.type === "LOCATION" ? "LOCATION" : "BUSINESS";
+
   return {
     generatedAt,
     business,
+    scope,
+
+    dataScopes: {
+      orders: operationalScope,
+      deliveries: operationalScope,
+      criticalInventory: "BUSINESS",
+    },
+
     period: {
       timezone: period.timezone,
       today: period.today,
       weekStart: period.weekStart,
       weekEnd: period.weekEnd,
     },
+
     summary: {
       todaySales: orderSummary.todaySales,
       yesterdaySales: orderSummary.yesterdaySales,
+
       salesVariationPercentage: calculateSalesVariation(orderSummary),
+
       openOrders: orderSummary.openOrders,
       activeDeliveries: deliverySummary.activeDeliveries,
+
       servedCustomers: orderSummary.servedCustomers,
+
       closedOrders: orderSummary.closedOrders,
+
       averageTicket: orderSummary.averageTicket,
+
       averageDeliveryMinutes: deliverySummary.averageDeliveryMinutes,
     },
+
     weeklySales,
     topProducts,
     ordersInProgress,

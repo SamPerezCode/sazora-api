@@ -70,12 +70,20 @@ type DashboardTopProduct = Readonly<{
 
 type DashboardOrderInProgress = Readonly<{
   id: string;
+
+  locationId: string;
+  locationCode: string;
+  locationName: string;
+
   serviceType: OrderServiceType;
   status: OrderStatus;
+
   restaurantTableCode: string | null;
   restaurantTableName: string | null;
+
   customerName: string | null;
   deliveryAddress: string | null;
+
   itemCount: number;
   subtotal: string;
   createdAt: Date;
@@ -107,16 +115,27 @@ type DashboardOrderSummary = Readonly<{
 type DashboardData = Readonly<{
   generatedAt: Date;
   business: DashboardBusinessContext;
+
+  scope: DashboardScope;
+  dataScopes: DashboardDataScopes;
+
   period: Readonly<{
     timezone: string;
     today: string;
     weekStart: string;
     weekEnd: string;
   }>;
+
   summary: DashboardSummary;
   weeklySales: readonly DashboardWeeklySale[];
   topProducts: readonly DashboardTopProduct[];
   ordersInProgress: readonly DashboardOrderInProgress[];
+
+  /*
+   * Sigue representando todo el negocio.
+   * Se convertirá en información por ubicación
+   * durante el punto 10.
+   */
   criticalInventory: readonly DashboardCriticalInventoryItem[];
 }>;
 
@@ -125,16 +144,46 @@ type DashboardActiveDeliveryStatus = Exclude<
   "DELIVERED" | "CANCELLED"
 >;
 
+type DashboardLocationContext = Readonly<{
+  id: string;
+  code: string;
+  name: string;
+}>;
+
+type DashboardScope =
+  | Readonly<{
+      type: "BUSINESS";
+      location: null;
+    }>
+  | Readonly<{
+      type: "LOCATION";
+      location: DashboardLocationContext;
+    }>;
+
+type DashboardDataScopes = Readonly<{
+  orders: "BUSINESS" | "LOCATION";
+  deliveries: "BUSINESS" | "LOCATION";
+
+  /*
+   * El inventario continuará siendo global hasta
+   * implementar el punto 10.
+   */
+  criticalInventory: "BUSINESS";
+}>;
+
 export type {
   DashboardActiveDeliveryStatus,
   DashboardBusinessContext,
   DashboardCriticalInventoryItem,
   DashboardData,
+  DashboardDataScopes,
   DashboardDayPeriod,
   DashboardDeliverySummary,
+  DashboardLocationContext,
   DashboardOrderInProgress,
   DashboardOrderSummary,
   DashboardPeriod,
+  DashboardScope,
   DashboardSummary,
   DashboardTopProduct,
   DashboardWeekday,
