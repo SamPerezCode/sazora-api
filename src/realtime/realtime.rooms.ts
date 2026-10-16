@@ -7,4 +7,15 @@ const getMembershipRoom = (membershipId: string): string =>
 const getBusinessRoleRoom = (businessId: string, role: string): string =>
   `business:${businessId}:role:${role}`;
 
-export { getBusinessRoleRoom, getBusinessRoom, getMembershipRoom };
+const getLocationRoleRoom = (
+  businessId: string,
+  locationId: string,
+  role: string,
+): string => `business:${businessId}:location:${locationId}:role:${role}`;
+
+export {
+  getBusinessRoleRoom,
+  getBusinessRoom,
+  getLocationRoleRoom,
+  getMembershipRoom,
+};

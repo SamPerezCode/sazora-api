@@ -4,11 +4,7 @@ import { Server } from "socket.io";
 
 import { environment } from "../config/env";
 import { authenticateRealtimeConnection } from "./middlewares/authenticate-realtime.middleware";
-import {
-  getBusinessRoleRoom,
-  getBusinessRoom,
-  getMembershipRoom,
-} from "./realtime.rooms";
+
 import type {
   ClientToServerEvents,
   InterServerEvents,
@@ -16,6 +12,13 @@ import type {
   ServerToClientEvents,
   SocketData,
 } from "./realtime.types";
+
+import {
+  getBusinessRoleRoom,
+  getBusinessRoom,
+  getLocationRoleRoom,
+  getMembershipRoom,
+} from "./realtime.rooms";
 
 type RealtimeServer = Server<
   ClientToServerEvents,
@@ -31,10 +34,19 @@ const handleRealtimeConnection = async (
 ): Promise<void> => {
   const { auth } = socket.data;
 
+  const locationRoleRooms = auth.locationAccess.locations.flatMap((location) =>
+    auth.roles.map((role) =>
+      getLocationRoleRoom(auth.businessId, location.id, role),
+    ),
+  );
+
   const rooms = [
     getBusinessRoom(auth.businessId),
     getMembershipRoom(auth.membershipId),
+
     ...auth.roles.map((role) => getBusinessRoleRoom(auth.businessId, role)),
+
+    ...locationRoleRooms,
   ];
 
   await socket.join(rooms);
@@ -44,6 +56,7 @@ const handleRealtimeConnection = async (
     businessId: auth.businessId,
     membershipId: auth.membershipId,
     roles: auth.roles,
+    locationAccess: auth.locationAccess,
     connectedAt: new Date().toISOString(),
   });
 

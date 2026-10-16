@@ -3,6 +3,7 @@ import { z } from "zod";
 import { findActiveSession } from "../../modules/auth/repositories/auth.repository";
 import { verifyAccessToken } from "../../modules/auth/services/token.service";
 import type { RealtimeSocket } from "../realtime.types";
+import { findSessionLocationAccess } from "../../modules/auth/repositories/auth-location.repository";
 
 type RealtimeNext = (error?: Error) => void;
 
@@ -78,9 +79,16 @@ const authenticateRealtimeConnection = async (
       return;
     }
 
+    const locationAccess = await findSessionLocationAccess(
+      tokenPayload.businessId,
+      tokenPayload.membershipId,
+      activeSession.roles,
+    );
+
     socket.data.auth = {
       ...tokenPayload,
       roles: activeSession.roles,
+      locationAccess,
     };
 
     next();

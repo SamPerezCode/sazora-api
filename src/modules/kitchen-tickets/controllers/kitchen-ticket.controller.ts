@@ -24,6 +24,12 @@ import {
 import { listKitchenTickets } from "../services/list-kitchen-tickets.service";
 import { changeKitchenTicketStatus } from "../services/update-kitchen-ticket-status.service";
 import { changeKitchenTicketItemStatus } from "../services/update-kitchen-ticket-item-status.service";
+import {
+  assertKitchenTicketLocationAccess,
+  resolveKitchenLocationScope,
+} from "../services/kitchen-ticket-location-access.service";
+
+import { assertKitchenStatusPermission } from "../services/kitchen-status-permission.service";
 
 const requireAuthentication = (
   request: Parameters<RequestHandler>[0],
@@ -44,13 +50,21 @@ const listKitchenTicketsController: RequestHandler = async (
   response,
 ) => {
   const auth = requireAuthentication(request);
+
   const query = listKitchenTicketsQuerySchema.parse(request.query);
 
-  const kitchenTickets = await listKitchenTickets(auth.businessId, query);
+  const locationId = await resolveKitchenLocationScope(auth, query.locationId);
+
+  const kitchenTickets = await listKitchenTickets(
+    auth.businessId,
+    locationId,
+    query,
+  );
 
   response.status(200).json({
     status: "success",
     data: {
+      locationId,
       kitchenTickets,
     },
   });
@@ -65,6 +79,8 @@ const createKitchenTicketPrintController: RequestHandler = async (
   const { kitchenTicketId } = kitchenTicketPrintParamsSchema.parse(
     request.params,
   );
+
+  await assertKitchenTicketLocationAccess(auth, kitchenTicketId);
 
   const input = createKitchenTicketPrintSchema.parse(request.body);
 
@@ -93,6 +109,8 @@ const listKitchenTicketPrintsController: RequestHandler = async (
     request.params,
   );
 
+  await assertKitchenTicketLocationAccess(auth, kitchenTicketId);
+
   const prints = await getKitchenTicketPrints(auth.businessId, kitchenTicketId);
 
   response.status(200).json({
@@ -111,6 +129,8 @@ const reprintKitchenTicketController: RequestHandler = async (
 
   const { kitchenTicketId, kitchenTicketPrintId } =
     kitchenTicketReprintParamsSchema.parse(request.params);
+
+  await assertKitchenTicketLocationAccess(auth, kitchenTicketId);
 
   const input = reprintKitchenTicketSchema.parse(request.body);
 
@@ -140,7 +160,11 @@ const updateKitchenTicketStatusController: RequestHandler = async (
     request.params,
   );
 
+  await assertKitchenTicketLocationAccess(auth, kitchenTicketId);
+
   const input = updateKitchenTicketStatusSchema.parse(request.body);
+
+  assertKitchenStatusPermission(auth, input.status);
 
   const result = await changeKitchenTicketStatus(
     auth.businessId,
@@ -164,7 +188,11 @@ const updateKitchenTicketItemStatusController: RequestHandler = async (
   const { kitchenTicketId, kitchenTicketItemId } =
     kitchenTicketItemParamsSchema.parse(request.params);
 
+  await assertKitchenTicketLocationAccess(auth, kitchenTicketId);
+
   const input = updateKitchenTicketItemStatusSchema.parse(request.body);
+
+  assertKitchenStatusPermission(auth, input.status);
 
   const result = await changeKitchenTicketItemStatus(
     auth.businessId,

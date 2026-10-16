@@ -1,6 +1,7 @@
 import type { RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
+import type { KitchenWorkflowMode } from "../../kitchen-settings/kitchen-settings.types";
 import type { OrderServiceType } from "../../orders/order.types";
 import type { ProductFulfillmentMode } from "../../products/product.types";
 import type {
@@ -14,15 +15,25 @@ type KitchenTicketRow = RowDataPacket & {
   ticketId: string;
   businessId: string;
   orderId: string;
+
+  locationId: string;
+  locationCode: string;
+  locationName: string;
+
   preparationAreaId: string;
   preparationAreaName: string;
+
   serviceType: OrderServiceType;
+  kitchenWorkflowMode: KitchenWorkflowMode;
+
   restaurantTableCode: string | null;
   restaurantTableName: string | null;
   orderNotes: string | null;
+
   currentVersion: number;
   ticketCreatedAt: Date;
   ticketUpdatedAt: Date;
+
   ticketItemId: string;
   orderItemId: string;
   productName: string;
@@ -30,10 +41,12 @@ type KitchenTicketRow = RowDataPacket & {
   quantity: number;
   itemNotes: string | null;
   preparationStatus: KitchenPreparationStatus;
+
   startedAt: Date | null;
   readyAt: Date | null;
   deliveredAt: Date | null;
   cancelledAt: Date | null;
+
   itemCreatedAt: Date;
   itemUpdatedAt: Date;
 };
@@ -84,13 +97,28 @@ const mapKitchenTicketItem = (row: KitchenTicketRow): KitchenTicketItem => ({
 
 const findActiveKitchenTickets = async (
   businessId: string,
+  locationId: string,
   preparationAreaId?: string,
 ): Promise<KitchenTicket[]> => {
-  const whereConditions = ["kt.business_id = ?"];
-  const queryValues: string[] = [businessId];
+  const whereConditions = [
+    "kt.business_id = ?",
+    "o.location_id = ?",
+
+    /*
+     * La pantalla solamente administra órdenes que fueron
+     * confirmadas con seguimiento en pantalla.
+     *
+     * Se utiliza el modo congelado en la orden y no la
+     * configuración actual de la ubicación.
+     */
+    "o.kitchen_workflow_mode = 'PRINT_AND_SCREEN'",
+  ];
+
+  const queryValues: string[] = [businessId, locationId];
 
   if (preparationAreaId !== undefined) {
     whereConditions.push("kt.preparation_area_id = ?");
+
     queryValues.push(preparationAreaId);
   }
 
@@ -98,69 +126,84 @@ const findActiveKitchenTickets = async (
 
   const [rows] = await databasePool.execute<KitchenTicketRow[]>(
     `
-      SELECT
-        CAST(kt.id AS CHAR) AS ticketId,
-        CAST(kt.business_id AS CHAR) AS businessId,
-        CAST(kt.order_id AS CHAR) AS orderId,
-        CAST(kt.preparation_area_id AS CHAR)
-          AS preparationAreaId,
-        pa.name AS preparationAreaName,
-        o.service_type AS serviceType,
-        rt.code AS restaurantTableCode,
-        rt.name AS restaurantTableName,
-        o.notes AS orderNotes,
-        kt.current_version AS currentVersion,
-        kt.created_at AS ticketCreatedAt,
-        kt.updated_at AS ticketUpdatedAt,
-        CAST(kti.id AS CHAR) AS ticketItemId,
-        CAST(kti.order_item_id AS CHAR) AS orderItemId,
-        oi.product_name AS productName,
-        oi.fulfillment_mode AS fulfillmentMode,
-        oi.quantity,
-        oi.notes AS itemNotes,
-        kti.preparation_status AS preparationStatus,
-        kti.started_at AS startedAt,
-        kti.ready_at AS readyAt,
-        kti.delivered_at AS deliveredAt,
-        kti.cancelled_at AS cancelledAt,
-        kti.created_at AS itemCreatedAt,
-        kti.updated_at AS itemUpdatedAt
-      FROM kitchen_tickets AS kt
-      INNER JOIN orders AS o
-        ON o.business_id = kt.business_id
-        AND o.id = kt.order_id
-      INNER JOIN preparation_areas AS pa
-        ON pa.business_id = kt.business_id
-        AND pa.id = kt.preparation_area_id
-      LEFT JOIN restaurant_tables AS rt
-        ON rt.business_id = o.business_id
-        AND rt.id = o.restaurant_table_id
-      INNER JOIN kitchen_ticket_items AS kti
-        ON kti.business_id = kt.business_id
-        AND kti.kitchen_ticket_id = kt.id
-      INNER JOIN order_items AS oi
-        ON oi.business_id = kti.business_id
-        AND oi.id = kti.order_item_id
-      WHERE
-        ${whereClause}
-        AND EXISTS (
-          SELECT 1
-          FROM kitchen_ticket_items AS active_item
-          WHERE
-            active_item.business_id = kt.business_id
-            AND active_item.kitchen_ticket_id = kt.id
-            AND active_item.preparation_status IN (
-              'PENDING',
-              'IN_PREPARATION',
-              'READY'
-            )
-        )
-      ORDER BY
-        kt.created_at ASC,
-        kt.id ASC,
-        kti.created_at ASC,
-        kti.id ASC
-    `,
+        SELECT
+          CAST(kt.id AS CHAR) AS ticketId,
+          CAST(kt.business_id AS CHAR) AS businessId,
+          CAST(kt.order_id AS CHAR) AS orderId,
+
+          CAST(o.location_id AS CHAR) AS locationId,
+          bl.code AS locationCode,
+          bl.name AS locationName,
+
+          CAST(kt.preparation_area_id AS CHAR)
+            AS preparationAreaId,
+          pa.name AS preparationAreaName,
+
+          o.service_type AS serviceType,
+          o.kitchen_workflow_mode AS kitchenWorkflowMode,
+
+          rt.code AS restaurantTableCode,
+          rt.name AS restaurantTableName,
+          o.notes AS orderNotes,
+
+          kt.current_version AS currentVersion,
+          kt.created_at AS ticketCreatedAt,
+          kt.updated_at AS ticketUpdatedAt,
+
+          CAST(kti.id AS CHAR) AS ticketItemId,
+          CAST(kti.order_item_id AS CHAR) AS orderItemId,
+          oi.product_name AS productName,
+          oi.fulfillment_mode AS fulfillmentMode,
+          oi.quantity,
+          oi.notes AS itemNotes,
+          kti.preparation_status AS preparationStatus,
+
+          kti.started_at AS startedAt,
+          kti.ready_at AS readyAt,
+          kti.delivered_at AS deliveredAt,
+          kti.cancelled_at AS cancelledAt,
+
+          kti.created_at AS itemCreatedAt,
+          kti.updated_at AS itemUpdatedAt
+        FROM kitchen_tickets AS kt
+        INNER JOIN orders AS o
+          ON o.business_id = kt.business_id
+          AND o.id = kt.order_id
+        INNER JOIN business_locations AS bl
+          ON bl.business_id = o.business_id
+          AND bl.id = o.location_id
+        INNER JOIN preparation_areas AS pa
+          ON pa.business_id = kt.business_id
+          AND pa.id = kt.preparation_area_id
+        LEFT JOIN restaurant_tables AS rt
+          ON rt.business_id = o.business_id
+          AND rt.id = o.restaurant_table_id
+        INNER JOIN kitchen_ticket_items AS kti
+          ON kti.business_id = kt.business_id
+          AND kti.kitchen_ticket_id = kt.id
+        INNER JOIN order_items AS oi
+          ON oi.business_id = kti.business_id
+          AND oi.id = kti.order_item_id
+        WHERE
+          ${whereClause}
+          AND EXISTS (
+            SELECT 1
+            FROM kitchen_ticket_items AS active_item
+            WHERE
+              active_item.business_id = kt.business_id
+              AND active_item.kitchen_ticket_id = kt.id
+              AND active_item.preparation_status IN (
+                'PENDING',
+                'IN_PREPARATION',
+                'READY'
+              )
+          )
+        ORDER BY
+          kt.created_at ASC,
+          kt.id ASC,
+          kti.created_at ASC,
+          kti.id ASC
+      `,
     queryValues,
   );
 
@@ -175,12 +218,21 @@ const findActiveKitchenTickets = async (
           id: row.ticketId,
           businessId: row.businessId,
           orderId: row.orderId,
+
+          locationId: row.locationId,
+          locationCode: row.locationCode,
+          locationName: row.locationName,
+
           preparationAreaId: row.preparationAreaId,
           preparationAreaName: row.preparationAreaName,
+
           serviceType: row.serviceType,
+          kitchenWorkflowMode: row.kitchenWorkflowMode,
+
           restaurantTableCode: row.restaurantTableCode,
           restaurantTableName: row.restaurantTableName,
           orderNotes: row.orderNotes,
+
           currentVersion: row.currentVersion,
           createdAt: row.ticketCreatedAt,
           updatedAt: row.ticketUpdatedAt,

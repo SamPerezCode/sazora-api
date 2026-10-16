@@ -1,15 +1,14 @@
 import { z } from "zod";
 
+const databaseIdSchema = z
+  .string()
+  .trim()
+  .regex(/^[1-9]\d*$/, "El identificador debe ser un entero positivo");
+
 const listKitchenTicketsQuerySchema = z
   .object({
-    preparationAreaId: z
-      .string()
-      .trim()
-      .regex(
-        /^[1-9]\d*$/,
-        "El identificador del área debe ser un entero positivo",
-      )
-      .optional(),
+    locationId: databaseIdSchema.optional(),
+    preparationAreaId: databaseIdSchema.optional(),
   })
   .strict();
 

@@ -4,9 +4,14 @@ import type { ListKitchenTicketsQuery } from "../schemas/list-kitchen-tickets.sc
 
 const listKitchenTickets = async (
   businessId: string,
+  locationId: string,
   query: ListKitchenTicketsQuery,
 ): Promise<KitchenTicket[]> => {
-  return findActiveKitchenTickets(businessId, query.preparationAreaId);
+  return findActiveKitchenTickets(
+    businessId,
+    locationId,
+    query.preparationAreaId,
+  );
 };
 
 export { listKitchenTickets };

@@ -1,12 +1,16 @@
 import type { Socket } from "socket.io";
 
-import type { AccessTokenPayload } from "../modules/auth/auth.types";
+import type {
+  AuthenticatedSession,
+  SessionLocationAccess,
+} from "../modules/auth/auth.types";
 
 interface SessionReadyPayload {
   userId: string;
   businessId: string;
   membershipId: string;
   roles: string[];
+  locationAccess: SessionLocationAccess;
   connectedAt: string;
 }
 
@@ -30,6 +34,7 @@ interface KitchenTicketCreatedSummary {
 interface OrderCreatedPayload {
   businessId: string;
   orderId: string;
+  locationId: string;
   restaurantTableId: string | null;
   openedByMembershipId: string;
   serviceType: "TABLE" | "TAKEAWAY" | "DELIVERY";
@@ -42,6 +47,7 @@ interface OrderCreatedPayload {
 interface OrderConfirmedPayload {
   businessId: string;
   orderId: string;
+  locationId: string;
   status: "CONFIRMED";
   confirmedAt: string | null;
   kitchenTickets: readonly KitchenTicketCreatedSummary[];
@@ -50,6 +56,7 @@ interface OrderConfirmedPayload {
 interface KitchenTicketItemStatusUpdatedPayload {
   businessId: string;
   orderId: string;
+  locationId: string;
   kitchenTicketId: string;
   kitchenTicketItemId: string;
   preparationStatus:
@@ -64,6 +71,7 @@ type RealtimeOrderStatus =
 interface OrderStatusUpdatedPayload {
   businessId: string;
   orderId: string;
+  locationId: string;
   previousStatus: RealtimeOrderStatus;
   status: RealtimeOrderStatus;
   changedByMembershipId: string;
@@ -84,6 +92,7 @@ interface OrderItemAddedPayloadItem {
 interface OrderItemsAddedPayload {
   businessId: string;
   orderId: string;
+  locationId: string;
   orderStatus: RealtimeOrderStatus;
   addedByMembershipId: string;
   orderItems: readonly OrderItemAddedPayloadItem[];
@@ -92,6 +101,7 @@ interface OrderItemsAddedPayload {
 interface OrderItemUpdatedPayload {
   businessId: string;
   orderId: string;
+  locationId: string;
   orderItemId: string;
   productName: string;
   quantity: number;
@@ -104,6 +114,7 @@ interface OrderItemUpdatedPayload {
 interface OrderItemRemovedPayload {
   businessId: string;
   orderId: string;
+  locationId: string;
   orderItemId: string;
   removedAt: string;
 }
@@ -111,6 +122,7 @@ interface OrderItemRemovedPayload {
 interface OrderItemCancelledPayload {
   businessId: string;
   orderId: string;
+  locationId: string;
   orderItemId: string;
   kitchenTicketId: string;
   kitchenTicketItemId: string;
@@ -125,6 +137,7 @@ interface OrderItemCancelledPayload {
 interface OrderUpdatedPayload {
   businessId: string;
   orderId: string;
+  locationId: string;
   status: RealtimeOrderStatus;
   serviceType: "TABLE" | "TAKEAWAY" | "DELIVERY";
   restaurantTableId: string | null;
@@ -252,7 +265,7 @@ interface ServerToClientEvents {
 type InterServerEvents = Record<never, never>;
 
 interface SocketData {
-  auth: AccessTokenPayload;
+  auth: AuthenticatedSession;
 }
 
 type RealtimeSocket = Socket<
@@ -276,6 +289,7 @@ interface PublicOrderRequestStatusUpdatedPayload {
 interface OrderItemQuantityCancelledPayload {
   businessId: string;
   orderId: string;
+  locationId: string;
   orderItemId: string;
   kitchenTicketId: string;
   kitchenTicketItemId: string;

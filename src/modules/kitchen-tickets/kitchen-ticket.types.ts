@@ -1,3 +1,4 @@
+import type { KitchenWorkflowMode } from "../kitchen-settings/kitchen-settings.types";
 import type { OrderServiceType } from "../orders/order.types";
 import type { ProductFulfillmentMode } from "../products/product.types";
 
@@ -28,15 +29,25 @@ type KitchenTicket = Readonly<{
   id: string;
   businessId: string;
   orderId: string;
+
+  locationId: string;
+  locationCode: string;
+  locationName: string;
+
   preparationAreaId: string;
   preparationAreaName: string;
+
   serviceType: OrderServiceType;
+  kitchenWorkflowMode: KitchenWorkflowMode;
+
   restaurantTableCode: string | null;
   restaurantTableName: string | null;
   orderNotes: string | null;
+
   currentVersion: number;
   status: KitchenTicketStatus;
   items: readonly KitchenTicketItem[];
+
   createdAt: Date;
   updatedAt: Date;
 }>;

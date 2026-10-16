@@ -1,7 +1,15 @@
 import { randomUUID } from "node:crypto";
 
-import { getBusinessRoleRoom, getMembershipRoom } from "./realtime.rooms";
+import {
+  getBusinessRoleRoom,
+  getLocationRoleRoom,
+  getMembershipRoom,
+} from "./realtime.rooms";
 import { getRealtimeServer } from "./realtime.server";
+import {
+  findOrderRealtimeContext,
+  type OrderRealtimeContext,
+} from "../modules/orders/repositories/order-location.repository";
 import type {
   KitchenTicketItemStatusUpdatedPayload,
   OrderConfirmedPayload,
@@ -32,6 +40,65 @@ const emitSafely = (eventName: string, operation: () => void): void => {
   }
 };
 
+type LocationScopedInput<T extends { locationId: string }> = Omit<
+  T,
+  "locationId"
+>;
+
+const runWithOrderContext = (
+  eventName: string,
+  businessId: string,
+  orderId: string,
+  operation: (context: OrderRealtimeContext) => void,
+): void => {
+  void findOrderRealtimeContext(businessId, orderId)
+    .then((context) => {
+      if (!context) {
+        console.error(
+          `No fue posible emitir ${eventName}: la orden ${orderId} no existe`,
+        );
+
+        return;
+      }
+
+      emitSafely(eventName, () => {
+        operation(context);
+      });
+    })
+    .catch((error: unknown) => {
+      console.error(
+        `No fue posible resolver la ubicación para ${eventName}`,
+        error,
+      );
+    });
+};
+
+const getLocationEditingRooms = (
+  businessId: string,
+  locationId: string,
+): string[] => [
+  getBusinessRoleRoom(businessId, "ADMIN"),
+  getLocationRoleRoom(businessId, locationId, "WAITER"),
+];
+
+const getLocationOperationalRooms = (
+  businessId: string,
+  locationId: string,
+  kitchenWorkflowMode: "PRINT_ONLY" | "PRINT_AND_SCREEN" | null,
+): string[] => {
+  const rooms = [
+    getBusinessRoleRoom(businessId, "ADMIN"),
+
+    getLocationRoleRoom(businessId, locationId, "WAITER"),
+  ];
+
+  if (kitchenWorkflowMode === "PRINT_AND_SCREEN") {
+    rooms.push(getLocationRoleRoom(businessId, locationId, "KITCHEN"));
+  }
+
+  return rooms;
+};
+
 const emitInventoryChanged = (businessId: string): void => {
   const payload: InventoryChangedPayload = {
     eventId: randomUUID(),
@@ -46,92 +113,240 @@ const emitInventoryChanged = (businessId: string): void => {
   });
 };
 
-const getOperationalRooms = (businessId: string): string[] => [
-  getBusinessRoleRoom(businessId, "ADMIN"),
-  getBusinessRoleRoom(businessId, "WAITER"),
-  getBusinessRoleRoom(businessId, "KITCHEN"),
-];
+const emitOrderCreated = (
+  payload: LocationScopedInput<OrderCreatedPayload>,
+): void => {
+  runWithOrderContext(
+    "order:created",
+    payload.businessId,
+    payload.orderId,
+    (context) => {
+      const eventPayload: OrderCreatedPayload = {
+        ...payload,
+        locationId: context.locationId,
+      };
 
-const getOrderEditingRooms = (businessId: string): string[] => [
-  getBusinessRoleRoom(businessId, "ADMIN"),
-  getBusinessRoleRoom(businessId, "WAITER"),
-];
-
-const emitOrderCreated = (payload: OrderCreatedPayload): void => {
-  getRealtimeServer()
-    .to(getOrderEditingRooms(payload.businessId))
-    .emit("order:created", payload);
+      getRealtimeServer()
+        .to(getLocationEditingRooms(payload.businessId, context.locationId))
+        .emit("order:created", eventPayload);
+    },
+  );
 };
 
-const emitOrderConfirmed = (payload: OrderConfirmedPayload): void => {
-  emitSafely("order:confirmed", () => {
-    getRealtimeServer()
-      .to(getOperationalRooms(payload.businessId))
-      .emit("order:confirmed", payload);
-  });
+const emitOrderConfirmed = (
+  payload: LocationScopedInput<OrderConfirmedPayload>,
+): void => {
+  runWithOrderContext(
+    "order:confirmed",
+    payload.businessId,
+    payload.orderId,
+    (context) => {
+      const eventPayload: OrderConfirmedPayload = {
+        ...payload,
+        locationId: context.locationId,
+      };
+
+      getRealtimeServer()
+        .to(
+          getLocationOperationalRooms(
+            payload.businessId,
+            context.locationId,
+            context.kitchenWorkflowMode,
+          ),
+        )
+        .emit("order:confirmed", eventPayload);
+    },
+  );
 };
 
 const emitKitchenTicketItemStatusUpdated = (
-  payload: KitchenTicketItemStatusUpdatedPayload,
+  payload: LocationScopedInput<KitchenTicketItemStatusUpdatedPayload>,
 ): void => {
-  getRealtimeServer()
-    .to(getOperationalRooms(payload.businessId))
-    .emit("kitchen-ticket:item-status-updated", payload);
+  runWithOrderContext(
+    "kitchen-ticket:item-status-updated",
+    payload.businessId,
+    payload.orderId,
+    (context) => {
+      const eventPayload: KitchenTicketItemStatusUpdatedPayload = {
+        ...payload,
+        locationId: context.locationId,
+      };
+
+      getRealtimeServer()
+        .to(
+          getLocationOperationalRooms(
+            payload.businessId,
+            context.locationId,
+            context.kitchenWorkflowMode,
+          ),
+        )
+        .emit("kitchen-ticket:item-status-updated", eventPayload);
+    },
+  );
 };
 
-const emitOrderStatusUpdated = (payload: OrderStatusUpdatedPayload): void => {
-  emitSafely("order:status-updated", () => {
-    getRealtimeServer()
-      .to(getOperationalRooms(payload.businessId))
-      .emit("order:status-updated", payload);
-  });
+const emitOrderStatusUpdated = (
+  payload: LocationScopedInput<OrderStatusUpdatedPayload>,
+): void => {
+  runWithOrderContext(
+    "order:status-updated",
+    payload.businessId,
+    payload.orderId,
+    (context) => {
+      const eventPayload: OrderStatusUpdatedPayload = {
+        ...payload,
+        locationId: context.locationId,
+      };
+
+      getRealtimeServer()
+        .to(
+          getLocationOperationalRooms(
+            payload.businessId,
+            context.locationId,
+            context.kitchenWorkflowMode,
+          ),
+        )
+        .emit("order:status-updated", eventPayload);
+    },
+  );
 };
 
-const emitOrderItemsAdded = (payload: OrderItemsAddedPayload): void => {
-  const rooms =
-    payload.orderStatus === "CONFIRMED"
-      ? getOperationalRooms(payload.businessId)
-      : getOrderEditingRooms(payload.businessId);
+const emitOrderItemsAdded = (
+  payload: LocationScopedInput<OrderItemsAddedPayload>,
+): void => {
+  runWithOrderContext(
+    "order:items-added",
+    payload.businessId,
+    payload.orderId,
+    (context) => {
+      const eventPayload: OrderItemsAddedPayload = {
+        ...payload,
+        locationId: context.locationId,
+      };
 
-  emitSafely("order:items-added", () => {
-    getRealtimeServer().to(rooms).emit("order:items-added", payload);
-  });
+      const rooms =
+        payload.orderStatus === "CONFIRMED"
+          ? getLocationOperationalRooms(
+              payload.businessId,
+              context.locationId,
+              context.kitchenWorkflowMode,
+            )
+          : getLocationEditingRooms(payload.businessId, context.locationId);
+
+      getRealtimeServer().to(rooms).emit("order:items-added", eventPayload);
+    },
+  );
+};
+const emitOrderItemUpdated = (
+  payload: LocationScopedInput<OrderItemUpdatedPayload>,
+): void => {
+  runWithOrderContext(
+    "order:item-updated",
+    payload.businessId,
+    payload.orderId,
+    (context) => {
+      const eventPayload: OrderItemUpdatedPayload = {
+        ...payload,
+        locationId: context.locationId,
+      };
+
+      getRealtimeServer()
+        .to(getLocationEditingRooms(payload.businessId, context.locationId))
+        .emit("order:item-updated", eventPayload);
+    },
+  );
 };
 
-const emitOrderItemUpdated = (payload: OrderItemUpdatedPayload): void => {
-  getRealtimeServer()
-    .to(getOrderEditingRooms(payload.businessId))
-    .emit("order:item-updated", payload);
+const emitOrderItemRemoved = (
+  payload: LocationScopedInput<OrderItemRemovedPayload>,
+): void => {
+  runWithOrderContext(
+    "order:item-removed",
+    payload.businessId,
+    payload.orderId,
+    (context) => {
+      const eventPayload: OrderItemRemovedPayload = {
+        ...payload,
+        locationId: context.locationId,
+      };
+
+      getRealtimeServer()
+        .to(getLocationEditingRooms(payload.businessId, context.locationId))
+        .emit("order:item-removed", eventPayload);
+    },
+  );
 };
 
-const emitOrderItemRemoved = (payload: OrderItemRemovedPayload): void => {
-  getRealtimeServer()
-    .to(getOrderEditingRooms(payload.businessId))
-    .emit("order:item-removed", payload);
-};
+const emitOrderItemCancelled = (
+  payload: LocationScopedInput<OrderItemCancelledPayload>,
+): void => {
+  runWithOrderContext(
+    "order:item-cancelled",
+    payload.businessId,
+    payload.orderId,
+    (context) => {
+      const eventPayload: OrderItemCancelledPayload = {
+        ...payload,
+        locationId: context.locationId,
+      };
 
-const emitOrderItemCancelled = (payload: OrderItemCancelledPayload): void => {
-  emitSafely("order:item-cancelled", () => {
-    getRealtimeServer()
-      .to(getOperationalRooms(payload.businessId))
-      .emit("order:item-cancelled", payload);
-  });
+      getRealtimeServer()
+        .to(
+          getLocationOperationalRooms(
+            payload.businessId,
+            context.locationId,
+            context.kitchenWorkflowMode,
+          ),
+        )
+        .emit("order:item-cancelled", eventPayload);
+    },
+  );
 };
 
 const emitOrderItemQuantityCancelled = (
-  payload: OrderItemQuantityCancelledPayload,
+  payload: LocationScopedInput<OrderItemQuantityCancelledPayload>,
 ): void => {
-  emitSafely("order:item-quantity-cancelled", () => {
-    getRealtimeServer()
-      .to(getOperationalRooms(payload.businessId))
-      .emit("order:item-quantity-cancelled", payload);
-  });
+  runWithOrderContext(
+    "order:item-quantity-cancelled",
+    payload.businessId,
+    payload.orderId,
+    (context) => {
+      const eventPayload: OrderItemQuantityCancelledPayload = {
+        ...payload,
+        locationId: context.locationId,
+      };
+
+      getRealtimeServer()
+        .to(
+          getLocationOperationalRooms(
+            payload.businessId,
+            context.locationId,
+            context.kitchenWorkflowMode,
+          ),
+        )
+        .emit("order:item-quantity-cancelled", eventPayload);
+    },
+  );
 };
 
-const emitOrderUpdated = (payload: OrderUpdatedPayload): void => {
-  getRealtimeServer()
-    .to(getOrderEditingRooms(payload.businessId))
-    .emit("order:updated", payload);
+const emitOrderUpdated = (
+  payload: LocationScopedInput<OrderUpdatedPayload>,
+): void => {
+  runWithOrderContext(
+    "order:updated",
+    payload.businessId,
+    payload.orderId,
+    (context) => {
+      const eventPayload: OrderUpdatedPayload = {
+        ...payload,
+        locationId: context.locationId,
+      };
+
+      getRealtimeServer()
+        .to(getLocationEditingRooms(payload.businessId, context.locationId))
+        .emit("order:updated", eventPayload);
+    },
+  );
 };
 
 const emitPublicOrderRequestCreated = (
