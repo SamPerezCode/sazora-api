@@ -28,12 +28,17 @@ type LocationInventoryLedgerLine = Readonly<{
   quantity: string;
 
   /**
-   * Obligatorio cuando entra inventario a un saldo vacío.
-   *
-   * También puede enviarse en devoluciones para recuperar el costo
-   * histórico de la salida original.
+   * Costo unitario histórico o explícito de una entrada.
    */
   unitCost: string | null;
+
+  /**
+   * Costo total histórico.
+   *
+   * Se usa en reversiones para restituir exactamente el valor
+   * retirado, evitando diferencias por redondeo.
+   */
+  totalCost?: string | null;
 
   notes: string | null;
 }>;
@@ -314,7 +319,8 @@ const applyLocationInventoryMovement = async (
     if (
       line.direction === "IN" &&
       currentStock === 0n &&
-      line.unitCost === null
+      line.unitCost === null &&
+      line.totalCost == null
     ) {
       return {
         kind: "UNIT_COST_REQUIRED",
@@ -410,12 +416,23 @@ const applyLocationInventoryMovement = async (
        */
       averageCostAfter = stockAfter === 0n ? null : averageCostBefore;
     } else {
-      appliedUnitCost =
-        line.unitCost !== null
-          ? decimalToScaledBigInt(line.unitCost, COST_SCALE)
-          : (averageCostBefore ?? 0n);
+      const explicitTotalCost =
+        line.totalCost == null
+          ? null
+          : decimalToScaledBigInt(line.totalCost, COST_SCALE);
 
-      totalCost = multiplyQuantityByCost(quantity, appliedUnitCost);
+      if (line.unitCost !== null) {
+        appliedUnitCost = decimalToScaledBigInt(line.unitCost, COST_SCALE);
+      } else if (explicitTotalCost !== null) {
+        appliedUnitCost = divideValueByQuantity(explicitTotalCost, quantity);
+      } else if (averageCostBefore !== null) {
+        appliedUnitCost = averageCostBefore;
+      } else {
+        throw new Error("No fue posible determinar el costo de la entrada");
+      }
+
+      totalCost =
+        explicitTotalCost ?? multiplyQuantityByCost(quantity, appliedUnitCost);
 
       stockAfter = stockBefore + quantity;
       valueAfter = valueBefore + totalCost;

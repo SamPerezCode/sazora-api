@@ -5,6 +5,14 @@ import type {
 } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
+import { AppError } from "../../../shared/errors/app-error";
+
+import {
+  decimalToScaledBigInt,
+  scaledBigIntToDecimal,
+} from "../../../shared/math/fixed-decimal";
+
+import { applyLocationInventoryMovement } from "../../inventory-movements/repositories/location-inventory-ledger.repository";
 import type { KitchenPreparationStatus } from "../../kitchen-tickets/kitchen-ticket.types";
 import type { OrderItemStatus, OrderStatus } from "../order.types";
 
@@ -15,6 +23,7 @@ type CancellablePreparationStatus = Exclude<
 
 type OrderRow = RowDataPacket & {
   status: OrderStatus;
+  locationId: string;
 };
 
 type ItemContextRow = RowDataPacket & {
@@ -29,16 +38,14 @@ type ItemContextRow = RowDataPacket & {
 type SaleLineRow = RowDataPacket & {
   inventoryItemId: string;
   quantity: string;
+  unitCost: string | null;
+  totalCost: string | null;
 };
 
 type ReversedLineRow = RowDataPacket & {
   inventoryItemId: string;
   quantity: string;
-};
-
-type InventoryItemRow = RowDataPacket & {
-  id: string;
-  currentStock: string;
+  totalCost: string | null;
 };
 
 type PartialCancellation = Readonly<{
@@ -71,26 +78,8 @@ type CancelOrderItemQuantityResult =
     }>
   | Readonly<{ kind: "FULL_CANCELLATION_REQUIRED" }>;
 
-const decimalToThousandths = (value: string): bigint => {
-  const normalized = value.trim();
-  const negative = normalized.startsWith("-");
-  const unsigned = negative ? normalized.slice(1) : normalized;
-  const [whole = "0", fraction = ""] = unsigned.split(".");
-
-  const result =
-    BigInt(whole) * 1000n + BigInt(fraction.padEnd(3, "0").slice(0, 3));
-
-  return negative ? -result : result;
-};
-
-const thousandthsToDecimal = (value: bigint): string => {
-  const negative = value < 0n;
-  const absolute = negative ? -value : value;
-  const whole = absolute / 1000n;
-  const fraction = (absolute % 1000n).toString().padStart(3, "0");
-
-  return `${negative ? "-" : ""}${whole}.${fraction}`;
-};
+const QUANTITY_SCALE = 3;
+const COST_SCALE = 6;
 
 const reversePartialInventory = async (
   connection: PoolConnection,
@@ -98,6 +87,7 @@ const reversePartialInventory = async (
   membershipId: string,
   orderId: string,
   orderItemId: string,
+  locationId: string,
   previousQuantity: number,
   cancelledQuantity: number,
   remainingQuantity: number,
@@ -105,22 +95,47 @@ const reversePartialInventory = async (
 ): Promise<string | null> => {
   const [saleLineRows] = await connection.execute<SaleLineRow[]>(
     `
-      SELECT
-        CAST(iml.inventory_item_id AS CHAR) AS inventoryItemId,
-        CAST(SUM(iml.quantity) AS CHAR) AS quantity
-      FROM inventory_movements AS im
-      INNER JOIN inventory_movement_lines AS iml
-        ON iml.business_id = im.business_id
-        AND iml.movement_id = im.id
-      WHERE
-        im.business_id = ?
-        AND im.movement_type = 'SALE'
-        AND im.source_type = 'ORDER_ITEM'
-        AND im.source_id = ?
-        AND iml.direction = 'OUT'
-      GROUP BY iml.inventory_item_id
-      ORDER BY iml.inventory_item_id
-    `,
+        SELECT
+          CAST(iml.inventory_item_id AS CHAR)
+            AS inventoryItemId,
+
+          CAST(SUM(iml.quantity) AS CHAR)
+            AS quantity,
+
+          CASE
+            WHEN
+              COUNT(iml.unit_cost) = COUNT(*)
+              AND COUNT(iml.total_cost) = COUNT(*)
+            THEN CAST(
+              SUM(iml.total_cost) / SUM(iml.quantity)
+              AS CHAR
+            )
+            ELSE NULL
+          END AS unitCost,
+
+          CASE
+            WHEN COUNT(iml.total_cost) = COUNT(*)
+              THEN CAST(SUM(iml.total_cost) AS CHAR)
+            ELSE NULL
+          END AS totalCost
+
+        FROM inventory_movements AS im
+
+        INNER JOIN inventory_movement_lines AS iml
+          ON iml.business_id = im.business_id
+          AND iml.movement_id = im.id
+
+        WHERE
+          im.business_id = ?
+          AND im.movement_type = 'SALE'
+          AND im.source_type = 'ORDER_ITEM'
+          AND im.source_id = ?
+          AND iml.direction = 'OUT'
+
+        GROUP BY iml.inventory_item_id
+
+        ORDER BY iml.inventory_item_id
+      `,
     [businessId, orderItemId],
   );
 
@@ -130,190 +145,195 @@ const reversePartialInventory = async (
 
   const [reversedLineRows] = await connection.execute<ReversedLineRow[]>(
     `
-      SELECT
-        CAST(iml.inventory_item_id AS CHAR) AS inventoryItemId,
-        CAST(SUM(iml.quantity) AS CHAR) AS quantity
-      FROM inventory_movements AS im
-      INNER JOIN inventory_movement_lines AS iml
-        ON iml.business_id = im.business_id
-        AND iml.movement_id = im.id
-      WHERE
-        im.business_id = ?
-        AND im.movement_type = 'REVERSAL'
-        AND im.source_type = 'ORDER_ITEM_CANCELLATION'
-        AND (
-          im.source_id = ?
-          OR im.source_id LIKE ?
-        )
-        AND iml.direction = 'IN'
-      GROUP BY iml.inventory_item_id
-    `,
+        SELECT
+          CAST(iml.inventory_item_id AS CHAR)
+            AS inventoryItemId,
+
+          CAST(SUM(iml.quantity) AS CHAR)
+            AS quantity,
+
+          CASE
+            WHEN COUNT(iml.total_cost) = COUNT(*)
+              THEN CAST(SUM(iml.total_cost) AS CHAR)
+            ELSE NULL
+          END AS totalCost
+
+        FROM inventory_movements AS im
+
+        INNER JOIN inventory_movement_lines AS iml
+          ON iml.business_id = im.business_id
+          AND iml.movement_id = im.id
+
+        WHERE
+          im.business_id = ?
+          AND im.movement_type = 'REVERSAL'
+          AND im.source_type = 'ORDER_ITEM_CANCELLATION'
+          AND (
+            im.source_id = ?
+            OR im.source_id LIKE ?
+          )
+          AND iml.direction = 'IN'
+
+        GROUP BY iml.inventory_item_id
+      `,
     [businessId, orderItemId, `${orderItemId}:%`],
   );
 
-  const reversedByInventoryItem = new Map(
-    reversedLineRows.map((line) => [
-      line.inventoryItemId,
-      decimalToThousandths(line.quantity),
-    ]),
+  const reversedByInventoryItemId = new Map(
+    reversedLineRows.map((line) => [line.inventoryItemId, line]),
   );
 
-  const quantitiesToReverse = saleLineRows
+  const linesToReverse = saleLineRows
     .map((saleLine) => {
-      const sold = decimalToThousandths(saleLine.quantity);
-      const alreadyReversed =
-        reversedByInventoryItem.get(saleLine.inventoryItemId) ?? 0n;
+      const soldQuantity = decimalToScaledBigInt(
+        saleLine.quantity,
+        QUANTITY_SCALE,
+      );
 
-      const stillConsumed = sold - alreadyReversed;
+      const previousReversal = reversedByInventoryItemId.get(
+        saleLine.inventoryItemId,
+      );
 
-      if (stillConsumed <= 0n) {
+      const alreadyReversedQuantity =
+        previousReversal === undefined
+          ? 0n
+          : decimalToScaledBigInt(previousReversal.quantity, QUANTITY_SCALE);
+
+      const stillConsumedQuantity = soldQuantity - alreadyReversedQuantity;
+
+      if (stillConsumedQuantity <= 0n) {
         return null;
       }
 
       /*
-       * La división se hace sobre el consumo que todavía corresponde
-       * a las unidades activas. Los residuos de redondeo se devolverán
-       * cuando se cancele completamente la línea.
+       * previousQuantity representa las unidades comerciales
+       * que continúan activas antes de esta cancelación.
        */
-      const quantity =
-        (stillConsumed * BigInt(cancelledQuantity)) / BigInt(previousQuantity);
+      const quantityToReverse =
+        (stillConsumedQuantity * BigInt(cancelledQuantity)) /
+        BigInt(previousQuantity);
 
-      if (quantity <= 0n) {
+      if (quantityToReverse <= 0n) {
         return null;
       }
 
+      const soldTotalCost =
+        saleLine.totalCost === null
+          ? null
+          : decimalToScaledBigInt(saleLine.totalCost, COST_SCALE);
+
+      const previousReversalHasUnknownCost =
+        previousReversal?.totalCost === null;
+
+      const alreadyReversedTotalCost =
+        previousReversal?.totalCost == null
+          ? 0n
+          : decimalToScaledBigInt(previousReversal.totalCost, COST_SCALE);
+
+      const stillConsumedTotalCost =
+        soldTotalCost === null || previousReversalHasUnknownCost
+          ? null
+          : soldTotalCost - alreadyReversedTotalCost;
+
+      if (stillConsumedTotalCost !== null && stillConsumedTotalCost < 0n) {
+        throw new Error("El costo revertido supera el costo de la venta");
+      }
+
+      /*
+       * El residuo de redondeo permanece consumido.
+       * Si posteriormente se cancela todo el producto, la
+       * cancelación completa devolverá exactamente ese residuo.
+       */
+      const totalCostToReverse =
+        stillConsumedTotalCost === null
+          ? null
+          : (stillConsumedTotalCost * BigInt(cancelledQuantity)) /
+            BigInt(previousQuantity);
+
       return {
         inventoryItemId: saleLine.inventoryItemId,
-        quantity,
+
+        direction: "IN" as const,
+
+        quantity: scaledBigIntToDecimal(quantityToReverse, QUANTITY_SCALE),
+
+        unitCost: saleLine.unitCost,
+
+        totalCost:
+          totalCostToReverse === null
+            ? null
+            : scaledBigIntToDecimal(totalCostToReverse, COST_SCALE),
+
+        notes: `Reversión parcial del producto ` + `${orderItemId}`,
       };
     })
-    .filter(
-      (
-        value,
-      ): value is {
-        inventoryItemId: string;
-        quantity: bigint;
-      } => value !== null,
-    );
+    .filter((line): line is NonNullable<typeof line> => line !== null);
 
-  if (quantitiesToReverse.length === 0) {
+  if (linesToReverse.length === 0) {
     return null;
   }
 
-  const inventoryItemIds = quantitiesToReverse.map(
-    (line) => line.inventoryItemId,
-  );
+  const sourceId =
+    `${orderItemId}:PARTIAL:` + `${previousQuantity}:${remainingQuantity}`;
 
-  const placeholders = inventoryItemIds.map(() => "?").join(", ");
-
-  const [inventoryRows] = await connection.execute<InventoryItemRow[]>(
-    `
-      SELECT
-        CAST(id AS CHAR) AS id,
-        CAST(current_stock AS CHAR) AS currentStock
-      FROM inventory_items
-      WHERE
-        business_id = ?
-        AND id IN (${placeholders})
-      ORDER BY id
-      FOR UPDATE
-    `,
-    [businessId, ...inventoryItemIds],
-  );
-
-  const inventoryById = new Map(inventoryRows.map((item) => [item.id, item]));
-
-  if (inventoryById.size !== inventoryItemIds.length) {
-    throw new Error("No fue posible recuperar los artículos de inventario");
-  }
-
-  const sourceId = `${orderItemId}:PARTIAL:${previousQuantity}:${remainingQuantity}`;
-
-  const [movementResult] = await connection.execute<ResultSetHeader>(
-    `
-        INSERT INTO inventory_movements (
-          business_id,
-          movement_type,
-          source_type,
-          source_id,
-          notes,
-          created_by_membership_id
-        )
-        VALUES (
-          ?,
-          'REVERSAL',
-          'ORDER_ITEM_CANCELLATION',
-          ?,
-          ?,
-          ?
-        )
-      `,
-    [
-      businessId,
+  const movementResult = await applyLocationInventoryMovement(
+    connection,
+    businessId,
+    membershipId,
+    {
+      locationId,
+      movementType: "REVERSAL",
+      returnKind: null,
+      sourceType: "ORDER_ITEM_CANCELLATION",
       sourceId,
-      `Cancelación parcial del producto ${orderItemId} ` +
+      externalReference: `ORDER:${orderId}`,
+      notes:
+        `Cancelación parcial del producto ${orderItemId} ` +
         `de la orden ${orderId}: ${reason}`,
-      membershipId,
-    ],
+      lines: linesToReverse,
+    },
   );
 
-  const movementId = movementResult.insertId.toString();
+  switch (movementResult.kind) {
+    case "APPLIED":
+      return movementResult.movementId;
 
-  for (const reversal of quantitiesToReverse) {
-    const inventoryItem = inventoryById.get(reversal.inventoryItemId);
+    case "ITEM_NOT_AVAILABLE":
+      throw new AppError(
+        `El artículo ${movementResult.inventoryItemId} ` +
+          "ya no está disponible",
+        409,
+        "INVENTORY_ITEM_NOT_AVAILABLE",
+      );
 
-    if (!inventoryItem) {
-      throw new Error("No fue posible recuperar el artículo bloqueado");
-    }
+    case "UNVALUED_STOCK":
+      throw new AppError(
+        `El artículo ${movementResult.inventoryItemId} ` +
+          "tiene existencias sin valorar",
+        409,
+        "UNVALUED_INVENTORY_STOCK",
+      );
 
-    const balanceBefore = decimalToThousandths(inventoryItem.currentStock);
+    case "UNIT_COST_REQUIRED":
+      throw new AppError(
+        `No se conoce el costo histórico del artículo ` +
+          `${movementResult.inventoryItemId}`,
+        409,
+        "INVENTORY_REVERSAL_COST_REQUIRED",
+      );
 
-    const balanceAfter = balanceBefore + reversal.quantity;
+    case "LOCATION_NOT_FOUND":
+    case "LOCATION_INACTIVE":
+    case "LOCATION_NOT_INVENTORY_ENABLED":
+      throw new AppError(
+        "La ubicación original de la venta no está disponible",
+        409,
+        "INVENTORY_LOCATION_NOT_AVAILABLE",
+      );
 
-    const quantityText = thousandthsToDecimal(reversal.quantity);
-
-    const balanceBeforeText = thousandthsToDecimal(balanceBefore);
-
-    const balanceAfterText = thousandthsToDecimal(balanceAfter);
-
-    await connection.execute<ResultSetHeader>(
-      `
-        INSERT INTO inventory_movement_lines (
-          business_id,
-          movement_id,
-          inventory_item_id,
-          direction,
-          quantity,
-          balance_before,
-          balance_after,
-          notes
-        )
-        VALUES (?, ?, ?, 'IN', ?, ?, ?, ?)
-      `,
-      [
-        businessId,
-        movementId,
-        inventoryItem.id,
-        quantityText,
-        balanceBeforeText,
-        balanceAfterText,
-        `Reversión parcial del producto ${orderItemId}`,
-      ],
-    );
-
-    await connection.execute<ResultSetHeader>(
-      `
-        UPDATE inventory_items
-        SET current_stock = ?
-        WHERE business_id = ? AND id = ?
-      `,
-      [balanceAfterText, businessId, inventoryItem.id],
-    );
-
-    inventoryItem.currentStock = balanceAfterText;
+    case "INSUFFICIENT_STOCK":
+      throw new Error("Una reversión parcial produjo stock insuficiente");
   }
-
-  return movementId;
 };
 
 const cancelOrderItemQuantity = async (
@@ -331,7 +351,9 @@ const cancelOrderItemQuantity = async (
 
     const [orderRows] = await connection.execute<OrderRow[]>(
       `
-        SELECT status
+        SELECT
+          status,
+        CAST(location_id AS CHAR) AS locationId
         FROM orders
         WHERE business_id = ? AND id = ?
         LIMIT 1
@@ -436,12 +458,12 @@ const cancelOrderItemQuantity = async (
       membershipId,
       orderId,
       orderItemId,
+      order.locationId,
       context.quantity,
       cancelledQuantity,
       remainingQuantity,
       reason,
     );
-
     const adjustedAt = new Date();
 
     await connection.execute<ResultSetHeader>(
