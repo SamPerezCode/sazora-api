@@ -2,6 +2,12 @@ import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
 import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+
+import {
+  listInventoryLocationBalancesController,
+  valueInitialInventoryController,
+} from "./controllers/inventory-location-balance.controller";
+
 import {
   createInventoryItemController,
   getInventoryItemController,
@@ -24,6 +30,20 @@ inventoryItemRouter.post(
   authenticate,
   authorizeRoles("ADMIN"),
   createInventoryItemController,
+);
+
+inventoryItemRouter.get(
+  "/location-balances",
+  authenticate,
+  authorizeRoles("ADMIN"),
+  listInventoryLocationBalancesController,
+);
+
+inventoryItemRouter.put(
+  "/:inventoryItemId/locations/:locationId/valuation",
+  authenticate,
+  authorizeRoles("ADMIN"),
+  valueInitialInventoryController,
 );
 
 inventoryItemRouter.get(
