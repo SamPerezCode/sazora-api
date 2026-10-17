@@ -38,6 +38,11 @@ type UpdateInventoryItemData = Readonly<{
   name?: string | undefined;
   itemType?: InventoryItemType | undefined;
   baseUnit?: InventoryUnit | undefined;
+
+  /*
+   * locationId y minimumStock deben enviarse juntos.
+   */
+  locationId?: string | undefined;
   minimumStock?: string | undefined;
 }>;
 

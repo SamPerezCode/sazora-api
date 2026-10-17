@@ -168,6 +168,40 @@ type InventoryPurchaseHistoryResult = Readonly<{
   pagination: Pagination;
 }>;
 
+type InventoryReconciliationIssue =
+  | "PHYSICAL_STOCK_MISMATCH"
+  | "NEGATIVE_LOCATION_STOCK"
+  | "UNVALUED_LOCATION_STOCK";
+
+type InventoryReconciliationItem = Readonly<{
+  inventoryItemId: string;
+  sku: string | null;
+  name: string;
+  globalStock: string;
+  locationStock: string;
+  difference: string;
+  negativeLocationCount: number;
+  unvaluedLocationCount: number;
+  issues: readonly InventoryReconciliationIssue[];
+}>;
+
+type InventoryReconciliationSummary = Readonly<{
+  inventoryItemCount: number;
+  inconsistentItemCount: number;
+  physicalMismatchCount: number;
+  negativeBalanceCount: number;
+  unvaluedBalanceCount: number;
+  movementWithoutLocationCount: number;
+  unvaluedMovementLineCount: number;
+  isPhysicallyConsistent: boolean;
+  hasLegacyAuditGaps: boolean;
+}>;
+
+type InventoryReconciliationResult = Readonly<{
+  summary: InventoryReconciliationSummary;
+  items: readonly InventoryReconciliationItem[];
+}>;
+
 export type {
   InventoryKardexItem,
   InventoryKardexResult,
@@ -181,4 +215,8 @@ export type {
   InventorySummaryByLocation,
   Pagination,
   UnvaluedInventoryItem,
+  InventoryReconciliationIssue,
+  InventoryReconciliationItem,
+  InventoryReconciliationResult,
+  InventoryReconciliationSummary,
 };

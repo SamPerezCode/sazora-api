@@ -14,6 +14,7 @@ import {
   getInventorySummaryReport,
   getUnvaluedInventoryReport,
 } from "../services/inventory-report.service";
+import { getInventoryReconciliationReport } from "../services/inventory-report.service";
 
 const requireAuth = (request: Parameters<RequestHandler>[0]) => {
   if (!request.auth) {
@@ -91,9 +92,24 @@ const getInventoryPurchaseReportController: RequestHandler = async (
   });
 };
 
+const getInventoryReconciliationController: RequestHandler = async (
+  request,
+  response,
+) => {
+  const auth = requireAuth(request);
+
+  const report = await getInventoryReconciliationReport(auth.businessId);
+
+  response.status(200).json({
+    status: "success",
+    data: report,
+  });
+};
+
 export {
   getInventoryKardexController,
   getInventoryPurchaseReportController,
   getInventorySummaryController,
   getUnvaluedInventoryController,
+  getInventoryReconciliationController,
 };

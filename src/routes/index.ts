@@ -53,11 +53,11 @@ apiRouter.use("/public-menu-settings", publicMenuSettingsRouter);
 apiRouter.use("/public/businesses", publicOrderSubmissionRouter);
 apiRouter.use("/public-order-requests", publicOrderRequestRouter);
 apiRouter.use("/deliveries", deliveryRouter);
+apiRouter.use("/deliveries", deliveryRouter);
+
 apiRouter.use("/inventory-items", inventoryItemRouter);
 apiRouter.use("/inventory-movements", inventoryMovementRouter);
 apiRouter.use("/product-inventory-links", productInventoryLinkRouter);
-apiRouter.use("/inventory-items", inventoryItemRouter);
-apiRouter.use("/inventory-movements", inventoryMovementRouter);
 apiRouter.use("/inventory-reports", inventoryReportRouter);
 apiRouter.use("/production", productionRouter);
 

@@ -278,39 +278,130 @@ const updateInventoryItemById = async (
   inventoryItemId: string,
   data: UpdateInventoryItemData,
 ): Promise<InventoryItem | null> => {
-  const current = await findInventoryItemById(businessId, inventoryItemId);
+  const connection = await databasePool.getConnection();
 
-  if (!current) {
-    return null;
-  }
+  try {
+    await connection.beginTransaction();
 
-  await databasePool.execute<ResultSetHeader>(
-    `
-      UPDATE inventory_items
-      SET
-        sku = ?,
-        name = ?,
-        item_type = ?,
-        base_unit = ?,
-        minimum_stock = ?
-      WHERE
-        business_id = ?
-        AND id = ?
-    `,
-    [
-      data.sku !== undefined ? data.sku : current.sku,
-      data.name ?? current.name,
-      data.itemType ?? current.itemType,
-      data.baseUnit ?? current.baseUnit,
-      data.minimumStock ?? current.minimumStock,
+    const [currentRows] = await connection.execute<InventoryItemRow[]>(
+      `
+          ${inventoryItemSelect}
+
+          WHERE
+            business_id = ?
+            AND id = ?
+
+          LIMIT 1
+          FOR UPDATE
+        `,
+      [businessId, inventoryItemId],
+    );
+
+    const current = currentRows[0];
+
+    if (!current) {
+      await connection.rollback();
+      return null;
+    }
+
+    /*
+     * Los datos generales continúan perteneciendo al catálogo
+     * del negocio y no a una sede específica.
+     */
+    await connection.execute<ResultSetHeader>(
+      `
+        UPDATE inventory_items
+        SET
+          sku = ?,
+          name = ?,
+          item_type = ?,
+          base_unit = ?
+        WHERE
+          business_id = ?
+          AND id = ?
+      `,
+      [
+        data.sku !== undefined ? data.sku : current.sku,
+
+        data.name ?? current.name,
+
+        data.itemType ?? current.itemType,
+
+        data.baseUnit ?? current.baseUnit,
+
+        businessId,
+        inventoryItemId,
+      ],
+    );
+
+    if (data.minimumStock !== undefined && data.locationId !== undefined) {
+      const [minimumStockResult] = await connection.execute<ResultSetHeader>(
+        `
+            UPDATE inventory_location_balances
+            SET minimum_stock = ?
+            WHERE
+              business_id = ?
+              AND location_id = ?
+              AND inventory_item_id = ?
+          `,
+        [data.minimumStock, businessId, data.locationId, inventoryItemId],
+      );
+
+      if (minimumStockResult.affectedRows === 0) {
+        throw new AppError(
+          "El artículo no está configurado en la ubicación indicada",
+          404,
+          "INVENTORY_LOCATION_BALANCE_NOT_FOUND",
+        );
+      }
+
+      /*
+       * Compatibilidad temporal:
+       *
+       * inventory_items.minimum_stock representa el mínimo
+       * consolidado de todas las ubicaciones.
+       */
+      await connection.execute<ResultSetHeader>(
+        `
+          UPDATE inventory_items AS ii
+          SET ii.minimum_stock = (
+            SELECT
+              COALESCE(
+                SUM(ilb.minimum_stock),
+                0.000
+              )
+            FROM inventory_location_balances AS ilb
+            WHERE
+              ilb.business_id = ii.business_id
+              AND ilb.inventory_item_id = ii.id
+          )
+          WHERE
+            ii.business_id = ?
+            AND ii.id = ?
+        `,
+        [businessId, inventoryItemId],
+      );
+    }
+
+    await connection.commit();
+
+    const updatedItem = await findInventoryItemById(
       businessId,
       inventoryItemId,
-    ],
-  );
+    );
 
-  return findInventoryItemById(businessId, inventoryItemId);
+    if (!updatedItem) {
+      throw new Error("No fue posible recuperar el artículo actualizado");
+    }
+
+    return updatedItem;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 };
-
 const updateInventoryItemStatusById = async (
   businessId: string,
   inventoryItemId: string,

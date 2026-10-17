@@ -25,6 +25,11 @@ import type {
   UnvaluedInventoryItem,
 } from "../inventory-report.types";
 
+import type {
+  InventoryReconciliationIssue,
+  InventoryReconciliationResult,
+} from "../inventory-report.types";
+
 type QueryValue = string | number;
 
 type CountRow = RowDataPacket & {
@@ -144,6 +149,26 @@ type PurchaseRow = RowDataPacket & {
 
   createdByName: string;
   createdAt: Date;
+};
+
+type InventoryReconciliationItemRow = RowDataPacket & {
+  inventoryItemId: string;
+  sku: string | null;
+  name: string;
+  globalStock: string;
+  locationStock: string;
+  difference: string;
+  hasPhysicalMismatch: number;
+  negativeLocationCount: string;
+  unvaluedLocationCount: string;
+};
+
+type InventoryReconciliationAuditRow = RowDataPacket & {
+  inventoryItemCount: string;
+  negativeBalanceCount: string;
+  unvaluedBalanceCount: string;
+  movementWithoutLocationCount: string;
+  unvaluedMovementLineCount: string;
 };
 
 const locationFromRow = (row: {
@@ -816,10 +841,217 @@ const findInventoryPurchaseHistory = async (
   };
 };
 
+const findInventoryReconciliation = async (
+  businessId: string,
+): Promise<InventoryReconciliationResult> => {
+  const [itemRows] = await databasePool.execute<
+    InventoryReconciliationItemRow[]
+  >(
+    `
+        SELECT
+          CAST(ii.id AS CHAR) AS inventoryItemId,
+          ii.sku,
+          ii.name,
+          CAST(ii.current_stock AS CHAR) AS globalStock,
+          CAST(COALESCE(lb.location_stock, 0.000) AS CHAR) AS locationStock,
+          CAST(
+            ii.current_stock - COALESCE(lb.location_stock, 0.000)
+            AS CHAR
+          ) AS difference,
+
+          (
+            ii.current_stock <> COALESCE(lb.location_stock, 0.000)
+          ) AS hasPhysicalMismatch,
+
+          CAST(
+            COALESCE(lb.negative_location_count, 0)
+            AS CHAR
+          ) AS negativeLocationCount,
+
+          CAST(
+            COALESCE(lb.unvalued_location_count, 0)
+            AS CHAR
+          ) AS unvaluedLocationCount
+
+        FROM inventory_items AS ii
+
+        LEFT JOIN (
+          SELECT
+            business_id,
+            inventory_item_id,
+            SUM(current_stock) AS location_stock,
+
+            SUM(
+              CASE
+                WHEN current_stock < 0 THEN 1
+                ELSE 0
+              END
+            ) AS negative_location_count,
+
+            SUM(
+              CASE
+                WHEN valuation_status = 'UNVALUED'
+                  AND current_stock <> 0
+                THEN 1
+                ELSE 0
+              END
+            ) AS unvalued_location_count
+
+          FROM inventory_location_balances
+
+          WHERE business_id = ?
+
+          GROUP BY
+            business_id,
+            inventory_item_id
+        ) AS lb
+          ON lb.business_id = ii.business_id
+          AND lb.inventory_item_id = ii.id
+
+        WHERE
+          ii.business_id = ?
+          AND (
+            ii.current_stock <> COALESCE(lb.location_stock, 0.000)
+            OR COALESCE(lb.negative_location_count, 0) > 0
+            OR COALESCE(lb.unvalued_location_count, 0) > 0
+          )
+
+        ORDER BY
+          ii.name ASC,
+          ii.id ASC
+      `,
+    [businessId, businessId],
+  );
+
+  const [auditRows] = await databasePool.execute<
+    InventoryReconciliationAuditRow[]
+  >(
+    `
+        SELECT
+          CAST(
+            (
+              SELECT COUNT(*)
+              FROM inventory_items
+              WHERE business_id = ?
+            )
+            AS CHAR
+          ) AS inventoryItemCount,
+
+          CAST(
+            (
+              SELECT COUNT(*)
+              FROM inventory_location_balances
+              WHERE business_id = ?
+                AND current_stock < 0
+            )
+            AS CHAR
+          ) AS negativeBalanceCount,
+
+          CAST(
+            (
+              SELECT COUNT(*)
+              FROM inventory_location_balances
+              WHERE business_id = ?
+                AND valuation_status = 'UNVALUED'
+                AND current_stock <> 0
+            )
+            AS CHAR
+          ) AS unvaluedBalanceCount,
+
+          CAST(
+            (
+              SELECT COUNT(*)
+              FROM inventory_movements
+              WHERE business_id = ?
+                AND location_id IS NULL
+            )
+            AS CHAR
+          ) AS movementWithoutLocationCount,
+
+          CAST(
+            (
+              SELECT COUNT(*)
+              FROM inventory_movement_lines
+              WHERE business_id = ?
+                AND cost_status = 'UNVALUED_LEGACY'
+            )
+            AS CHAR
+          ) AS unvaluedMovementLineCount
+      `,
+    [businessId, businessId, businessId, businessId, businessId],
+  );
+
+  const items = itemRows.map((row) => {
+    const issues: InventoryReconciliationIssue[] = [];
+
+    if (row.hasPhysicalMismatch) {
+      issues.push("PHYSICAL_STOCK_MISMATCH");
+    }
+
+    if (Number(row.negativeLocationCount) > 0) {
+      issues.push("NEGATIVE_LOCATION_STOCK");
+    }
+
+    if (Number(row.unvaluedLocationCount) > 0) {
+      issues.push("UNVALUED_LOCATION_STOCK");
+    }
+
+    return {
+      inventoryItemId: row.inventoryItemId,
+      sku: row.sku,
+      name: row.name,
+      globalStock: row.globalStock,
+      locationStock: row.locationStock,
+      difference: row.difference,
+      negativeLocationCount: Number(row.negativeLocationCount),
+      unvaluedLocationCount: Number(row.unvaluedLocationCount),
+      issues,
+    };
+  });
+
+  const audit = auditRows[0];
+
+  const physicalMismatchCount = items.filter((item) =>
+    item.issues.includes("PHYSICAL_STOCK_MISMATCH"),
+  ).length;
+
+  const inventoryItemCount = Number(audit?.inventoryItemCount ?? 0);
+  const negativeBalanceCount = Number(audit?.negativeBalanceCount ?? 0);
+  const unvaluedBalanceCount = Number(audit?.unvaluedBalanceCount ?? 0);
+  const movementWithoutLocationCount = Number(
+    audit?.movementWithoutLocationCount ?? 0,
+  );
+  const unvaluedMovementLineCount = Number(
+    audit?.unvaluedMovementLineCount ?? 0,
+  );
+
+  return {
+    summary: {
+      inventoryItemCount,
+      inconsistentItemCount: items.length,
+      physicalMismatchCount,
+      negativeBalanceCount,
+      unvaluedBalanceCount,
+      movementWithoutLocationCount,
+      unvaluedMovementLineCount,
+
+      isPhysicallyConsistent:
+        physicalMismatchCount === 0 && negativeBalanceCount === 0,
+
+      hasLegacyAuditGaps:
+        unvaluedBalanceCount > 0 ||
+        movementWithoutLocationCount > 0 ||
+        unvaluedMovementLineCount > 0,
+    },
+    items,
+  };
+};
+
 export {
   findInventoryKardex,
   findInventoryPurchaseHistory,
   findInventorySummary,
   findInventorySummaryByLocation,
   findUnvaluedInventoryItems,
+  findInventoryReconciliation,
 };

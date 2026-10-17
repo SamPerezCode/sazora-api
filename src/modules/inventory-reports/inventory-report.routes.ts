@@ -8,6 +8,7 @@ import {
   getInventoryPurchaseReportController,
   getInventorySummaryController,
   getUnvaluedInventoryController,
+  getInventoryReconciliationController,
 } from "./controllers/inventory-report.controller";
 
 const inventoryReportRouter = Router();
@@ -38,6 +39,13 @@ inventoryReportRouter.get(
   authenticate,
   authorizeRoles("ADMIN"),
   getInventoryPurchaseReportController,
+);
+
+inventoryReportRouter.get(
+  "/reconciliation",
+  authenticate,
+  authorizeRoles("ADMIN"),
+  getInventoryReconciliationController,
 );
 
 export { inventoryReportRouter };

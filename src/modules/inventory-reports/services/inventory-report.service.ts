@@ -7,6 +7,7 @@ import { findLocationById } from "../../locations/repositories/location.reposito
 import { findSalesBusinessContext } from "../../sales-reports/repositories/sales-report.repository";
 
 import { createSalesPeriod } from "../../sales-reports/sales-period";
+import { findInventoryReconciliation } from "../repositories/inventory-report.repository";
 
 import type {
   InventoryKardexQuery,
@@ -213,9 +214,19 @@ const getInventoryPurchaseReport = async (
   };
 };
 
+const getInventoryReconciliationReport = async (businessId: string) => {
+  const reconciliation = await findInventoryReconciliation(businessId);
+
+  return {
+    generatedAt: new Date(),
+    ...reconciliation,
+  };
+};
+
 export {
   getInventoryKardexReport,
   getInventoryPurchaseReport,
   getInventorySummaryReport,
   getUnvaluedInventoryReport,
+  getInventoryReconciliationReport,
 };

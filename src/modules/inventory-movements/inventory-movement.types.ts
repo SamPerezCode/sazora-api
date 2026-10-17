@@ -39,18 +39,6 @@ type CreateInventoryMovementData = Readonly<{
  *
  * Se eliminará cuando implementemos el punto 11.
  */
-type LegacyInventoryMovementLine = Readonly<{
-  inventoryItemId: string;
-  direction: InventoryMovementDirection;
-  quantity: string;
-  notes: string | null;
-}>;
-
-type CreateLegacyInventoryMovementData = Readonly<{
-  movementType: "PRODUCTION";
-  notes: string | null;
-  lines: readonly LegacyInventoryMovementLine[];
-}>;
 
 type InventoryMovementLocation = Readonly<{
   id: string;
@@ -114,7 +102,6 @@ type InventoryMovementSummary = Omit<InventoryMovement, "lines"> &
 
 export type {
   CreateInventoryMovementData,
-  CreateLegacyInventoryMovementData,
   InventoryMovement,
   InventoryMovementCostStatus,
   InventoryMovementDirection,
@@ -123,7 +110,6 @@ export type {
   InventoryMovementSummary,
   InventoryMovementType,
   InventoryReturnKind,
-  LegacyInventoryMovementLine,
   ManualInventoryMovementType,
   NewInventoryMovementLine,
 };

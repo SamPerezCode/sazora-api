@@ -108,13 +108,36 @@ const updateInventoryItemSchema = z
 
     baseUnit: inventoryUnitSchema.optional(),
 
+    locationId: databaseIdSchema.optional(),
+
     minimumStock: quantitySchema.optional(),
   })
   .strict()
-  .refine(
-    (data) => Object.keys(data).length > 0,
-    "Debes enviar al menos un campo",
-  );
+  .superRefine((data, context) => {
+    if (Object.keys(data).length === 0) {
+      context.addIssue({
+        code: "custom",
+        message: "Debes enviar al menos un campo",
+      });
+    }
+
+    if (data.minimumStock !== undefined && data.locationId === undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["locationId"],
+        message:
+          "Debes indicar la ubicación cuyo stock mínimo deseas modificar",
+      });
+    }
+
+    if (data.locationId !== undefined && data.minimumStock === undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["minimumStock"],
+        message: "Debes indicar el stock mínimo de la ubicación",
+      });
+    }
+  });
 
 const updateInventoryItemStatusSchema = z
   .object({
