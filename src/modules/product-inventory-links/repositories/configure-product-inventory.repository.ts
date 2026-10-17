@@ -2,6 +2,9 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
 import type { ConfigureProductInventoryInput } from "../schemas/configure-product-inventory.schema";
+import { AppError } from "../../../shared/errors/app-error";
+
+import { applyLocationInventoryMovement } from "../../inventory-movements/repositories/location-inventory-ledger.repository";
 
 type ProductSetupRow = RowDataPacket & {
   id: string;
@@ -12,6 +15,11 @@ type ProductSetupRow = RowDataPacket & {
 
 type ExistingLinkRow = RowDataPacket & {
   id: string;
+};
+
+type InventoryLocationRow = RowDataPacket & {
+  isActive: number;
+  isInventoryLocation: number;
 };
 
 type ConfigureProductInventoryResult =
@@ -41,6 +49,43 @@ const configureProductInventoryRecord = async (
 
   try {
     await connection.beginTransaction();
+
+    const [locationRows] = await connection.execute<InventoryLocationRow[]>(
+      `
+      SELECT
+        is_active AS isActive,
+        is_inventory_location AS isInventoryLocation
+      FROM business_locations
+      WHERE
+        business_id = ?
+        AND id = ?
+      LIMIT 1
+      FOR UPDATE
+    `,
+      [businessId, data.locationId],
+    );
+
+    const location = locationRows[0];
+
+    if (!location) {
+      throw new AppError("La ubicación no existe", 404, "LOCATION_NOT_FOUND");
+    }
+
+    if (location.isActive !== 1) {
+      throw new AppError(
+        "La ubicación está inactiva",
+        409,
+        "LOCATION_INACTIVE",
+      );
+    }
+
+    if (location.isInventoryLocation !== 1) {
+      throw new AppError(
+        "La ubicación no está habilitada para inventario",
+        409,
+        "LOCATION_NOT_INVENTORY_ENABLED",
+      );
+    }
 
     const [productRows] = await connection.execute<ProductSetupRow[]>(
       `
@@ -144,79 +189,66 @@ const configureProductInventoryRecord = async (
 
     const inventoryItemId = inventoryItemResult.insertId.toString();
 
+    await connection.execute<ResultSetHeader>(
+      `
+    INSERT INTO inventory_location_balances (
+      business_id,
+      location_id,
+      inventory_item_id,
+      current_stock,
+      minimum_stock,
+      average_unit_cost,
+      inventory_value,
+      valuation_status,
+      migrated_from_legacy
+    )
+    VALUES (
+      ?,
+      ?,
+      ?,
+      0.000,
+      ?,
+      NULL,
+      0.000000,
+      'VALUED',
+      FALSE
+    )
+  `,
+      [businessId, data.locationId, inventoryItemId, data.minimumStock],
+    );
+
     if (Number(data.openingQuantity) > 0) {
-      const [openingMovementResult] = await connection.execute<ResultSetHeader>(
-        `
-            INSERT INTO inventory_movements (
-              business_id,
-              movement_type,
-              source_type,
-              source_id,
-              notes,
-              created_by_membership_id
-            )
-            VALUES (
-              ?,
-              'OPENING',
-              'INVENTORY_ITEM',
-              ?,
-              ?,
-              ?
-            )
-          `,
-        [
-          businessId,
-          inventoryItemId,
-          `Existencia inicial de ${product.name}`,
-          membershipId,
-        ],
+      const movementResult = await applyLocationInventoryMovement(
+        connection,
+        businessId,
+        membershipId,
+        {
+          locationId: data.locationId,
+          movementType: "OPENING",
+          returnKind: null,
+          sourceType: "INVENTORY_ITEM",
+          sourceId: inventoryItemId,
+          externalReference: `PRODUCT:${productId}`,
+          notes: `Existencia inicial de ${product.name}`,
+          lines: [
+            {
+              inventoryItemId,
+              direction: "IN",
+              quantity: data.openingQuantity,
+              unitCost: data.openingUnitCost,
+              totalCost: null,
+              notes: `Existencia inicial de ${product.name}`,
+            },
+          ],
+        },
       );
 
-      const openingMovementId = openingMovementResult.insertId.toString();
-
-      await connection.execute<ResultSetHeader>(
-        `
-          INSERT INTO inventory_movement_lines (
-            business_id,
-            movement_id,
-            inventory_item_id,
-            direction,
-            quantity,
-            balance_before,
-            balance_after,
-            notes
-          )
-          VALUES (
-            ?,
-            ?,
-            ?,
-            'IN',
-            ?,
-            0.000,
-            ?,
-            ?
-          )
-        `,
-        [
-          businessId,
-          openingMovementId,
-          inventoryItemId,
-          data.openingQuantity,
-          data.openingQuantity,
-          `Existencia inicial de ${product.name}`,
-        ],
-      );
-
-      await connection.execute<ResultSetHeader>(
-        `
-          UPDATE inventory_items
-          SET current_stock = ?
-          WHERE
-            business_id = ?
-            AND id = ?
-        `,
-        [data.openingQuantity, businessId, inventoryItemId],
-      );
+      if (movementResult.kind !== "APPLIED") {
+        throw new Error(
+          `No fue posible registrar la existencia inicial: ` +
+            movementResult.kind,
+        );
+      }
     }
 
     const [linkResult] = await connection.execute<ResultSetHeader>(

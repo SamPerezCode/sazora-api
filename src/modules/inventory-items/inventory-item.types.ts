@@ -26,7 +26,10 @@ type CreateInventoryItemData = Readonly<{
   name: string;
   itemType: InventoryItemType;
   baseUnit: InventoryUnit;
+
+  locationId: string;
   openingQuantity: string;
+  openingUnitCost: string | null;
   minimumStock: string;
 }>;
 

@@ -15,7 +15,7 @@ type LedgerMovementType =
   | "SALE"
   | "REVERSAL"
   | "PRODUCTION"
-  | "INITIAL"
+  | "OPENING"
   | "ADJUSTMENT"
   | "LOSS"
   | "RETURN";

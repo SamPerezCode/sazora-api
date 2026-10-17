@@ -1,6 +1,9 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
+import { AppError } from "../../../shared/errors/app-error";
+
+import { applyLocationInventoryMovement } from "../../inventory-movements/repositories/location-inventory-ledger.repository";
 import type {
   CreateInventoryItemData,
   InventoryItem,
@@ -22,6 +25,11 @@ type InventoryItemRow = RowDataPacket & {
   isActive: number;
   createdAt: Date;
   updatedAt: Date;
+};
+
+type InventoryLocationRow = RowDataPacket & {
+  isActive: number;
+  isInventoryLocation: number;
 };
 
 const getStockStatus = (
@@ -119,6 +127,43 @@ const insertInventoryItem = async (
   try {
     await connection.beginTransaction();
 
+    const [locationRows] = await connection.execute<InventoryLocationRow[]>(
+      `
+          SELECT
+            is_active AS isActive,
+            is_inventory_location AS isInventoryLocation
+          FROM business_locations
+          WHERE
+            business_id = ?
+            AND id = ?
+          LIMIT 1
+          FOR UPDATE
+        `,
+      [businessId, data.locationId],
+    );
+
+    const location = locationRows[0];
+
+    if (!location) {
+      throw new AppError("La ubicación no existe", 404, "LOCATION_NOT_FOUND");
+    }
+
+    if (location.isActive !== 1) {
+      throw new AppError(
+        "La ubicación está inactiva",
+        409,
+        "LOCATION_INACTIVE",
+      );
+    }
+
+    if (location.isInventoryLocation !== 1) {
+      throw new AppError(
+        "La ubicación no está habilitada para inventario",
+        409,
+        "LOCATION_NOT_INVENTORY_ENABLED",
+      );
+    }
+
     const [itemResult] = await connection.execute<ResultSetHeader>(
       `
           INSERT INTO inventory_items (
@@ -144,71 +189,71 @@ const insertInventoryItem = async (
 
     const inventoryItemId = itemResult.insertId.toString();
 
+    /*
+     * Creamos el saldo incluso si la existencia inicial es cero.
+     * Así el artículo queda configurado para la ubicación y conserva
+     * su stock mínimo local.
+     */
+    await connection.execute<ResultSetHeader>(
+      `
+        INSERT INTO inventory_location_balances (
+          business_id,
+          location_id,
+          inventory_item_id,
+          current_stock,
+          minimum_stock,
+          average_unit_cost,
+          inventory_value,
+          valuation_status,
+          migrated_from_legacy
+        )
+        VALUES (
+          ?,
+          ?,
+          ?,
+          0.000,
+          ?,
+          NULL,
+          0.000000,
+          'VALUED',
+          FALSE
+        )
+      `,
+      [businessId, data.locationId, inventoryItemId, data.minimumStock],
+    );
+
     if (Number(data.openingQuantity) > 0) {
-      const [movementResult] = await connection.execute<ResultSetHeader>(
-        `
-            INSERT INTO inventory_movements (
-              business_id,
-              movement_type,
-              source_type,
-              source_id,
-              notes,
-              created_by_membership_id
-            )
-            VALUES (
-              ?,
-              'OPENING',
-              'INVENTORY_ITEM',
-              ?,
-              'Existencia inicial',
-              ?
-            )
-          `,
-        [businessId, inventoryItemId, membershipId],
+      const movementResult = await applyLocationInventoryMovement(
+        connection,
+        businessId,
+        membershipId,
+        {
+          locationId: data.locationId,
+          movementType: "OPENING",
+          returnKind: null,
+          sourceType: "INVENTORY_ITEM",
+          sourceId: inventoryItemId,
+          externalReference: null,
+          notes: "Existencia inicial",
+          lines: [
+            {
+              inventoryItemId,
+              direction: "IN",
+              quantity: data.openingQuantity,
+              unitCost: data.openingUnitCost,
+              totalCost: null,
+              notes: "Existencia inicial",
+            },
+          ],
+        },
       );
 
-      await connection.execute<ResultSetHeader>(
-        `
-          INSERT INTO inventory_movement_lines (
-            business_id,
-            movement_id,
-            inventory_item_id,
-            direction,
-            quantity,
-            balance_before,
-            balance_after,
-            notes
-          )
-          VALUES (
-            ?,
-            ?,
-            ?,
-            'IN',
-            ?,
-            0.000,
-            ?,
-            'Existencia inicial'
-          )
-        `,
-        [
-          businessId,
-          movementResult.insertId.toString(),
-          inventoryItemId,
-          data.openingQuantity,
-          data.openingQuantity,
-        ],
-      );
-
-      await connection.execute<ResultSetHeader>(
-        `
-          UPDATE inventory_items
-          SET current_stock = ?
-          WHERE
-            business_id = ?
-            AND id = ?
-        `,
-        [data.openingQuantity, businessId, inventoryItemId],
-      );
+      if (movementResult.kind !== "APPLIED") {
+        throw new Error(
+          `No fue posible registrar la existencia inicial: ` +
+            movementResult.kind,
+        );
+      }
     }
 
     await connection.commit();

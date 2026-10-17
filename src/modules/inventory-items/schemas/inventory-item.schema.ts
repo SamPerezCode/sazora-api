@@ -13,6 +13,21 @@ const quantitySchema = z
     "La cantidad debe ser positiva y tener máximo tres decimales",
   );
 
+const nullableUnitCostSchema = z
+  .string()
+  .trim()
+  .regex(
+    /^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/,
+    "El costo debe tener máximo seis decimales",
+  )
+  .refine(
+    (value) => Number(value) > 0,
+    "El costo unitario debe ser mayor que cero",
+  )
+  .nullable()
+  .optional()
+  .transform((value) => value ?? null);
+
 const nullableSkuSchema = z
   .string()
   .trim()
@@ -54,11 +69,34 @@ const createInventoryItemSchema = z
 
     baseUnit: inventoryUnitSchema,
 
+    locationId: databaseIdSchema,
+
     openingQuantity: quantitySchema.default("0.000"),
+
+    openingUnitCost: nullableUnitCostSchema,
 
     minimumStock: quantitySchema.default("0.000"),
   })
-  .strict();
+  .strict()
+  .superRefine((data, context) => {
+    const hasOpeningStock = Number(data.openingQuantity) > 0;
+
+    if (hasOpeningStock && data.openingUnitCost === null) {
+      context.addIssue({
+        code: "custom",
+        path: ["openingUnitCost"],
+        message: "Debes indicar el costo unitario de la existencia inicial",
+      });
+    }
+
+    if (!hasOpeningStock && data.openingUnitCost !== null) {
+      context.addIssue({
+        code: "custom",
+        path: ["openingUnitCost"],
+        message: "No debes indicar un costo si la existencia inicial es cero",
+      });
+    }
+  });
 
 const updateInventoryItemSchema = z
   .object({
