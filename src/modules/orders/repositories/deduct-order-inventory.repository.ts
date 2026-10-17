@@ -1,19 +1,11 @@
-import type {
-  PoolConnection,
-  ResultSetHeader,
-  RowDataPacket,
-} from "mysql2/promise";
+import type { PoolConnection, RowDataPacket } from "mysql2/promise";
+
+import { applyLocationInventoryMovement } from "../../inventory-movements/repositories/location-inventory-ledger.repository";
 
 type InventoryRequirementRow = RowDataPacket & {
   orderItemId: string;
   inventoryItemId: string;
   requiredQuantity: string;
-};
-
-type LockedInventoryItemRow = RowDataPacket & {
-  id: string;
-  currentStock: string;
-  isActive: number;
 };
 
 type ExistingMovementRow = RowDataPacket & {
@@ -36,36 +28,28 @@ type DeductOrderInventoryResult =
   | Readonly<{
       kind: "INVENTORY_ITEM_NOT_AVAILABLE";
       inventoryItemId: string;
+    }>
+  | Readonly<{
+      kind: "INSUFFICIENT_INVENTORY_STOCK";
+      inventoryItemId: string;
+      availableQuantity: string;
+      requestedQuantity: string;
+    }>
+  | Readonly<{
+      kind: "UNVALUED_INVENTORY_STOCK";
+      inventoryItemId: string;
+    }>
+  | Readonly<{
+      kind: "INVENTORY_LOCATION_NOT_AVAILABLE";
+      locationId: string;
     }>;
-
-const decimalToThousandths = (value: string): bigint => {
-  const normalizedValue = value.trim();
-  const isNegative = normalizedValue.startsWith("-");
-  const unsignedValue = isNegative ? normalizedValue.slice(1) : normalizedValue;
-
-  const [whole = "0", fraction = ""] = unsignedValue.split(".");
-
-  const quantity =
-    BigInt(whole) * 1000n + BigInt(fraction.padEnd(3, "0").slice(0, 3));
-
-  return isNegative ? -quantity : quantity;
-};
-
-const thousandthsToDecimal = (value: bigint): string => {
-  const isNegative = value < 0n;
-  const absoluteValue = isNegative ? -value : value;
-
-  const whole = absoluteValue / 1000n;
-  const fraction = (absoluteValue % 1000n).toString().padStart(3, "0");
-
-  return `${isNegative ? "-" : ""}${whole.toString()}.${fraction}`;
-};
 
 const deductOrderInventory = async (
   connection: PoolConnection,
   businessId: string,
   membershipId: string,
   orderId: string,
+  locationId: string,
   includedOrderItemIds?: readonly string[],
 ): Promise<DeductOrderInventoryResult> => {
   const includedItemFilter = includedOrderItemIds?.length
@@ -76,23 +60,29 @@ const deductOrderInventory = async (
     `
         SELECT
           CAST(oi.id AS CHAR) AS orderItemId,
+
           CAST(pil.inventory_item_id AS CHAR)
             AS inventoryItemId,
+
           CAST(
             oi.quantity * pil.quantity_per_product
             AS CHAR
           ) AS requiredQuantity
+
         FROM order_items AS oi
+
         INNER JOIN product_inventory_links AS pil
           ON pil.business_id = oi.business_id
           AND pil.product_id = oi.product_id
           AND pil.is_active = TRUE
           AND pil.auto_deduct = TRUE
+
         WHERE
           oi.business_id = ?
           AND oi.order_id = ?
           AND oi.status = 'ACTIVE'
           ${includedItemFilter}
+
         ORDER BY
           oi.id ASC,
           pil.inventory_item_id ASC
@@ -119,12 +109,15 @@ const deductOrderInventory = async (
         SELECT
           CAST(id AS CHAR) AS id,
           source_id AS sourceId
+
         FROM inventory_movements
+
         WHERE
           business_id = ?
           AND movement_type = 'SALE'
           AND source_type = 'ORDER_ITEM'
           AND source_id IN (${orderItemPlaceholders})
+
         ORDER BY id ASC
       `,
     [businessId, ...orderItemIds],
@@ -141,69 +134,15 @@ const deductOrderInventory = async (
     existingMovementRows.map((movement) => [movement.sourceId, movement.id]),
   );
 
-  const inventoryItemIds = [
-    ...new Set(
-      requirementRows.map((requirement) => requirement.inventoryItemId),
-    ),
-  ].sort((first, second) => {
-    const firstId = BigInt(first);
-    const secondId = BigInt(second);
-
-    if (firstId < secondId) {
-      return -1;
-    }
-
-    if (firstId > secondId) {
-      return 1;
-    }
-
-    return 0;
-  });
-
-  const inventoryItemPlaceholders = inventoryItemIds.map(() => "?").join(", ");
-
-  const [inventoryItemRows] = await connection.execute<
-    LockedInventoryItemRow[]
-  >(
-    `
-        SELECT
-          CAST(id AS CHAR) AS id,
-          CAST(current_stock AS CHAR) AS currentStock,
-          is_active AS isActive
-        FROM inventory_items
-        WHERE
-          business_id = ?
-          AND id IN (${inventoryItemPlaceholders})
-        ORDER BY id ASC
-        FOR UPDATE
-      `,
-    [businessId, ...inventoryItemIds],
-  );
-
-  const inventoryItemById = new Map(
-    inventoryItemRows.map((inventoryItem) => [inventoryItem.id, inventoryItem]),
-  );
-
-  for (const requirement of requirementRows) {
-    const inventoryItem = inventoryItemById.get(requirement.inventoryItemId);
-
-    if (inventoryItem?.isActive !== 1) {
-      return {
-        kind: "INVENTORY_ITEM_NOT_AVAILABLE",
-        inventoryItemId: requirement.inventoryItemId,
-      };
-    }
-  }
-
   const requirementsByOrderItem = new Map<string, InventoryRequirementRow[]>();
 
   for (const requirement of requirementRows) {
-    const currentRequirements =
+    const requirements =
       requirementsByOrderItem.get(requirement.orderItemId) ?? [];
 
-    currentRequirements.push(requirement);
+    requirements.push(requirement);
 
-    requirementsByOrderItem.set(requirement.orderItemId, currentRequirements);
+    requirementsByOrderItem.set(requirement.orderItemId, requirements);
   }
 
   const movementIds: string[] = [];
@@ -216,93 +155,63 @@ const deductOrderInventory = async (
       continue;
     }
 
-    const [movementResult] = await connection.execute<ResultSetHeader>(
-      `
-          INSERT INTO inventory_movements (
-            business_id,
-            movement_type,
-            source_type,
-            source_id,
-            notes,
-            created_by_membership_id
-          )
-          VALUES (
-            ?,
-            'SALE',
-            'ORDER_ITEM',
-            ?,
-            ?,
-            ?
-          )
-        `,
-      [
-        businessId,
-        orderItemId,
-        `Descuento automático del producto ${orderItemId} de la orden ${orderId}`,
-        membershipId,
-      ],
+    const movementResult = await applyLocationInventoryMovement(
+      connection,
+      businessId,
+      membershipId,
+      {
+        locationId,
+        movementType: "SALE",
+        returnKind: null,
+        sourceType: "ORDER_ITEM",
+        sourceId: orderItemId,
+        externalReference: `ORDER:${orderId}`,
+        notes:
+          `Descuento automático del producto ${orderItemId} ` +
+          `de la orden ${orderId}`,
+        lines: requirements.map((requirement) => ({
+          inventoryItemId: requirement.inventoryItemId,
+          direction: "OUT" as const,
+          quantity: requirement.requiredQuantity,
+          unitCost: null,
+          notes: `Venta del producto ${orderItemId}`,
+        })),
+      },
     );
 
-    const movementId = movementResult.insertId.toString();
+    switch (movementResult.kind) {
+      case "APPLIED":
+        movementIds.push(movementResult.movementId);
+        break;
 
-    movementIds.push(movementId);
+      case "ITEM_NOT_AVAILABLE":
+        return {
+          kind: "INVENTORY_ITEM_NOT_AVAILABLE",
+          inventoryItemId: movementResult.inventoryItemId,
+        };
 
-    for (const requirement of requirements) {
-      const inventoryItem = inventoryItemById.get(requirement.inventoryItemId);
+      case "INSUFFICIENT_STOCK":
+        return {
+          kind: "INSUFFICIENT_INVENTORY_STOCK",
+          inventoryItemId: movementResult.inventoryItemId,
+          availableQuantity: movementResult.availableQuantity,
+          requestedQuantity: movementResult.requestedQuantity,
+        };
 
-      if (!inventoryItem) {
-        throw new Error(
-          "No fue posible recuperar el artículo de inventario validado",
-        );
-      }
+      case "UNVALUED_STOCK":
+      case "UNIT_COST_REQUIRED":
+        return {
+          kind: "UNVALUED_INVENTORY_STOCK",
+          inventoryItemId: movementResult.inventoryItemId,
+        };
 
-      const balanceBefore = decimalToThousandths(inventoryItem.currentStock);
-
-      const quantity = decimalToThousandths(requirement.requiredQuantity);
-
-      const balanceAfter = balanceBefore - quantity;
-
-      const quantityText = thousandthsToDecimal(quantity);
-      const balanceBeforeText = thousandthsToDecimal(balanceBefore);
-      const balanceAfterText = thousandthsToDecimal(balanceAfter);
-
-      await connection.execute<ResultSetHeader>(
-        `
-          INSERT INTO inventory_movement_lines (
-            business_id,
-            movement_id,
-            inventory_item_id,
-            direction,
-            quantity,
-            balance_before,
-            balance_after,
-            notes
-          )
-          VALUES (?, ?, ?, 'OUT', ?, ?, ?, ?)
-        `,
-        [
-          businessId,
-          movementId,
-          inventoryItem.id,
-          quantityText,
-          balanceBeforeText,
-          balanceAfterText,
-          `Venta del producto ${orderItemId}`,
-        ],
-      );
-
-      await connection.execute<ResultSetHeader>(
-        `
-          UPDATE inventory_items
-          SET current_stock = ?
-          WHERE
-            business_id = ?
-            AND id = ?
-        `,
-        [balanceAfterText, businessId, inventoryItem.id],
-      );
-
-      inventoryItem.currentStock = balanceAfterText;
+      case "LOCATION_NOT_FOUND":
+      case "LOCATION_INACTIVE":
+      case "LOCATION_NOT_INVENTORY_ENABLED":
+        return {
+          kind: "INVENTORY_LOCATION_NOT_AVAILABLE",
+          locationId,
+        };
     }
   }
 

@@ -13,6 +13,7 @@ import { deductOrderInventory } from "./deduct-order-inventory.repository";
 
 type OrderStateRow = RowDataPacket & {
   status: OrderStatus;
+  locationId: string;
 };
 
 type AvailableProductRow = RowDataPacket & {
@@ -79,6 +80,20 @@ type AddOrderItemsResult =
   | Readonly<{
       kind: "INVENTORY_ITEM_NOT_AVAILABLE";
       inventoryItemId: string;
+    }>
+  | Readonly<{
+      kind: "INSUFFICIENT_INVENTORY_STOCK";
+      inventoryItemId: string;
+      availableQuantity: string;
+      requestedQuantity: string;
+    }>
+  | Readonly<{
+      kind: "UNVALUED_INVENTORY_STOCK";
+      inventoryItemId: string;
+    }>
+  | Readonly<{
+      kind: "INVENTORY_LOCATION_NOT_AVAILABLE";
+      locationId: string;
     }>;
 
 const mapOrderItemRow = (row: OrderItemRow): OrderItem => ({
@@ -113,7 +128,9 @@ const addOrderItems = async (
 
     const [orderRows] = await connection.execute<OrderStateRow[]>(
       `
-        SELECT status
+        SELECT
+        status,
+        CAST(location_id AS CHAR) AS locationId
         FROM orders
         WHERE
           business_id = ?
@@ -441,6 +458,7 @@ const addOrderItems = async (
         businessId,
         data.addedByMembershipId,
         orderId,
+        order.locationId,
         orderItemIds,
       );
 
@@ -450,6 +468,35 @@ const addOrderItems = async (
         return {
           kind: "INVENTORY_ITEM_NOT_AVAILABLE",
           inventoryItemId: inventoryResult.inventoryItemId,
+        };
+      }
+
+      if (inventoryResult.kind === "INSUFFICIENT_INVENTORY_STOCK") {
+        await connection.rollback();
+
+        return {
+          kind: "INSUFFICIENT_INVENTORY_STOCK",
+          inventoryItemId: inventoryResult.inventoryItemId,
+          availableQuantity: inventoryResult.availableQuantity,
+          requestedQuantity: inventoryResult.requestedQuantity,
+        };
+      }
+
+      if (inventoryResult.kind === "UNVALUED_INVENTORY_STOCK") {
+        await connection.rollback();
+
+        return {
+          kind: "UNVALUED_INVENTORY_STOCK",
+          inventoryItemId: inventoryResult.inventoryItemId,
+        };
+      }
+
+      if (inventoryResult.kind === "INVENTORY_LOCATION_NOT_AVAILABLE") {
+        await connection.rollback();
+
+        return {
+          kind: "INVENTORY_LOCATION_NOT_AVAILABLE",
+          locationId: inventoryResult.locationId,
         };
       }
 

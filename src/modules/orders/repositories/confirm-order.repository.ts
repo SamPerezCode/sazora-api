@@ -51,6 +51,20 @@ type ConfirmOrderResult =
   | Readonly<{
       kind: "INVENTORY_ITEM_NOT_AVAILABLE";
       inventoryItemId: string;
+    }>
+  | Readonly<{
+      kind: "INSUFFICIENT_INVENTORY_STOCK";
+      inventoryItemId: string;
+      availableQuantity: string;
+      requestedQuantity: string;
+    }>
+  | Readonly<{
+      kind: "UNVALUED_INVENTORY_STOCK";
+      inventoryItemId: string;
+    }>
+  | Readonly<{
+      kind: "INVENTORY_LOCATION_NOT_AVAILABLE";
+      locationId: string;
     }>;
 
 const confirmOrder = async (
@@ -161,6 +175,7 @@ const confirmOrder = async (
       businessId,
       membershipId,
       orderId,
+      order.locationId,
     );
 
     if (inventoryResult.kind === "INVENTORY_ITEM_NOT_AVAILABLE") {
@@ -169,6 +184,35 @@ const confirmOrder = async (
       return {
         kind: "INVENTORY_ITEM_NOT_AVAILABLE",
         inventoryItemId: inventoryResult.inventoryItemId,
+      };
+    }
+
+    if (inventoryResult.kind === "INSUFFICIENT_INVENTORY_STOCK") {
+      await connection.rollback();
+
+      return {
+        kind: "INSUFFICIENT_INVENTORY_STOCK",
+        inventoryItemId: inventoryResult.inventoryItemId,
+        availableQuantity: inventoryResult.availableQuantity,
+        requestedQuantity: inventoryResult.requestedQuantity,
+      };
+    }
+
+    if (inventoryResult.kind === "UNVALUED_INVENTORY_STOCK") {
+      await connection.rollback();
+
+      return {
+        kind: "UNVALUED_INVENTORY_STOCK",
+        inventoryItemId: inventoryResult.inventoryItemId,
+      };
+    }
+
+    if (inventoryResult.kind === "INVENTORY_LOCATION_NOT_AVAILABLE") {
+      await connection.rollback();
+
+      return {
+        kind: "INVENTORY_LOCATION_NOT_AVAILABLE",
+        locationId: inventoryResult.locationId,
       };
     }
 

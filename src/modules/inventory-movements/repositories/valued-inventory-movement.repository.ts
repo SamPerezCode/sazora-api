@@ -399,7 +399,7 @@ const createValuedInventoryMovementRecord = async (
       let totalCost: bigint;
       let stockAfter: bigint;
       let inventoryValueAfter: bigint;
-      let averageCostAfter: bigint;
+      let averageCostAfter: bigint | null;
 
       if (line.direction === "IN") {
         usedUnitCost =
@@ -436,7 +436,7 @@ const createValuedInventoryMovementRecord = async (
 
         inventoryValueAfter = inventoryValueBefore - totalCost;
 
-        averageCostAfter = currentAverageCost;
+        averageCostAfter = stockAfter === 0n ? null : currentAverageCost;
       }
 
       const balanceBeforeText = scaledBigIntToDecimal(
@@ -463,10 +463,10 @@ const createValuedInventoryMovementRecord = async (
         COST_SCALE,
       );
 
-      const averageCostAfterText = scaledBigIntToDecimal(
-        averageCostAfter,
-        COST_SCALE,
-      );
+      const averageCostAfterText =
+        averageCostAfter === null
+          ? null
+          : scaledBigIntToDecimal(averageCostAfter, COST_SCALE);
 
       await connection.execute<ResultSetHeader>(
         `

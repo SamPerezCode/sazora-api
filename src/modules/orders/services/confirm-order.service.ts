@@ -74,6 +74,32 @@ const confirmOrder = async (
         409,
         "INVENTORY_ITEM_NOT_AVAILABLE",
       );
+
+    case "INSUFFICIENT_INVENTORY_STOCK":
+      throw new AppError(
+        `Stock insuficiente para el artículo ` +
+          `${result.inventoryItemId}. ` +
+          `Disponible: ${result.availableQuantity}. ` +
+          `Solicitado: ${result.requestedQuantity}`,
+        409,
+        "INSUFFICIENT_INVENTORY_STOCK",
+      );
+
+    case "UNVALUED_INVENTORY_STOCK":
+      throw new AppError(
+        `El artículo ${result.inventoryItemId} tiene ` +
+          "existencias sin valorar en esta ubicación",
+        409,
+        "UNVALUED_INVENTORY_STOCK",
+      );
+
+    case "INVENTORY_LOCATION_NOT_AVAILABLE":
+      throw new AppError(
+        `La ubicación ${result.locationId} no está habilitada ` +
+          "para administrar inventario",
+        409,
+        "INVENTORY_LOCATION_NOT_AVAILABLE",
+      );
   }
 };
 
