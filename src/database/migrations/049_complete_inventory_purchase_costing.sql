@@ -93,7 +93,6 @@ SET
 WHERE
     im.movement_type = 'PURCHASE';
 
-UPDATE inventory_movements
 
 UPDATE inventory_movements
 SET purchase_cost_status = 'LEGACY_UNVALUED'
