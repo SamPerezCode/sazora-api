@@ -1,7 +1,13 @@
 import { AppError } from "../../../shared/errors/app-error";
 
+import {
+  decimalToScaledBigInt,
+  scaledBigIntToDecimal,
+} from "../../../shared/math/fixed-decimal";
+
 import type {
   CreateInventoryPurchaseData,
+  CreateInventoryPurchaseRecordData,
   InventoryPurchase,
 } from "../inventory-purchase.types";
 
@@ -9,6 +15,8 @@ import {
   createInventoryPurchaseRecord,
   findInventoryPurchaseById,
 } from "../repositories/inventory-purchase.repository";
+
+const MONEY_SCALE = 6;
 
 const getInventoryPurchase = async (
   businessId: string,
@@ -18,7 +26,7 @@ const getInventoryPurchase = async (
 
   if (!purchase) {
     throw new AppError(
-      "La compra de inventario no existe",
+      "La compra de inventario no existe o no tiene costos valorados",
       404,
       "INVENTORY_PURCHASE_NOT_FOUND",
     );
@@ -27,15 +35,86 @@ const getInventoryPurchase = async (
   return purchase;
 };
 
+const calculatePurchaseCosts = (
+  data: CreateInventoryPurchaseData,
+): CreateInventoryPurchaseRecordData => {
+  let grossTotal = 0n;
+  let discountTotal = 0n;
+  let additionalCostTotal = 0n;
+  let netTotal = 0n;
+
+  const lines = data.lines.map((line) => {
+    const grossCost = decimalToScaledBigInt(line.grossCost, MONEY_SCALE);
+
+    const discountAmount = decimalToScaledBigInt(
+      line.discountAmount,
+      MONEY_SCALE,
+    );
+
+    const additionalCostAmount = decimalToScaledBigInt(
+      line.additionalCostAmount,
+      MONEY_SCALE,
+    );
+
+    const netCost = grossCost - discountAmount + additionalCostAmount;
+
+    if (discountAmount > grossCost) {
+      throw new AppError(
+        "El descuento no puede superar el costo bruto",
+        400,
+        "PURCHASE_DISCOUNT_EXCEEDS_GROSS_COST",
+      );
+    }
+
+    if (netCost <= 0n) {
+      throw new AppError(
+        "El costo neto de cada línea debe ser mayor que cero",
+        400,
+        "PURCHASE_NET_COST_MUST_BE_POSITIVE",
+      );
+    }
+
+    grossTotal += grossCost;
+    discountTotal += discountAmount;
+    additionalCostTotal += additionalCostAmount;
+    netTotal += netCost;
+
+    return {
+      ...line,
+      grossCost: scaledBigIntToDecimal(grossCost, MONEY_SCALE),
+      discountAmount: scaledBigIntToDecimal(discountAmount, MONEY_SCALE),
+      additionalCostAmount: scaledBigIntToDecimal(
+        additionalCostAmount,
+        MONEY_SCALE,
+      ),
+      netCost: scaledBigIntToDecimal(netCost, MONEY_SCALE),
+    };
+  });
+
+  return {
+    ...data,
+    grossTotal: scaledBigIntToDecimal(grossTotal, MONEY_SCALE),
+    discountTotal: scaledBigIntToDecimal(discountTotal, MONEY_SCALE),
+    additionalCostTotal: scaledBigIntToDecimal(
+      additionalCostTotal,
+      MONEY_SCALE,
+    ),
+    netTotal: scaledBigIntToDecimal(netTotal, MONEY_SCALE),
+    lines,
+  };
+};
+
 const createInventoryPurchase = async (
   businessId: string,
   membershipId: string,
   data: CreateInventoryPurchaseData,
 ): Promise<InventoryPurchase> => {
+  const recordData = calculatePurchaseCosts(data);
+
   const result = await createInventoryPurchaseRecord(
     businessId,
     membershipId,
-    data,
+    recordData,
   );
 
   switch (result.kind) {

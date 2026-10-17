@@ -5,7 +5,7 @@ import { databasePool } from "../../../database/pool";
 import type { InventoryUnit } from "../../inventory-items/inventory-item.types";
 
 import type {
-  CreateInventoryPurchaseData,
+  CreateInventoryPurchaseRecordData,
   CreateInventoryPurchaseResult,
   InventoryPurchase,
   InventoryPurchaseLine,
@@ -53,9 +53,19 @@ type PurchaseHeaderRow = RowDataPacket & {
   locationId: string;
   locationCode: string;
   locationName: string;
+
+  supplierName: string | null;
+  supplierDocument: string | null;
+
   externalReference: string | null;
+  documentDate: string | null;
   notes: string | null;
-  totalCost: string;
+
+  grossTotal: string;
+  discountTotal: string;
+  additionalCostTotal: string;
+  netTotal: string;
+
   createdByMembershipId: string;
   createdByName: string;
   createdAt: Date;
@@ -66,19 +76,30 @@ type PurchaseLineRow = RowDataPacket & {
   inventoryItemId: string;
   inventoryItemName: string;
   baseUnit: InventoryUnit;
+
   presentationId: string;
   presentationName: string;
   conversionFactor: string;
+
   purchasedQuantity: string;
   baseQuantity: string;
+
+  grossCost: string;
+  discountAmount: string;
+  additionalCostAmount: string;
+  netCost: string;
+
   unitCost: string;
-  totalCost: string;
+
   balanceBefore: string;
   balanceAfter: string;
+
   averageUnitCostBefore: string | null;
   averageUnitCostAfter: string;
+
   inventoryValueBefore: string | null;
   inventoryValueAfter: string;
+
   notes: string | null;
 };
 
@@ -102,22 +123,27 @@ const findInventoryPurchaseById = async (
         bl.code AS locationCode,
         bl.name AS locationName,
 
+        im.supplier_name AS supplierName,
+        im.supplier_document AS supplierDocument,
+
         im.external_reference AS externalReference,
+
+        DATE_FORMAT(im.document_date, '%Y-%m-%d')
+          AS documentDate,
+
         im.notes,
 
-        CAST(
-          COALESCE(
-            (
-              SELECT SUM(iml.total_cost)
-              FROM inventory_movement_lines AS iml
-              WHERE
-                iml.business_id = im.business_id
-                AND iml.movement_id = im.id
-            ),
-            0
-          )
-          AS CHAR
-        ) AS totalCost,
+        CAST(im.purchase_gross_total AS CHAR)
+          AS grossTotal,
+
+        CAST(im.purchase_discount_total AS CHAR)
+          AS discountTotal,
+
+        CAST(im.purchase_additional_cost_total AS CHAR)
+          AS additionalCostTotal,
+
+        CAST(im.purchase_net_total AS CHAR)
+          AS netTotal,
 
         CAST(im.created_by_membership_id AS CHAR)
           AS createdByMembershipId,
@@ -142,6 +168,7 @@ const findInventoryPurchaseById = async (
         im.business_id = ?
         AND im.id = ?
         AND im.movement_type = 'PURCHASE'
+        AND im.purchase_cost_status = 'VALUED'
 
       LIMIT 1
     `,
@@ -177,6 +204,15 @@ const findInventoryPurchaseById = async (
         CAST(iml.purchased_quantity AS CHAR)
           AS purchasedQuantity,
 
+        CAST(iml.gross_cost AS CHAR)
+          AS grossCost,
+
+        CAST(iml.discount_amount AS CHAR)
+          AS discountAmount,
+
+        CAST(iml.additional_cost_amount AS CHAR)
+          AS additionalCostAmount,
+
         CAST(iml.quantity AS CHAR)
           AS baseQuantity,
 
@@ -184,7 +220,7 @@ const findInventoryPurchaseById = async (
           AS unitCost,
 
         CAST(iml.total_cost AS CHAR)
-          AS totalCost,
+          AS netCost,
 
         CAST(iml.balance_before AS CHAR)
           AS balanceBefore,
@@ -236,8 +272,12 @@ const findInventoryPurchaseById = async (
     purchasedQuantity: line.purchasedQuantity,
     baseQuantity: line.baseQuantity,
 
+    grossCost: line.grossCost,
+    discountAmount: line.discountAmount,
+    additionalCostAmount: line.additionalCostAmount,
+    netCost: line.netCost,
+
     unitCost: line.unitCost,
-    totalCost: line.totalCost,
 
     balanceBefore: line.balanceBefore,
     balanceAfter: line.balanceAfter,
@@ -261,9 +301,23 @@ const findInventoryPurchaseById = async (
       name: header.locationName,
     },
 
+    supplier: header.supplierName
+      ? {
+          name: header.supplierName,
+          document: header.supplierDocument,
+        }
+      : null,
+
     externalReference: header.externalReference,
+    documentDate: header.documentDate,
     notes: header.notes,
-    totalCost: header.totalCost,
+
+    costs: {
+      grossTotal: header.grossTotal,
+      discountTotal: header.discountTotal,
+      additionalCostTotal: header.additionalCostTotal,
+      netTotal: header.netTotal,
+    },
 
     createdByMembershipId: header.createdByMembershipId,
     createdByName: header.createdByName,
@@ -276,7 +330,7 @@ const findInventoryPurchaseById = async (
 const createInventoryPurchaseRecord = async (
   businessId: string,
   membershipId: string,
-  data: CreateInventoryPurchaseData,
+  data: CreateInventoryPurchaseRecordData,
 ): Promise<CreateInventoryPurchaseResult> => {
   const connection = await databasePool.getConnection();
 
@@ -510,31 +564,63 @@ const createInventoryPurchaseRecord = async (
 
     const [movementResult] = await connection.execute<ResultSetHeader>(
       `
-        INSERT INTO inventory_movements (
-          business_id,
-          location_id,
-          movement_type,
-          source_type,
-          source_id,
-          external_reference,
-          notes,
-          created_by_membership_id
-        )
-        VALUES (
-          ?,
-          ?,
-          'PURCHASE',
-          NULL,
-          NULL,
-          ?,
-          ?,
-          ?
-        )
-      `,
+    INSERT INTO inventory_movements (
+      business_id,
+      location_id,
+      movement_type,
+      source_type,
+      source_id,
+
+      external_reference,
+      supplier_name,
+      supplier_document,
+      document_date,
+
+      purchase_gross_total,
+      purchase_discount_total,
+      purchase_additional_cost_total,
+      purchase_net_total,
+      purchase_cost_status,
+
+      notes,
+      created_by_membership_id
+    )
+    VALUES (
+      ?,
+      ?,
+      'PURCHASE',
+      NULL,
+      NULL,
+
+      ?,
+      ?,
+      ?,
+      ?,
+
+      ?,
+      ?,
+      ?,
+      ?,
+      'VALUED',
+
+      ?,
+      ?
+    )
+  `,
       [
         businessId,
         data.locationId,
+
         data.externalReference,
+        data.supplierName,
+        data.supplierDocument,
+        data.documentDate,
+
+        data.grossTotal,
+        data.discountTotal,
+        data.additionalCostTotal,
+        data.netTotal,
+
         data.notes,
         membershipId,
       ],
@@ -644,17 +730,17 @@ const createInventoryPurchaseRecord = async (
               ) AS averageUnitCostAfter
           `,
         [
-          line.totalCost,
+          line.netCost,
           baseQuantity,
 
           balance.currentStock,
           baseQuantity,
 
           inventoryValueBefore,
-          line.totalCost,
+          line.netCost,
 
           inventoryValueBefore,
-          line.totalCost,
+          line.netCost,
           balance.currentStock,
           baseQuantity,
         ],
@@ -677,6 +763,9 @@ const createInventoryPurchaseRecord = async (
             purchase_presentation_name,
             purchased_quantity,
             purchase_conversion_factor,
+            gross_cost,
+            discount_amount,
+            additional_cost_amount,
 
             direction,
             quantity,
@@ -701,6 +790,9 @@ const createInventoryPurchaseRecord = async (
             ?,
             ?,
 
+            ?,
+            ?,
+            ?,
             ?,
             ?,
             ?,
@@ -734,11 +826,14 @@ const createInventoryPurchaseRecord = async (
           presentation.name,
           line.purchasedQuantity,
           presentation.conversionFactor,
+          line.grossCost,
+          line.discountAmount,
+          line.additionalCostAmount,
 
           baseQuantity,
 
           calculation.unitCost,
-          line.totalCost,
+          line.netCost,
 
           balance.currentStock,
           calculation.balanceAfter,

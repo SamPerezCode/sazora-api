@@ -21,16 +21,44 @@ type NewInventoryPurchaseLine = Readonly<{
   inventoryItemId: string;
   presentationId: string;
   purchasedQuantity: string;
-  totalCost: string;
+
+  grossCost: string;
+  discountAmount: string;
+  additionalCostAmount: string;
+
   notes: string | null;
 }>;
 
 type CreateInventoryPurchaseData = Readonly<{
   locationId: string;
+
+  supplierName: string | null;
+  supplierDocument: string | null;
+
   externalReference: string | null;
+  documentDate: string | null;
+
   notes: string | null;
+
   lines: readonly NewInventoryPurchaseLine[];
 }>;
+
+type ValuedInventoryPurchaseLine = NewInventoryPurchaseLine &
+  Readonly<{
+    netCost: string;
+  }>;
+
+type CreateInventoryPurchaseRecordData = Omit<
+  CreateInventoryPurchaseData,
+  "lines"
+> &
+  Readonly<{
+    grossTotal: string;
+    discountTotal: string;
+    additionalCostTotal: string;
+    netTotal: string;
+    lines: readonly ValuedInventoryPurchaseLine[];
+  }>;
 
 type InventoryPurchaseLine = Readonly<{
   id: string;
@@ -47,8 +75,12 @@ type InventoryPurchaseLine = Readonly<{
   purchasedQuantity: string;
   baseQuantity: string;
 
+  grossCost: string;
+  discountAmount: string;
+  additionalCostAmount: string;
+  netCost: string;
+
   unitCost: string;
-  totalCost: string;
 
   balanceBefore: string;
   balanceAfter: string;
@@ -72,10 +104,21 @@ type InventoryPurchase = Readonly<{
     name: string;
   }>;
 
+  supplier: Readonly<{
+    name: string;
+    document: string | null;
+  }> | null;
+
   externalReference: string | null;
+  documentDate: string | null;
   notes: string | null;
 
-  totalCost: string;
+  costs: Readonly<{
+    grossTotal: string;
+    discountTotal: string;
+    additionalCostTotal: string;
+    netTotal: string;
+  }>;
 
   createdByMembershipId: string;
   createdByName: string;
@@ -124,9 +167,11 @@ type CreateInventoryPurchaseResult =
 export type {
   CreateInventoryPurchaseData,
   CreateInventoryPurchasePresentationData,
+  CreateInventoryPurchaseRecordData,
   CreateInventoryPurchaseResult,
   InventoryPurchase,
   InventoryPurchaseLine,
   InventoryPurchasePresentation,
   NewInventoryPurchaseLine,
+  ValuedInventoryPurchaseLine,
 };

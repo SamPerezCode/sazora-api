@@ -16,16 +16,20 @@ const positiveQuantitySchema = z
     message: "La cantidad debe ser mayor que cero",
   });
 
-const positiveCostSchema = z
+const nonNegativeMoneySchema = z
   .string()
   .trim()
   .regex(
     /^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/,
-    "El costo debe tener máximo seis decimales",
-  )
-  .refine((value) => Number(value) > 0, {
-    message: "El costo debe ser mayor que cero",
-  });
+    "El valor debe tener máximo seis decimales",
+  );
+
+const positiveMoneySchema = nonNegativeMoneySchema.refine(
+  (value) => Number(value) > 0,
+  {
+    message: "El valor debe ser mayor que cero",
+  },
+);
 
 const conversionFactorSchema = z
   .string()
@@ -46,13 +50,22 @@ const optionalTextSchema = z
   .optional()
   .transform((value) => (value && value.length > 0 ? value : null));
 
-const optionalReferenceSchema = z
+const optionalShortTextSchema = (maximum: number) =>
+  z
+    .string()
+    .trim()
+    .max(maximum)
+    .nullable()
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : null));
+
+const optionalDateSchema = z
   .string()
   .trim()
-  .max(120)
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha debe usar el formato YYYY-MM-DD")
   .nullable()
   .optional()
-  .transform((value) => (value && value.length > 0 ? value : null));
+  .transform((value) => value ?? null);
 
 const inventoryItemParamsSchema = z
   .object({
@@ -70,7 +83,13 @@ const createPurchasePresentationSchema = z
 const createInventoryPurchaseSchema = z
   .object({
     locationId: databaseIdSchema,
-    externalReference: optionalReferenceSchema,
+
+    supplierName: optionalShortTextSchema(160),
+    supplierDocument: optionalShortTextSchema(80),
+
+    externalReference: optionalShortTextSchema(120),
+    documentDate: optionalDateSchema,
+
     notes: optionalTextSchema,
 
     lines: z
@@ -80,10 +99,39 @@ const createInventoryPurchaseSchema = z
             inventoryItemId: databaseIdSchema,
             presentationId: databaseIdSchema,
             purchasedQuantity: positiveQuantitySchema,
-            totalCost: positiveCostSchema,
+
+            grossCost: positiveMoneySchema,
+
+            discountAmount: nonNegativeMoneySchema.optional().default("0"),
+
+            additionalCostAmount: nonNegativeMoneySchema
+              .optional()
+              .default("0"),
+
             notes: optionalTextSchema,
           })
-          .strict(),
+          .strict()
+          .superRefine((line, context) => {
+            const grossCost = Number(line.grossCost);
+            const discount = Number(line.discountAmount);
+            const additionalCost = Number(line.additionalCostAmount);
+
+            if (discount > grossCost) {
+              context.addIssue({
+                code: "custom",
+                path: ["discountAmount"],
+                message: "El descuento no puede superar el costo bruto",
+              });
+            }
+
+            if (grossCost - discount + additionalCost <= 0) {
+              context.addIssue({
+                code: "custom",
+                path: ["grossCost"],
+                message: "El costo neto de la línea debe ser mayor que cero",
+              });
+            }
+          }),
       )
       .min(1, "La compra requiere al menos una línea")
       .max(100, "La compra no puede superar 100 líneas"),
@@ -97,6 +145,15 @@ const createInventoryPurchaseSchema = z
         code: "custom",
         path: ["lines"],
         message: "Un artículo no puede repetirse dentro de la misma compra",
+      });
+    }
+
+    if (data.supplierDocument && !data.supplierName) {
+      context.addIssue({
+        code: "custom",
+        path: ["supplierName"],
+        message:
+          "Debes indicar el nombre cuando registras el documento del proveedor",
       });
     }
   });

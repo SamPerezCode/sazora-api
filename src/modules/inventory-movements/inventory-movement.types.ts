@@ -8,8 +8,7 @@ type InventoryMovementType =
   | "RETURN"
   | "REVERSAL";
 
-type ManualInventoryMovementType =
-  "PURCHASE" | "ADJUSTMENT" | "WASTE" | "RETURN";
+type ManualInventoryMovementType = "ADJUSTMENT" | "WASTE" | "RETURN";
 
 type InventoryMovementDirection = "IN" | "OUT";
 

@@ -30,7 +30,7 @@ const inventoryMovementIdParamsSchema = z
 
 const createInventoryMovementSchema = z
   .object({
-    movementType: z.enum(["PURCHASE", "ADJUSTMENT", "WASTE", "RETURN"]),
+    movementType: z.enum(["ADJUSTMENT", "WASTE", "RETURN"]),
 
     notes: optionalText,
 
@@ -60,13 +60,13 @@ const createInventoryMovementSchema = z
       });
     }
 
-    if (data.movementType === "PURCHASE" || data.movementType === "RETURN") {
+    if (data.movementType === "RETURN") {
       data.lines.forEach((line, index) => {
         if (line.direction !== "IN") {
           context.addIssue({
             code: "custom",
             path: ["lines", index, "direction"],
-            message: "Las compras y devoluciones solamente permiten entradas",
+            message: "Las devoluciones solamente permiten entradas",
           });
         }
       });
