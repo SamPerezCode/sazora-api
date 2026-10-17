@@ -9,6 +9,11 @@ import {
 } from "./controllers/inventory-location-balance.controller";
 
 import {
+  createPurchasePresentationController,
+  listPurchasePresentationsController,
+} from "../inventory-movements/controllers/inventory-purchase.controller";
+
+import {
   createInventoryItemController,
   getInventoryItemController,
   listInventoryItemsController,
@@ -44,6 +49,20 @@ inventoryItemRouter.put(
   authenticate,
   authorizeRoles("ADMIN"),
   valueInitialInventoryController,
+);
+
+inventoryItemRouter.get(
+  "/:inventoryItemId/purchase-presentations",
+  authenticate,
+  authorizeRoles("ADMIN"),
+  listPurchasePresentationsController,
+);
+
+inventoryItemRouter.post(
+  "/:inventoryItemId/purchase-presentations",
+  authenticate,
+  authorizeRoles("ADMIN"),
+  createPurchasePresentationController,
 );
 
 inventoryItemRouter.get(

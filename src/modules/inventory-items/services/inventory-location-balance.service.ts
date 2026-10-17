@@ -163,9 +163,9 @@ const valueInitialInventory = async (
 
     case "BALANCE_HAS_NO_STOCK":
       throw new AppError(
-        "No es necesario valorar un saldo en cero",
+        "La valoración inicial solamente se puede registrar sobre existencias positivas",
         409,
-        "INVENTORY_BALANCE_HAS_NO_STOCK",
+        "INVENTORY_BALANCE_HAS_NO_POSITIVE_STOCK",
       );
   }
 };

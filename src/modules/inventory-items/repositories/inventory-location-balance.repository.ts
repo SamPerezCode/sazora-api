@@ -365,7 +365,7 @@ const valueInitialInventoryBalance = async (
       };
     }
 
-    if (Number(balance.currentStock) === 0) {
+    if (Number(balance.currentStock) <= 0) {
       await connection.rollback();
 
       return {
