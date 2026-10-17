@@ -4,6 +4,7 @@ import { databasePool } from "../../../database/pool";
 import type { OrderServiceType } from "../../orders/order.types";
 import type {
   SalesBusinessContext,
+  SalesByLocationRecord,
   SalesByServiceType,
   SalesHistoryItem,
   SalesHistoryResult,
@@ -35,20 +36,40 @@ type SalesByServiceTypeRow = RowDataPacket & {
 
 type SalesHistoryRow = RowDataPacket & {
   orderId: string;
+
+  locationId: string;
+  locationCode: string;
+  locationName: string;
+
   serviceType: OrderServiceType;
+
   restaurantTableId: string | null;
   restaurantTableCode: string | null;
   restaurantTableName: string | null;
+
   openedByMembershipId: string;
   openedByName: string;
+
   customerCount: number | null;
   itemCount: string;
   unitsSold: string;
   salesTotal: string;
+
   createdAt: Date;
   confirmedAt: Date | null;
   deliveredAt: Date | null;
   closedAt: Date;
+};
+
+type SalesByLocationRow = RowDataPacket & {
+  locationId: string;
+  locationCode: string;
+  locationName: string;
+  salesTotal: string;
+  orderCount: string;
+  unitsSold: string;
+  servedCustomers: string;
+  averageTicket: string;
 };
 
 type SalesTopProductRow = RowDataPacket & {
@@ -81,6 +102,11 @@ const createSalesWhereClause = (
 
   const values = [businessId, filters.period.start, filters.period.end];
 
+  if (filters.locationId !== undefined) {
+    conditions.push("o.location_id = ?");
+    values.push(filters.locationId);
+  }
+
   if (filters.serviceType !== undefined) {
     conditions.push("o.service_type = ?");
     values.push(filters.serviceType);
@@ -88,6 +114,7 @@ const createSalesWhereClause = (
 
   if (filters.openedByMembershipId !== undefined) {
     conditions.push("o.opened_by_membership_id = ?");
+
     values.push(filters.openedByMembershipId);
   }
 
@@ -96,7 +123,6 @@ const createSalesWhereClause = (
     values,
   };
 };
-
 const findSalesBusinessContext = async (
   businessId: string,
 ): Promise<SalesBusinessContext | null> => {
@@ -246,130 +272,305 @@ const findSalesHistory = async (
 
   const [countRows] = await databasePool.execute<CountRow[]>(
     `
-      SELECT CAST(COUNT(*) AS CHAR) AS total
-      FROM orders AS o
-      WHERE
-        ${where.sql}
-    `,
+        SELECT
+          CAST(COUNT(*) AS CHAR) AS total
+        FROM orders AS o
+        WHERE
+          ${where.sql}
+      `,
     [...where.values],
   );
 
   const total = Number(countRows[0]?.total ?? 0);
+
   const offset = (filters.page - 1) * filters.pageSize;
 
   const [rows] = await databasePool.execute<SalesHistoryRow[]>(
     `
-      SELECT
-        CAST(o.id AS CHAR) AS orderId,
-        o.service_type AS serviceType,
+        SELECT
+          CAST(o.id AS CHAR) AS orderId,
 
-        CAST(o.restaurant_table_id AS CHAR)
-          AS restaurantTableId,
+          CAST(o.location_id AS CHAR)
+            AS locationId,
 
-        rt.code AS restaurantTableCode,
-        rt.name AS restaurantTableName,
+          bl.code AS locationCode,
+          bl.name AS locationName,
 
-        CAST(o.opened_by_membership_id AS CHAR)
-          AS openedByMembershipId,
+          o.service_type AS serviceType,
 
-        u.full_name AS openedByName,
-        o.customer_count AS customerCount,
+          CAST(o.restaurant_table_id AS CHAR)
+            AS restaurantTableId,
 
-        CAST(
-          COUNT(oi.id)
-          AS CHAR
-        ) AS itemCount,
+          rt.code AS restaurantTableCode,
+          rt.name AS restaurantTableName,
 
-        CAST(
-          COALESCE(SUM(oi.quantity), 0)
-          AS CHAR
-        ) AS unitsSold,
+          CAST(
+            o.opened_by_membership_id
+            AS CHAR
+          ) AS openedByMembershipId,
 
-        CAST(
-          COALESCE(
-            SUM(oi.quantity * oi.unit_price),
-            0.00
-          )
-          AS CHAR
-        ) AS salesTotal,
+          u.full_name AS openedByName,
+          o.customer_count AS customerCount,
 
-        o.created_at AS createdAt,
-        o.confirmed_at AS confirmedAt,
-        o.delivered_at AS deliveredAt,
-        o.closed_at AS closedAt
+          CAST(
+            COUNT(oi.id)
+            AS CHAR
+          ) AS itemCount,
 
-      FROM orders AS o
+          CAST(
+            COALESCE(
+              SUM(oi.quantity),
+              0
+            )
+            AS CHAR
+          ) AS unitsSold,
 
-      INNER JOIN business_memberships AS bm
-        ON bm.business_id = o.business_id
-        AND bm.id = o.opened_by_membership_id
+          CAST(
+            COALESCE(
+              SUM(
+                oi.quantity *
+                oi.unit_price
+              ),
+              0.00
+            )
+            AS CHAR
+          ) AS salesTotal,
 
-      INNER JOIN users AS u
-        ON u.id = bm.user_id
+          o.created_at AS createdAt,
+          o.confirmed_at AS confirmedAt,
+          o.delivered_at AS deliveredAt,
+          o.closed_at AS closedAt
 
-      LEFT JOIN restaurant_tables AS rt
-        ON rt.business_id = o.business_id
-        AND rt.id = o.restaurant_table_id
+        FROM orders AS o
 
-      LEFT JOIN order_items AS oi
-        ON oi.business_id = o.business_id
-        AND oi.order_id = o.id
-        AND oi.status = 'ACTIVE'
+        INNER JOIN business_locations AS bl
+          ON bl.business_id = o.business_id
+          AND bl.id = o.location_id
 
-      WHERE
-        ${where.sql}
+        INNER JOIN business_memberships AS bm
+          ON bm.business_id = o.business_id
+          AND bm.id =
+            o.opened_by_membership_id
 
-      GROUP BY
-        o.id,
-        o.service_type,
-        o.restaurant_table_id,
-        rt.code,
-        rt.name,
-        o.opened_by_membership_id,
-        u.full_name,
-        o.customer_count,
-        o.created_at,
-        o.confirmed_at,
-        o.delivered_at,
-        o.closed_at
+        INNER JOIN users AS u
+          ON u.id = bm.user_id
 
-      ORDER BY
-        o.closed_at DESC,
-        o.id DESC
+        LEFT JOIN restaurant_tables AS rt
+          ON rt.business_id = o.business_id
+          AND rt.id =
+            o.restaurant_table_id
 
-      LIMIT ?
-      OFFSET ?
-    `,
+        LEFT JOIN order_items AS oi
+          ON oi.business_id = o.business_id
+          AND oi.order_id = o.id
+          AND oi.status = 'ACTIVE'
+
+        WHERE
+          ${where.sql}
+
+        GROUP BY
+          o.id,
+          o.location_id,
+          bl.code,
+          bl.name,
+          o.service_type,
+          o.restaurant_table_id,
+          rt.code,
+          rt.name,
+          o.opened_by_membership_id,
+          u.full_name,
+          o.customer_count,
+          o.created_at,
+          o.confirmed_at,
+          o.delivered_at,
+          o.closed_at
+
+        ORDER BY
+          o.closed_at DESC,
+          o.id DESC
+
+        LIMIT ?
+        OFFSET ?
+      `,
     [...where.values, filters.pageSize, offset],
   );
 
   const sales: SalesHistoryItem[] = rows.map((row) => ({
     orderId: row.orderId,
+
+    locationId: row.locationId,
+    locationCode: row.locationCode,
+    locationName: row.locationName,
+
     serviceType: row.serviceType,
+
     restaurantTableId: row.restaurantTableId,
+
     restaurantTableCode: row.restaurantTableCode,
+
     restaurantTableName: row.restaurantTableName,
+
     openedByMembershipId: row.openedByMembershipId,
+
     openedByName: row.openedByName,
+
     customerCount: row.customerCount,
+
     itemCount: Number(row.itemCount),
+
     unitsSold: Number(row.unitsSold),
+
     salesTotal: row.salesTotal,
+
     createdAt: row.createdAt,
+
     confirmedAt: row.confirmedAt,
+
     deliveredAt: row.deliveredAt,
+
     closedAt: row.closedAt,
   }));
 
   return {
     sales,
+
     pagination: {
       page: filters.page,
       pageSize: filters.pageSize,
       total,
+
       totalPages: total === 0 ? 0 : Math.ceil(total / filters.pageSize),
     },
   };
+};
+
+const findSalesByLocation = async (
+  businessId: string,
+  filters: SalesReportFilters,
+): Promise<SalesByLocationRecord[]> => {
+  const where = createSalesWhereClause(businessId, filters);
+
+  const [rows] = await databasePool.execute<SalesByLocationRow[]>(
+    `
+        SELECT
+          CAST(o.location_id AS CHAR)
+            AS locationId,
+
+          bl.code AS locationCode,
+          bl.name AS locationName,
+
+          CAST(
+            COALESCE(
+              SUM(
+                order_totals.salesTotal
+              ),
+              0.00
+            )
+            AS CHAR
+          ) AS salesTotal,
+
+          CAST(
+            COUNT(o.id)
+            AS CHAR
+          ) AS orderCount,
+
+          CAST(
+            COALESCE(
+              SUM(
+                order_totals.unitsSold
+              ),
+              0
+            )
+            AS CHAR
+          ) AS unitsSold,
+
+          CAST(
+            COALESCE(
+              SUM(
+                COALESCE(
+                  o.customer_count,
+                  0
+                )
+              ),
+              0
+            )
+            AS CHAR
+          ) AS servedCustomers,
+
+          CAST(
+            COALESCE(
+              AVG(
+                order_totals.salesTotal
+              ),
+              0.00
+            )
+            AS CHAR
+          ) AS averageTicket
+
+        FROM orders AS o
+
+        INNER JOIN business_locations AS bl
+          ON bl.business_id = o.business_id
+          AND bl.id = o.location_id
+
+        INNER JOIN (
+          SELECT
+            business_id,
+            order_id,
+
+            SUM(
+              quantity * unit_price
+            ) AS salesTotal,
+
+            SUM(quantity) AS unitsSold
+
+          FROM order_items
+          WHERE status = 'ACTIVE'
+
+          GROUP BY
+            business_id,
+            order_id
+        ) AS order_totals
+          ON order_totals.business_id =
+            o.business_id
+          AND order_totals.order_id =
+            o.id
+
+        WHERE
+          ${where.sql}
+
+        GROUP BY
+          o.location_id,
+          bl.code,
+          bl.name
+
+        ORDER BY
+          SUM(
+            order_totals.salesTotal
+          ) DESC,
+          bl.name ASC,
+          o.location_id ASC
+      `,
+    [...where.values],
+  );
+
+  return rows.map((row) => ({
+    locationId: row.locationId,
+
+    locationCode: row.locationCode,
+
+    locationName: row.locationName,
+
+    salesTotal: row.salesTotal,
+
+    orderCount: Number(row.orderCount),
+
+    unitsSold: Number(row.unitsSold),
+
+    servedCustomers: Number(row.servedCustomers),
+
+    averageTicket: row.averageTicket,
+  }));
 };
 
 const findSalesTopProducts = async (
@@ -380,50 +581,56 @@ const findSalesTopProducts = async (
 
   const [rows] = await databasePool.execute<SalesTopProductRow[]>(
     `
-      SELECT
-        CAST(oi.product_id AS CHAR) AS productId,
-        p.name AS productName,
+        SELECT
+          CAST(oi.product_id AS CHAR)
+            AS productId,
 
-        CAST(
-          SUM(oi.quantity)
-          AS CHAR
-        ) AS quantitySold,
+          oi.product_name AS productName,
 
-        CAST(
-          COUNT(DISTINCT oi.order_id)
-          AS CHAR
-        ) AS orderCount,
+          CAST(
+            SUM(oi.quantity)
+            AS CHAR
+          ) AS quantitySold,
 
-        CAST(
-          SUM(oi.quantity * oi.unit_price)
-          AS CHAR
-        ) AS salesTotal
+          CAST(
+            COUNT(
+              DISTINCT oi.order_id
+            )
+            AS CHAR
+          ) AS orderCount,
 
-      FROM order_items AS oi
+          CAST(
+            SUM(
+              oi.quantity *
+              oi.unit_price
+            )
+            AS CHAR
+          ) AS salesTotal
 
-      INNER JOIN orders AS o
-        ON o.business_id = oi.business_id
-        AND o.id = oi.order_id
+        FROM order_items AS oi
 
-      INNER JOIN products AS p
-        ON p.business_id = oi.business_id
-        AND p.id = oi.product_id
+        INNER JOIN orders AS o
+          ON o.business_id = oi.business_id
+          AND o.id = oi.order_id
 
-      WHERE
-        oi.status = 'ACTIVE'
-        AND ${where.sql}
+        WHERE
+          oi.status = 'ACTIVE'
+          AND ${where.sql}
 
-      GROUP BY
-        oi.product_id,
-        p.name
+        GROUP BY
+          oi.product_id,
+          oi.product_name
 
-      ORDER BY
-        SUM(oi.quantity) DESC,
-        SUM(oi.quantity * oi.unit_price) DESC,
-        oi.product_id ASC
+        ORDER BY
+          SUM(oi.quantity) DESC,
+          SUM(
+            oi.quantity *
+            oi.unit_price
+          ) DESC,
+          oi.product_id ASC
 
-      LIMIT ?
-    `,
+        LIMIT ?
+      `,
     [...where.values, filters.topLimit],
   );
 
@@ -438,6 +645,7 @@ const findSalesTopProducts = async (
 
 export {
   findSalesBusinessContext,
+  findSalesByLocation,
   findSalesByServiceType,
   findSalesHistory,
   findSalesSummary,

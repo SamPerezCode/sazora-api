@@ -30,6 +30,8 @@ const salesReportQuerySchema = z
     from: dateStringSchema,
     to: dateStringSchema,
 
+    locationId: databaseIdSchema.optional(),
+
     serviceType: z.enum(["TABLE", "TAKEAWAY", "DELIVERY"]).optional(),
 
     openedByMembershipId: databaseIdSchema.optional(),
@@ -49,7 +51,7 @@ const salesReportQuerySchema = z
 
     topLimit: z.coerce
       .number()
-      .int("El límite de productos debe ser un número entero")
+      .int("El límite debe ser un número entero")
       .min(1, "El límite debe ser mayor que cero")
       .max(50, "El límite no puede superar 50")
       .default(10),
@@ -67,9 +69,11 @@ const salesReportQuerySchema = z
     }
 
     const fromDate = new Date(`${input.from}T00:00:00.000Z`);
+
     const toDate = new Date(`${input.to}T00:00:00.000Z`);
 
     const millisecondsPerDay = 24 * 60 * 60 * 1000;
+
     const differenceInDays =
       (toDate.getTime() - fromDate.getTime()) / millisecondsPerDay;
 

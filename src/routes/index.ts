@@ -34,7 +34,7 @@ const apiRouter = Router();
 apiRouter.use("/health", healthRouter);
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/dashboard", dashboardRouter);
-apiRouter.use("/sales", salesReportRouter);
+apiRouter.use("/sales-reports", salesReportRouter);
 apiRouter.use("/public/businesses", publicMenuRouter);
 apiRouter.use("/business-settings", businessSettingsRouter);
 apiRouter.use("/organization-profile", organizationProfileRouter);
