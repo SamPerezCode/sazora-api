@@ -19,6 +19,7 @@ import type { CreateProductionData } from "../production.types";
 type LocationRow = RowDataPacket & {
   isActive: number;
   isInventoryLocation: number;
+  isProductionLocation: number;
 };
 
 type InventoryBalanceRow = RowDataPacket & {
@@ -67,17 +68,17 @@ const createValuedProductionRecord = async (
 
     const [locationRows] = await connection.execute<LocationRow[]>(
       `
-          SELECT
-            is_active AS isActive,
-            is_inventory_location
-              AS isInventoryLocation
-          FROM business_locations
-          WHERE
-            business_id = ?
-            AND id = ?
-          LIMIT 1
-          FOR UPDATE
-        `,
+    SELECT
+      is_active AS isActive,
+      is_inventory_location AS isInventoryLocation,
+      is_production_location AS isProductionLocation
+    FROM business_locations
+    WHERE
+      business_id = ?
+      AND id = ?
+    LIMIT 1
+    FOR UPDATE
+  `,
       [businessId, data.locationId],
     );
 
@@ -100,6 +101,14 @@ const createValuedProductionRecord = async (
         "La ubicación no está habilitada para inventario",
         409,
         "LOCATION_NOT_INVENTORY_ENABLED",
+      );
+    }
+
+    if (location.isProductionLocation !== 1) {
+      throw new AppError(
+        "La ubicación no está habilitada como planta de producción",
+        409,
+        "LOCATION_NOT_PRODUCTION_ENABLED",
       );
     }
 

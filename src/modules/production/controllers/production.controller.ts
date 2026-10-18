@@ -2,9 +2,11 @@ import type { RequestHandler } from "express";
 
 import { emitInventoryChanged } from "../../../realtime/realtime.events";
 import { AppError } from "../../../shared/errors/app-error";
+
 import {
   createProductionSchema,
   productionIdParamsSchema,
+  productionListQuerySchema,
 } from "../schemas/production.schema";
 import {
   createProduction,
@@ -27,7 +29,9 @@ const requireAuth = (request: Parameters<RequestHandler>[0]) => {
 const listProductionController: RequestHandler = async (request, response) => {
   const auth = requireAuth(request);
 
-  const production = await listProductionMovements(auth.businessId);
+  const query = productionListQuerySchema.parse(request.query);
+
+  const production = await listProductionMovements(auth, query.locationId);
 
   response.status(200).json({
     status: "success",
@@ -40,7 +44,7 @@ const getProductionController: RequestHandler = async (request, response) => {
 
   const { productionId } = productionIdParamsSchema.parse(request.params);
 
-  const production = await getProductionMovement(auth.businessId, productionId);
+  const production = await getProductionMovement(auth, productionId);
 
   response.status(200).json({
     status: "success",
@@ -56,11 +60,7 @@ const createProductionController: RequestHandler = async (
 
   const input = createProductionSchema.parse(request.body);
 
-  const production = await createProduction(
-    auth.businessId,
-    auth.membershipId,
-    input,
-  );
+  const production = await createProduction(auth, input);
 
   emitInventoryChanged(auth.businessId);
 

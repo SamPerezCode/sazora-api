@@ -62,6 +62,12 @@ const percentageToMillionths = (value: string): bigint => {
   );
 };
 
+const productionListQuerySchema = z
+  .object({
+    locationId: databaseIdSchema.optional(),
+  })
+  .strict();
+
 const productionIdParamsSchema = z
   .object({
     productionId: databaseIdSchema,
@@ -166,4 +172,8 @@ const createProductionSchema = z
     }
   });
 
-export { createProductionSchema, productionIdParamsSchema };
+export {
+  createProductionSchema,
+  productionIdParamsSchema,
+  productionListQuerySchema,
+};

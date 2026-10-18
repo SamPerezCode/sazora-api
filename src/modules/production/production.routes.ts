@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
 import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+
 import {
   createProductionController,
   getProductionController,
@@ -13,21 +14,21 @@ const productionRouter = Router();
 productionRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizeRoles("ADMIN", "PRODUCTION"),
   listProductionController,
 );
 
 productionRouter.post(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizeRoles("ADMIN", "PRODUCTION"),
   createProductionController,
 );
 
 productionRouter.get(
   "/:productionId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizeRoles("ADMIN", "PRODUCTION"),
   getProductionController,
 );
 

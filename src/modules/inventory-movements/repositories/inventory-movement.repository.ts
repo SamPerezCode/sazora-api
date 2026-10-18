@@ -249,36 +249,50 @@ const findInventoryMovementById = async (
 const findInventoryMovements = async (
   businessId: string,
   movementType?: InventoryMovementType,
+  locationIds?: readonly string[],
 ): Promise<InventoryMovementSummary[]> => {
-  const typeCondition =
-    movementType !== undefined ? "AND im.movement_type = ?" : "";
+  if (locationIds?.length === 0) {
+    return [];
+  }
 
-  const queryValues =
-    movementType !== undefined ? [businessId, movementType] : [businessId];
+  const conditions = ["im.business_id = ?"];
+  const queryValues: string[] = [businessId];
+
+  if (movementType !== undefined) {
+    conditions.push("im.movement_type = ?");
+    queryValues.push(movementType);
+  }
+
+  if (locationIds !== undefined) {
+    const placeholders = locationIds.map(() => "?").join(", ");
+
+    conditions.push(`im.location_id IN (${placeholders})`);
+    queryValues.push(...locationIds);
+  }
 
   const [rows] = await databasePool.execute<MovementSummaryRow[]>(
     `
-        SELECT
-          movement_data.*,
-          (
-            SELECT COUNT(*)
-            FROM inventory_movement_lines AS iml
-            WHERE
-              iml.business_id =
-                movement_data.businessId
-              AND iml.movement_id =
-                movement_data.id
-          ) AS lineCount
-        FROM (
-          ${movementSelect}
+      SELECT
+        movement_data.*,
+
+        (
+          SELECT COUNT(*)
+          FROM inventory_movement_lines AS iml
           WHERE
-            im.business_id = ?
-            ${typeCondition}
-        ) AS movement_data
-        ORDER BY
-          movement_data.createdAt DESC,
-          movement_data.id DESC
-      `,
+            iml.business_id = movement_data.businessId
+            AND iml.movement_id = movement_data.id
+        ) AS lineCount
+
+      FROM (
+        ${movementSelect}
+
+        WHERE ${conditions.join("\nAND ")}
+      ) AS movement_data
+
+      ORDER BY
+        movement_data.createdAt DESC,
+        movement_data.id DESC
+    `,
     queryValues,
   );
 

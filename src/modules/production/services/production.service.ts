@@ -1,5 +1,7 @@
 import { AppError } from "../../../shared/errors/app-error";
 
+import type { AuthenticatedSession } from "../../auth/auth.types";
+
 import type {
   InventoryMovement,
   InventoryMovementSummary,
@@ -14,16 +16,32 @@ import type { CreateProductionData } from "../production.types";
 
 import { createValuedProductionRecord } from "../repositories/valued-production.repository";
 
+import {
+  assertProductionMovementAccess,
+  resolveProductionListScope,
+  resolveProductionLocation,
+} from "./production-location-access.service";
+
 const listProductionMovements = async (
-  businessId: string,
-): Promise<InventoryMovementSummary[]> =>
-  findInventoryMovements(businessId, "PRODUCTION");
+  auth: AuthenticatedSession,
+  requestedLocationId?: string,
+): Promise<InventoryMovementSummary[]> => {
+  const locationIds = await resolveProductionListScope(
+    auth,
+    requestedLocationId,
+  );
+
+  return findInventoryMovements(auth.businessId, "PRODUCTION", locationIds);
+};
 
 const getProductionMovement = async (
-  businessId: string,
+  auth: AuthenticatedSession,
   productionId: string,
 ): Promise<InventoryMovement> => {
-  const movement = await findInventoryMovementById(businessId, productionId);
+  const movement = await findInventoryMovementById(
+    auth.businessId,
+    productionId,
+  );
 
   if (movement?.movementType !== "PRODUCTION") {
     throw new AppError(
@@ -33,14 +51,21 @@ const getProductionMovement = async (
     );
   }
 
+  assertProductionMovementAccess(auth, movement);
+
   return movement;
 };
 
 const createProduction = async (
-  businessId: string,
-  membershipId: string,
+  auth: AuthenticatedSession,
   data: CreateProductionData,
-): Promise<InventoryMovement> =>
-  createValuedProductionRecord(businessId, membershipId, data);
+): Promise<InventoryMovement> => {
+  const locationId = await resolveProductionLocation(auth, data.locationId);
+
+  return createValuedProductionRecord(auth.businessId, auth.membershipId, {
+    ...data,
+    locationId,
+  });
+};
 
 export { createProduction, getProductionMovement, listProductionMovements };
