@@ -836,10 +836,108 @@ const updateProductionOrderStatusById = async (
   }
 };
 
+const startProductionOrderById = async (
+  businessId: string,
+  membershipId: string,
+  productionOrderId: string,
+  expectedVersion: number,
+): Promise<UpdateProductionOrderStatusResult> => {
+  const connection = await databasePool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [rows] = await connection.execute<LockedProductionOrderRow[]>(
+      `
+          SELECT
+            CAST(id AS CHAR) AS id,
+            status,
+            version,
+            planned_for AS plannedFor
+
+          FROM production_orders
+
+          WHERE
+            business_id = ?
+            AND id = ?
+
+          LIMIT 1
+          FOR UPDATE
+        `,
+      [businessId, productionOrderId],
+    );
+
+    const current = rows[0];
+
+    if (!current) {
+      await connection.rollback();
+
+      return {
+        kind: "NOT_FOUND",
+      };
+    }
+
+    if (current.version !== expectedVersion) {
+      await connection.rollback();
+
+      return {
+        kind: "VERSION_CONFLICT",
+      };
+    }
+
+    if (current.status !== "PLANNED") {
+      await connection.rollback();
+
+      return {
+        kind: "INVALID_TRANSITION",
+      };
+    }
+
+    await connection.execute<ResultSetHeader>(
+      `
+        UPDATE production_orders
+        SET
+          status = 'IN_PROGRESS',
+          started_by_membership_id = ?,
+          started_at = CURRENT_TIMESTAMP,
+          updated_by_membership_id = ?,
+          version = version + 1
+
+        WHERE
+          business_id = ?
+          AND id = ?
+      `,
+      [membershipId, membershipId, businessId, productionOrderId],
+    );
+
+    await connection.commit();
+
+    const productionOrder = await findProductionOrderById(
+      businessId,
+      productionOrderId,
+    );
+
+    if (!productionOrder) {
+      throw new Error("No fue posible recuperar la orden iniciada");
+    }
+
+    return {
+      kind: "UPDATED",
+      productionOrder,
+    };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+};
+
 export {
   findProductionOrderById,
   findProductionOrders,
   insertProductionOrder,
+  startProductionOrderById,
   updateProductionOrderById,
   updateProductionOrderStatusById,
 };

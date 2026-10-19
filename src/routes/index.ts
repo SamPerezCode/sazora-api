@@ -25,6 +25,7 @@ import { locationRouter } from "../modules/locations/location.routes";
 import { kitchenSettingsRouter } from "../modules/kitchen-settings/kitchen-settings.routes";
 import { inventoryReportRouter } from "../modules/inventory-reports/inventory-report.routes";
 import { productionRecipeRouter } from "../modules/production-recipes/production-recipe.routes";
+import { productionOrderRouter } from "../modules/production-orders/production-order.routes";
 
 import {
   publicOrderRequestRouter,
@@ -59,9 +60,8 @@ apiRouter.use("/inventory-items", inventoryItemRouter);
 apiRouter.use("/inventory-movements", inventoryMovementRouter);
 apiRouter.use("/product-inventory-links", productInventoryLinkRouter);
 apiRouter.use("/inventory-reports", inventoryReportRouter);
-apiRouter.use("/production", productionRouter);
 apiRouter.use("/production-recipes", productionRecipeRouter);
-
+apiRouter.use("/production-orders", productionOrderRouter);
 apiRouter.use("/production", productionRouter);
 
 export { apiRouter };

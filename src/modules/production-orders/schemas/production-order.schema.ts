@@ -94,6 +94,12 @@ const updateProductionOrderStatusSchema = z
     }
   });
 
+const startProductionOrderSchema = z
+  .object({
+    version: z.number().int().positive(),
+  })
+  .strict();
+
 type CreateProductionOrderInput = z.infer<typeof createProductionOrderSchema>;
 
 type UpdateProductionOrderInput = z.infer<typeof updateProductionOrderSchema>;
@@ -102,16 +108,20 @@ type UpdateProductionOrderStatusInput = z.infer<
   typeof updateProductionOrderStatusSchema
 >;
 
+type StartProductionOrderInput = z.infer<typeof startProductionOrderSchema>;
+
 export {
   createProductionOrderSchema,
   productionOrderListQuerySchema,
   productionOrderParamsSchema,
+  startProductionOrderSchema,
   updateProductionOrderSchema,
   updateProductionOrderStatusSchema,
 };
 
 export type {
   CreateProductionOrderInput,
+  StartProductionOrderInput,
   UpdateProductionOrderInput,
   UpdateProductionOrderStatusInput,
 };
