@@ -24,6 +24,7 @@ import { organizationProfileRouter } from "../modules/organization-profile/organ
 import { locationRouter } from "../modules/locations/location.routes";
 import { kitchenSettingsRouter } from "../modules/kitchen-settings/kitchen-settings.routes";
 import { inventoryReportRouter } from "../modules/inventory-reports/inventory-report.routes";
+import { productionRecipeRouter } from "../modules/production-recipes/production-recipe.routes";
 
 import {
   publicOrderRequestRouter,
@@ -53,12 +54,14 @@ apiRouter.use("/public-menu-settings", publicMenuSettingsRouter);
 apiRouter.use("/public/businesses", publicOrderSubmissionRouter);
 apiRouter.use("/public-order-requests", publicOrderRequestRouter);
 apiRouter.use("/deliveries", deliveryRouter);
-apiRouter.use("/deliveries", deliveryRouter);
 
 apiRouter.use("/inventory-items", inventoryItemRouter);
 apiRouter.use("/inventory-movements", inventoryMovementRouter);
 apiRouter.use("/product-inventory-links", productInventoryLinkRouter);
 apiRouter.use("/inventory-reports", inventoryReportRouter);
+apiRouter.use("/production", productionRouter);
+apiRouter.use("/production-recipes", productionRecipeRouter);
+
 apiRouter.use("/production", productionRouter);
 
 export { apiRouter };
