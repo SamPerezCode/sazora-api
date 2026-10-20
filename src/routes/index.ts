@@ -26,6 +26,7 @@ import { kitchenSettingsRouter } from "../modules/kitchen-settings/kitchen-setti
 import { inventoryReportRouter } from "../modules/inventory-reports/inventory-report.routes";
 import { productionRecipeRouter } from "../modules/production-recipes/production-recipe.routes";
 import { productionOrderRouter } from "../modules/production-orders/production-order.routes";
+import { productionReportRouter } from "../modules/production-reports/production-report.routes";
 
 import {
   publicOrderRequestRouter,
@@ -62,6 +63,7 @@ apiRouter.use("/product-inventory-links", productInventoryLinkRouter);
 apiRouter.use("/inventory-reports", inventoryReportRouter);
 apiRouter.use("/production-recipes", productionRecipeRouter);
 apiRouter.use("/production-orders", productionOrderRouter);
+apiRouter.use("/production-reports", productionReportRouter);
 apiRouter.use("/production", productionRouter);
 
 export { apiRouter };
