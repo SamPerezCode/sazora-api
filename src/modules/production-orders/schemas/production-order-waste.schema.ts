@@ -34,12 +34,6 @@ const productionOrderWasteLineSchema = z
 
 const createProductionOrderWasteSchema = z
   .object({
-    /*
-     * Versión actual de la orden.
-     *
-     * Al registrar el desperdicio se incrementará para evitar
-     * que una finalización simultánea use información anterior.
-     */
     version: z.number().int().positive(),
 
     reason: z
@@ -67,10 +61,17 @@ const createProductionOrderWasteSchema = z
     }
   });
 
+const productionOrderWasteParamsSchema = z
+  .object({
+    productionOrderId: databaseIdSchema,
+    wasteRecordId: databaseIdSchema,
+  })
+  .strict();
+
 type CreateProductionOrderWasteInput = z.infer<
   typeof createProductionOrderWasteSchema
 >;
 
-export { createProductionOrderWasteSchema };
+export { createProductionOrderWasteSchema, productionOrderWasteParamsSchema };
 
 export type { CreateProductionOrderWasteInput };

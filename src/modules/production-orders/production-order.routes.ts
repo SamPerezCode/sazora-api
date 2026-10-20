@@ -13,6 +13,12 @@ import {
   updateProductionOrderStatusController,
 } from "./controllers/production-order.controller";
 
+import {
+  createProductionOrderWasteController,
+  getProductionOrderWasteController,
+  listProductionOrderWasteController,
+} from "./controllers/production-order-waste.controller";
+
 const productionOrderRouter = Router();
 
 productionOrderRouter.get(
@@ -41,6 +47,27 @@ productionOrderRouter.post(
   authenticate,
   authorizeRoles("ADMIN", "PRODUCTION"),
   completeProductionOrderController,
+);
+
+productionOrderRouter.get(
+  "/:productionOrderId/waste",
+  authenticate,
+  authorizeRoles("ADMIN", "PRODUCTION"),
+  listProductionOrderWasteController,
+);
+
+productionOrderRouter.post(
+  "/:productionOrderId/waste",
+  authenticate,
+  authorizeRoles("ADMIN", "PRODUCTION"),
+  createProductionOrderWasteController,
+);
+
+productionOrderRouter.get(
+  "/:productionOrderId/waste/:wasteRecordId",
+  authenticate,
+  authorizeRoles("ADMIN", "PRODUCTION"),
+  getProductionOrderWasteController,
 );
 
 productionOrderRouter.get(
