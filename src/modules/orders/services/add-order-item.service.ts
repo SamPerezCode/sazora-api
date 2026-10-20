@@ -6,6 +6,7 @@ import {
 import type { OrderItem } from "../order.types";
 import { addOrderItems as addOrderItemsRecords } from "../repositories/order-item.repository";
 import type { AddOrderItemsInput } from "../schemas/add-order-item.schema";
+import { findInventoryItemById } from "../../inventory-items/repositories/inventory-item.repository";
 
 const addItemsToOrder = async (
   businessId: string,
@@ -75,15 +76,24 @@ const addItemsToOrder = async (
         "INVENTORY_ITEM_NOT_AVAILABLE",
       );
 
-    case "INSUFFICIENT_INVENTORY_STOCK":
+    case "INSUFFICIENT_INVENTORY_STOCK": {
+      const item = await findInventoryItemById(
+        businessId,
+        result.inventoryItemId,
+      );
+
+      const itemLabel = item
+        ? `«${item.name}»${item.sku ? ` (SKU: ${item.sku})` : ""}`
+        : `artículo de inventario #${result.inventoryItemId}`;
+
       throw new AppError(
-        `Stock insuficiente para el artículo ` +
-          `${result.inventoryItemId}. ` +
+        `Stock insuficiente para ${itemLabel} en este punto de venta. ` +
           `Disponible: ${result.availableQuantity}. ` +
-          `Solicitado: ${result.requestedQuantity}`,
+          `Solicitado: ${result.requestedQuantity}.`,
         409,
         "INSUFFICIENT_INVENTORY_STOCK",
       );
+    }
 
     case "UNVALUED_INVENTORY_STOCK":
       throw new AppError(
