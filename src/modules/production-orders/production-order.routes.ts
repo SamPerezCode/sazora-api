@@ -18,6 +18,7 @@ import {
   getProductionOrderWasteController,
   listProductionOrderWasteController,
 } from "./controllers/production-order-waste.controller";
+import { getProductionOrderPerformanceController } from "./controllers/production-order-performance.controller";
 
 const productionOrderRouter = Router();
 
@@ -68,6 +69,13 @@ productionOrderRouter.get(
   authenticate,
   authorizeRoles("ADMIN", "PRODUCTION"),
   getProductionOrderWasteController,
+);
+
+productionOrderRouter.get(
+  "/:productionOrderId/performance",
+  authenticate,
+  authorizeRoles("ADMIN", "PRODUCTION"),
+  getProductionOrderPerformanceController,
 );
 
 productionOrderRouter.get(
