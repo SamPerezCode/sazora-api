@@ -4,6 +4,7 @@ import { authenticate } from "../auth/middlewares/authenticate.middleware";
 import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
 
 import {
+  completeProductionOrderController,
   createProductionOrderController,
   getProductionOrderController,
   listProductionOrdersController,
@@ -33,6 +34,13 @@ productionOrderRouter.post(
   authenticate,
   authorizeRoles("ADMIN", "PRODUCTION"),
   startProductionOrderController,
+);
+
+productionOrderRouter.post(
+  "/:productionOrderId/complete",
+  authenticate,
+  authorizeRoles("ADMIN", "PRODUCTION"),
+  completeProductionOrderController,
 );
 
 productionOrderRouter.get(

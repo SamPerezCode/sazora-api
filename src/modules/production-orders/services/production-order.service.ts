@@ -23,6 +23,8 @@ import {
   updateProductionOrderStatusById,
 } from "../repositories/production-order.repository";
 
+import { completeProductionOrderRecord } from "../repositories/complete-production-order.repository";
+
 import type {
   ProductionOrder,
   ProductionOrderStatus,
@@ -31,6 +33,7 @@ import type {
 } from "../production-order.types";
 
 import type {
+  CompleteProductionOrderInput,
   CreateProductionOrderInput,
   StartProductionOrderInput,
   UpdateProductionOrderInput,
@@ -394,7 +397,64 @@ const startProductionOrder = async (
   }
 };
 
+const completeProductionOrder = async (
+  auth: AuthenticatedSession,
+  productionOrderId: string,
+  input: CompleteProductionOrderInput,
+): Promise<ProductionOrder> => {
+  const currentOrder = await getProductionOrder(auth, productionOrderId);
+
+  if (currentOrder.status !== "IN_PROGRESS") {
+    throw new AppError(
+      "Solo se pueden completar órdenes que estén en proceso",
+      409,
+      "PRODUCTION_ORDER_NOT_IN_PROGRESS",
+    );
+  }
+
+  const result = await completeProductionOrderRecord(
+    auth.businessId,
+    auth.membershipId,
+    productionOrderId,
+    input,
+  );
+
+  switch (result.kind) {
+    case "COMPLETED":
+      return result.productionOrder;
+
+    case "NOT_FOUND":
+      throw new AppError(
+        "La orden de producción no existe",
+        404,
+        "PRODUCTION_ORDER_NOT_FOUND",
+      );
+
+    case "VERSION_CONFLICT":
+      throw new AppError(
+        "La orden fue modificada por otra persona. Actualiza la información e inténtalo nuevamente",
+        409,
+        "PRODUCTION_ORDER_VERSION_CONFLICT",
+      );
+
+    case "INVALID_TRANSITION":
+      throw new AppError(
+        "La orden ya no se encuentra en proceso",
+        409,
+        "PRODUCTION_ORDER_NOT_IN_PROGRESS",
+      );
+
+    case "LINES_MISMATCH":
+      throw new AppError(
+        "Los insumos o productos enviados no coinciden con la composición de la orden",
+        409,
+        "PRODUCTION_ORDER_LINES_MISMATCH",
+      );
+  }
+};
+
 export {
+  completeProductionOrder,
   createProductionOrder,
   getProductionOrder,
   listProductionOrders,

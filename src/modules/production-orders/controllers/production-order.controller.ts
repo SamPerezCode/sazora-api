@@ -3,6 +3,7 @@ import type { RequestHandler } from "express";
 import { AppError } from "../../../shared/errors/app-error";
 
 import {
+  completeProductionOrderSchema,
   createProductionOrderSchema,
   productionOrderListQuerySchema,
   productionOrderParamsSchema,
@@ -12,6 +13,7 @@ import {
 } from "../schemas/production-order.schema";
 
 import {
+  completeProductionOrder,
   createProductionOrder,
   getProductionOrder,
   listProductionOrders,
@@ -154,7 +156,32 @@ const startProductionOrderController: RequestHandler = async (
   });
 };
 
+const completeProductionOrderController: RequestHandler = async (
+  request,
+  response,
+) => {
+  const auth = requireAuth(request);
+
+  const { productionOrderId } = productionOrderParamsSchema.parse(
+    request.params,
+  );
+
+  const input = completeProductionOrderSchema.parse(request.body);
+
+  const productionOrder = await completeProductionOrder(
+    auth,
+    productionOrderId,
+    input,
+  );
+
+  response.status(200).json({
+    status: "success",
+    data: { productionOrder },
+  });
+};
+
 export {
+  completeProductionOrderController,
   createProductionOrderController,
   getProductionOrderController,
   listProductionOrdersController,
