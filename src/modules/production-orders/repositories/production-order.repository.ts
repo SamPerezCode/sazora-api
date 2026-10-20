@@ -277,11 +277,11 @@ const findProductionOrderById = async (
           CAST(poi.inventory_item_id AS CHAR)
             AS inventoryItemId,
 
-          poi.inventory_item_name_snapshot
-            AS inventoryItemName,
+          poi.item_name_snapshot
+          AS inventoryItemName,
 
-          poi.inventory_item_sku_snapshot
-            AS inventoryItemSku,
+          poi.item_sku_snapshot
+          AS inventoryItemSku,
 
           poi.base_unit_snapshot AS baseUnit,
 
@@ -310,11 +310,11 @@ const findProductionOrderById = async (
           CAST(poo.inventory_item_id AS CHAR)
             AS inventoryItemId,
 
-          poo.inventory_item_name_snapshot
-            AS inventoryItemName,
+          poo.item_name_snapshot
+          AS inventoryItemName,
 
-          poo.inventory_item_sku_snapshot
-            AS inventoryItemSku,
+          poo.item_sku_snapshot
+          AS inventoryItemSku,
 
           poo.base_unit_snapshot AS baseUnit,
 
@@ -459,8 +459,8 @@ const insertProductionOrderLines = async (
           business_id,
           production_order_id,
           inventory_item_id,
-          inventory_item_name_snapshot,
-          inventory_item_sku_snapshot,
+          item_name_snapshot,
+          item_sku_snapshot,
           base_unit_snapshot,
           planned_quantity,
           actual_quantity
@@ -486,8 +486,8 @@ const insertProductionOrderLines = async (
           business_id,
           production_order_id,
           inventory_item_id,
-          inventory_item_name_snapshot,
-          inventory_item_sku_snapshot,
+          item_name_snapshot,
+          item_sku_snapshot,
           base_unit_snapshot,
           planned_quantity,
           actual_quantity,

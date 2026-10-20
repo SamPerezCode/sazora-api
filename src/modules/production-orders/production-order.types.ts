@@ -134,10 +134,37 @@ type UpdateProductionOrderStatusResult =
       kind: "NOT_FOUND" | "VERSION_CONFLICT" | "INVALID_TRANSITION";
     }>;
 
+type ProductionOrderCompletionLine = Readonly<{
+  inventoryItemId: string;
+  quantity: string;
+}>;
+
+type CompleteProductionOrderData = Readonly<{
+  version: number;
+  inputs: readonly ProductionOrderCompletionLine[];
+  outputs: readonly ProductionOrderCompletionLine[];
+}>;
+
+type CompleteProductionOrderResult =
+  | Readonly<{
+      kind: "COMPLETED";
+      productionOrder: ProductionOrder;
+    }>
+  | Readonly<{
+      kind:
+        | "NOT_FOUND"
+        | "VERSION_CONFLICT"
+        | "INVALID_TRANSITION"
+        | "LINES_MISMATCH";
+    }>;
+
 export type {
+  CompleteProductionOrderData,
+  CompleteProductionOrderResult,
   NewProductionOrderInputSnapshot,
   NewProductionOrderOutputSnapshot,
   ProductionOrder,
+  ProductionOrderCompletionLine,
   ProductionOrderInput,
   ProductionOrderListFilters,
   ProductionOrderLocation,
