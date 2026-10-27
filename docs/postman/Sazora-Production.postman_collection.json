@@ -1,0 +1,871 @@
+{
+  "info": {
+    "name": "Sazora - Producción valorizada",
+    "description": "Pruebas de recetas, órdenes, aislamiento por planta, desperdicio, valoración, rendimiento e informes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api"
+    },
+    {
+      "key": "productionLocationId",
+      "value": ""
+    },
+    {
+      "key": "forbiddenLocationId",
+      "value": ""
+    },
+    {
+      "key": "inputInventoryItemId",
+      "value": ""
+    },
+    {
+      "key": "outputInventoryItemId",
+      "value": ""
+    },
+    {
+      "key": "recipeId",
+      "value": ""
+    },
+    {
+      "key": "productionOrderId",
+      "value": ""
+    },
+    {
+      "key": "orderVersion",
+      "value": ""
+    },
+    {
+      "key": "wasteRecordId",
+      "value": ""
+    },
+    {
+      "key": "reportFrom",
+      "value": "2026-01-01"
+    },
+    {
+      "key": "reportTo",
+      "value": "2026-12-31"
+    }
+  ],
+  "item": [
+    {
+      "name": "02 - Recetas",
+      "item": [
+        {
+          "name": "Crear receta como ADMIN",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Respuesta exitosa\", () => {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "  pm.expect(pm.response.json().status).to.eql(\"success\");",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set(\"recipeId\", json.data.recipe.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"PRUEBA-{{$timestamp}}\",\n  \"name\": \"Receta de prueba Postman\",\n  \"notes\": \"Creada durante la prueba integral\",\n  \"inputs\": [\n    {\n      \"inventoryItemId\": \"{{inputInventoryItemId}}\",\n      \"quantity\": \"1.000\",\n      \"notes\": null\n    }\n  ],\n  \"outputs\": [\n    {\n      \"inventoryItemId\": \"{{outputInventoryItemId}}\",\n      \"quantity\": \"1.000\",\n      \"costAllocationPercentage\": \"100.000000\",\n      \"notes\": null\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/production-recipes"
+          }
+        },
+        {
+          "name": "Consultar recetas como PRODUCTION",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Respuesta exitosa\", () => {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "  pm.expect(pm.response.json().status).to.eql(\"success\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/production-recipes"
+          }
+        },
+        {
+          "name": "PRODUCTION no puede crear recetas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"PRODUCTION recibe 403\", () => {",
+                  "  pm.expect(pm.response.code).to.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"NO-PERMITIDA\",\n  \"name\": \"No permitida\",\n  \"inputs\": [\n    {\n      \"inventoryItemId\": \"{{inputInventoryItemId}}\",\n      \"quantity\": \"1.000\"\n    }\n  ],\n  \"outputs\": [\n    {\n      \"inventoryItemId\": \"{{outputInventoryItemId}}\",\n      \"quantity\": \"1.000\",\n      \"costAllocationPercentage\": \"100.000000\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/production-recipes"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Orden de producción",
+      "item": [
+        {
+          "name": "Crear orden como ADMIN",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Respuesta exitosa\", () => {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "  pm.expect(pm.response.json().status).to.eql(\"success\");",
+                  "});",
+                  "const order = pm.response.json().data.productionOrder;",
+                  "pm.collectionVariables.set(\"productionOrderId\", order.id);",
+                  "pm.collectionVariables.set(\"orderVersion\", String(order.version));",
+                  "pm.expect(order.status).to.eql(\"DRAFT\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recipeId\": \"{{recipeId}}\",\n  \"locationId\": \"{{productionLocationId}}\",\n  \"batchQuantity\": \"1.000\",\n  \"plannedFor\": \"2026-12-01T15:00:00.000Z\",\n  \"notes\": \"Orden creada desde prueba Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/production-orders"
+          }
+        },
+        {
+          "name": "Planificar orden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Respuesta exitosa\", () => {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "  pm.expect(pm.response.json().status).to.eql(\"success\");",
+                  "});",
+                  "const order = pm.response.json().data.productionOrder;",
+                  "pm.collectionVariables.set(\"orderVersion\", String(order.version));",
+                  "pm.expect(order.status).to.eql(\"PLANNED\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"PLANNED\",\n  \"cancellationReason\": null,\n  \"version\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/production-orders/{{productionOrderId}}/status"
+          }
+        },
+        {
+          "name": "PRODUCTION consulta su orden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Respuesta exitosa\", () => {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "  pm.expect(pm.response.json().status).to.eql(\"success\");",
+                  "});",
+                  "const order = pm.response.json().data.productionOrder;",
+                  "pm.expect(order.location.id).to.eql(pm.collectionVariables.get(\"productionLocationId\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/production-orders/{{productionOrderId}}"
+          }
+        },
+        {
+          "name": "Aislamiento - consultar otra planta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"No permite consultar otra planta\", () => {",
+                  "  pm.expect(pm.response.code).to.eql(403);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.code).to.eql(\"LOCATION_ACCESS_DENIED\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/production-orders?locationId={{forbiddenLocationId}}"
+          }
+        },
+        {
+          "name": "Iniciar orden como PRODUCTION",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Respuesta exitosa\", () => {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "  pm.expect(pm.response.json().status).to.eql(\"success\");",
+                  "});",
+                  "const order = pm.response.json().data.productionOrder;",
+                  "pm.collectionVariables.set(\"orderVersion\", String(order.version));",
+                  "pm.expect(order.status).to.eql(\"IN_PROGRESS\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/production-orders/{{productionOrderId}}/start"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Ejecución y controles",
+      "item": [
+        {
+          "name": "Stock insuficiente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Rechaza stock insuficiente\", () => {",
+                  "  pm.expect(pm.response.code).to.eql(409);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.code).to.eql(\"INSUFFICIENT_PRODUCTION_STOCK\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": 3,\n  \"inputs\": [\n    {\n      \"inventoryItemId\": \"{{inputInventoryItemId}}\",\n      \"quantity\": \"999999999.000\"\n    }\n  ],\n  \"outputs\": [\n    {\n      \"inventoryItemId\": \"{{outputInventoryItemId}}\",\n      \"quantity\": \"1.000\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/production-orders/{{productionOrderId}}/complete"
+          }
+        },
+        {
+          "name": "Registrar desperdicio explícito",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Respuesta exitosa\", () => {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "  pm.expect(pm.response.json().status).to.eql(\"success\");",
+                  "});",
+                  "const data = pm.response.json().data;",
+                  "pm.collectionVariables.set(\"wasteRecordId\", data.wasteRecord.id);",
+                  "pm.collectionVariables.set(\"orderVersion\", String(data.productionOrder.version));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": 3,\n  \"reason\": \"Pérdida controlada durante prueba\",\n  \"lines\": [\n    {\n      \"inventoryItemId\": \"{{inputInventoryItemId}}\",\n      \"quantity\": \"0.001\",\n      \"notes\": \"Prueba de auditoría\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/production-orders/{{productionOrderId}}/waste"
+          }
+        },
+        {
+          "name": "Completar orden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Respuesta exitosa\", () => {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "  pm.expect(pm.response.json().status).to.eql(\"success\");",
+                  "});",
+                  "const order = pm.response.json().data.productionOrder;",
+                  "pm.collectionVariables.set(\"orderVersion\", String(order.version));",
+                  "pm.expect(order.status).to.eql(\"COMPLETED\");",
+                  "pm.expect(order.inventoryMovementId).to.not.eql(null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": 4,\n  \"inputs\": [\n    {\n      \"inventoryItemId\": \"{{inputInventoryItemId}}\",\n      \"quantity\": \"1.000\"\n    }\n  ],\n  \"outputs\": [\n    {\n      \"inventoryItemId\": \"{{outputInventoryItemId}}\",\n      \"quantity\": \"1.000\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/production-orders/{{productionOrderId}}/complete"
+          }
+        },
+        {
+          "name": "Impedir doble finalización",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"No permite finalizar dos veces\", () => {",
+                  "  pm.expect(pm.response.code).to.eql(409);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.code).to.eql(\"PRODUCTION_ORDER_NOT_IN_PROGRESS\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": 5,\n  \"inputs\": [\n    {\n      \"inventoryItemId\": \"{{inputInventoryItemId}}\",\n      \"quantity\": \"1.000\"\n    }\n  ],\n  \"outputs\": [\n    {\n      \"inventoryItemId\": \"{{outputInventoryItemId}}\",\n      \"quantity\": \"1.000\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/production-orders/{{productionOrderId}}/complete"
+          }
+        },
+        {
+          "name": "Consultar desperdicios",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Respuesta exitosa\", () => {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "  pm.expect(pm.response.json().status).to.eql(\"success\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/production-orders/{{productionOrderId}}/waste"
+          }
+        },
+        {
+          "name": "Consultar rendimiento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Respuesta exitosa\", () => {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "  pm.expect(pm.response.json().status).to.eql(\"success\");",
+                  "});",
+                  "const performance = pm.response.json().data.performance;",
+                  "pm.expect(performance.status).to.eql(\"COMPLETED\");",
+                  "pm.expect(performance.inputs).to.be.an(\"array\");",
+                  "pm.expect(performance.outputs).to.be.an(\"array\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/production-orders/{{productionOrderId}}/performance"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Informes",
+      "item": [
+        {
+          "name": "Historial de producción",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Respuesta exitosa\", () => {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "  pm.expect(pm.response.json().status).to.eql(\"success\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/production-reports/orders?from={{reportFrom}}&to={{reportTo}}&dateField=CREATED&page=1&pageSize=20"
+          }
+        },
+        {
+          "name": "Resumen de producción",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Respuesta exitosa\", () => {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "  pm.expect(pm.response.json().status).to.eql(\"success\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/production-reports/summary?from={{reportFrom}}&to={{reportTo}}&dateField=CREATED"
+          }
+        },
+        {
+          "name": "Agrupar por planta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Respuesta exitosa\", () => {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "  pm.expect(pm.response.json().status).to.eql(\"success\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/production-reports/groups?from={{reportFrom}}&to={{reportTo}}&dateField=CREATED&groupBy=LOCATION"
+          }
+        },
+        {
+          "name": "Agrupar por producto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Respuesta exitosa\", () => {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "  pm.expect(pm.response.json().status).to.eql(\"success\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/production-reports/groups?from={{reportFrom}}&to={{reportTo}}&dateField=CREATED&groupBy=OUTPUT"
+          }
+        },
+        {
+          "name": "Agrupar por empleado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Respuesta exitosa\", () => {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "  pm.expect(pm.response.json().status).to.eql(\"success\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/production-reports/groups?from={{reportFrom}}&to={{reportTo}}&dateField=CREATED&groupBy=EMPLOYEE"
+          }
+        },
+        {
+          "name": "PRODUCTION solo ve sus plantas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Respuesta exitosa\", () => {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "  pm.expect(pm.response.json().status).to.eql(\"success\");",
+                  "});",
+                  "const orders = pm.response.json().data.report.orders;",
+                  "const allowedLocationId = pm.collectionVariables.get(\"productionLocationId\");",
+                  "pm.expect(orders.every((order) => order.location.id === allowedLocationId)).to.eql(true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/production-reports/orders?from={{reportFrom}}&to={{reportTo}}&dateField=CREATED&page=1&pageSize=100"
+          }
+        }
+      ]
+    }
+  ]
+}
