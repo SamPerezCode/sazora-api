@@ -2,9 +2,11 @@ import { AppError } from "../../../shared/errors/app-error";
 import type {
   CreateInventoryItemData,
   InventoryItem,
+  ProductionInventoryItemCatalogEntry,
   UpdateInventoryItemData,
 } from "../inventory-item.types";
 import {
+  findActiveProductionInventoryItems,
   findInventoryItemById,
   findInventoryItems,
   insertInventoryItem,
@@ -15,6 +17,11 @@ import {
 const listInventoryItems = async (
   businessId: string,
 ): Promise<InventoryItem[]> => findInventoryItems(businessId);
+
+const listActiveProductionInventoryItems = async (
+  businessId: string,
+): Promise<ProductionInventoryItemCatalogEntry[]> =>
+  findActiveProductionInventoryItems(businessId);
 
 const getInventoryItem = async (
   businessId: string,
@@ -83,6 +90,7 @@ const updateInventoryItemStatus = async (
 export {
   createInventoryItem,
   getInventoryItem,
+  listActiveProductionInventoryItems,
   listInventoryItems,
   updateInventoryItem,
   updateInventoryItemStatus,

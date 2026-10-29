@@ -10,6 +10,7 @@ import type {
   InventoryItemType,
   InventoryStockStatus,
   InventoryUnit,
+  ProductionInventoryItemCatalogEntry,
   UpdateInventoryItemData,
 } from "../inventory-item.types";
 
@@ -30,6 +31,15 @@ type InventoryItemRow = RowDataPacket & {
 type InventoryLocationRow = RowDataPacket & {
   isActive: number;
   isInventoryLocation: number;
+};
+
+type ProductionInventoryItemCatalogRow = RowDataPacket & {
+  id: string;
+  businessId: string;
+  name: string;
+  sku: string | null;
+  baseUnit: InventoryUnit;
+  isActive: number;
 };
 
 const getStockStatus = (
@@ -115,6 +125,41 @@ const findInventoryItems = async (
   );
 
   return rows.map(mapInventoryItemRow);
+};
+
+const findActiveProductionInventoryItems = async (
+  businessId: string,
+): Promise<ProductionInventoryItemCatalogEntry[]> => {
+  const [rows] = await databasePool.execute<
+    ProductionInventoryItemCatalogRow[]
+  >(
+    `
+      SELECT
+        CAST(id AS CHAR) AS id,
+        CAST(business_id AS CHAR) AS businessId,
+        name,
+        sku,
+        base_unit AS baseUnit,
+        is_active AS isActive
+      FROM inventory_items
+      WHERE
+        business_id = ?
+        AND is_active = TRUE
+      ORDER BY
+        name ASC,
+        id ASC
+    `,
+    [businessId],
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    businessId: row.businessId,
+    name: row.name,
+    sku: row.sku,
+    baseUnit: row.baseUnit,
+    isActive: Boolean(row.isActive),
+  }));
 };
 
 const insertInventoryItem = async (
@@ -426,6 +471,7 @@ const updateInventoryItemStatusById = async (
 };
 
 export {
+  findActiveProductionInventoryItems,
   findInventoryItemById,
   findInventoryItems,
   insertInventoryItem,

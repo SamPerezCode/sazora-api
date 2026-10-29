@@ -13,6 +13,7 @@ import {
   listLocationInventoryBalances,
   valueInitialInventory,
 } from "../services/inventory-location-balance.service";
+import { resolveProductionInventoryLocation } from "../services/production-inventory-access.service";
 
 const requireAuth = (request: Parameters<RequestHandler>[0]) => {
   if (!request.auth) {
@@ -34,10 +35,11 @@ const listInventoryLocationBalancesController: RequestHandler = async (
 
   const query = inventoryLocationBalanceQuerySchema.parse(request.query);
 
-  const result = await listLocationInventoryBalances(
-    auth.businessId,
-    query.locationId,
-  );
+  const locationId = auth.roles.includes("ADMIN")
+    ? query.locationId
+    : await resolveProductionInventoryLocation(auth, query.locationId);
+
+  const result = await listLocationInventoryBalances(auth.businessId, locationId);
 
   response.status(200).json({
     status: "success",

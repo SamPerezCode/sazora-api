@@ -21,6 +21,15 @@ type InventoryItem = Readonly<{
   updatedAt: Date;
 }>;
 
+type ProductionInventoryItemCatalogEntry = Readonly<{
+  id: string;
+  businessId: string;
+  name: string;
+  sku: string | null;
+  baseUnit: InventoryUnit;
+  isActive: boolean;
+}>;
+
 type CreateInventoryItemData = Readonly<{
   sku: string | null;
   name: string;
@@ -52,5 +61,6 @@ export type {
   InventoryItemType,
   InventoryStockStatus,
   InventoryUnit,
+  ProductionInventoryItemCatalogEntry,
   UpdateInventoryItemData,
 };

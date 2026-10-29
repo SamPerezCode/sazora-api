@@ -11,10 +11,12 @@ import {
 import {
   createInventoryItem,
   getInventoryItem,
+  listActiveProductionInventoryItems,
   listInventoryItems,
   updateInventoryItem,
   updateInventoryItemStatus,
 } from "../services/inventory-item.service";
+import { resolveProductionInventoryLocation } from "../services/production-inventory-access.service";
 
 const requireAuth = (request: Parameters<RequestHandler>[0]) => {
   if (!request.auth) {
@@ -34,7 +36,13 @@ const listInventoryItemsController: RequestHandler = async (
 ) => {
   const auth = requireAuth(request);
 
-  const items = await listInventoryItems(auth.businessId);
+  const items = auth.roles.includes("ADMIN")
+    ? await listInventoryItems(auth.businessId)
+    : await (async () => {
+        await resolveProductionInventoryLocation(auth);
+
+        return listActiveProductionInventoryItems(auth.businessId);
+      })();
 
   response.status(200).json({
     status: "success",

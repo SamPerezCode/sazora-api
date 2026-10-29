@@ -26,7 +26,7 @@ const inventoryItemRouter = Router();
 inventoryItemRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizeRoles("ADMIN", "PRODUCTION"),
   listInventoryItemsController,
 );
 
@@ -40,7 +40,7 @@ inventoryItemRouter.post(
 inventoryItemRouter.get(
   "/location-balances",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizeRoles("ADMIN", "PRODUCTION"),
   listInventoryLocationBalancesController,
 );
 
