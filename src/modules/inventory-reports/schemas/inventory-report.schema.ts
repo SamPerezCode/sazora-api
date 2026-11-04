@@ -83,6 +83,7 @@ const inventoryKardexQuerySchema = z
         "WASTE",
         "RETURN",
         "REVERSAL",
+        "TRANSFER",
       ])
       .optional(),
 

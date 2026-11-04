@@ -6,7 +6,8 @@ type InventoryMovementType =
   | "ADJUSTMENT"
   | "WASTE"
   | "RETURN"
-  | "REVERSAL";
+  | "REVERSAL"
+  | "TRANSFER";
 
 type ManualInventoryMovementType = "ADJUSTMENT" | "WASTE" | "RETURN";
 

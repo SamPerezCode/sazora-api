@@ -314,7 +314,14 @@ const createValuedProductionRecord = async (
 
         returnKind: null,
 
-        sourceType: "PRODUCTION_BATCH",
+        /*
+         * La producción rápida no está asociada a una receta ni a una
+         * orden persistida. Por eso no tiene una entidad fuente.
+         *
+         * La restricción chk_inventory_movements_source exige que
+         * sourceType y sourceId sean ambos nulos o ambos tengan valor.
+         */
+        sourceType: null,
 
         sourceId: null,
 

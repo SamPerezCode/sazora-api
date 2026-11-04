@@ -18,7 +18,8 @@ type LedgerMovementType =
   | "OPENING"
   | "ADJUSTMENT"
   | "WASTE"
-  | "RETURN";
+  | "RETURN"
+  | "TRANSFER";
 
 type LedgerReturnKind = "CUSTOMER_RETURN" | "SUPPLIER_RETURN" | null;
 

@@ -8,6 +8,8 @@ import {
   listInventoryMovementsController,
 } from "./controllers/inventory-movement.controller";
 
+import { createInventoryTransferController } from "./controllers/inventory-transfer.controller";
+
 import {
   createInventoryPurchaseController,
   getInventoryPurchaseController,
@@ -41,6 +43,13 @@ inventoryMovementRouter.get(
   authenticate,
   authorizeRoles("ADMIN"),
   getInventoryPurchaseController,
+);
+
+inventoryMovementRouter.post(
+  "/transfers",
+  authenticate,
+  authorizeRoles("ADMIN"),
+  createInventoryTransferController,
 );
 
 inventoryMovementRouter.get(
