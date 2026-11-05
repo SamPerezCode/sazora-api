@@ -1,8 +1,6 @@
--- ?Seed 001: roles iniciales de Sazora.
+-- Seed 001: roles iniciales de Sazora.
 --
--- ? Un seed agrega datos necesarios para que la aplicación pueda funcionar.
--- Las comprobaciones NOT EXISTS permiten ejecutar el archivo nuevamente
--- sin duplicar los roles.
+-- Este seed puede ejecutarse nuevamente sin duplicar roles.
 
 USE sazora_db;
 
@@ -72,7 +70,27 @@ WHERE NOT EXISTS (
     WHERE code = 'PRODUCTION'
 );
 
--- Verifica los datos iniciales.
+INSERT INTO roles (code, name, description)
+SELECT
+    'CASHIER',
+    'Caja',
+    'Gestiona cobros, aperturas, cierres y movimientos de caja.'
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM roles
+    WHERE code = 'CASHIER'
+);
+
+INSERT INTO roles (code, name, description)
+SELECT
+    'INVENTORY_MANAGER',
+    'Inventario',
+    'Gestiona existencias, compras, movimientos, transferencias y conciliaciones.'
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM roles
+    WHERE code = 'INVENTORY_MANAGER'
+);
 
 SELECT
     id,

@@ -3,6 +3,7 @@ import type { RequestHandler } from "express";
 import { AppError } from "../../../shared/errors/app-error";
 import { findSessionLocationAccess } from "../repositories/auth-location.repository";
 import { findActiveSession } from "../repositories/auth.repository";
+import { findPermissionsForRoles } from "../repositories/permission.repository";
 import { verifyAccessToken } from "../services/token.service";
 
 const createAuthenticationError = (): AppError =>
@@ -39,10 +40,6 @@ const authenticate: RequestHandler = async (request, _response, next) => {
     throw createAuthenticationError();
   }
 
-  /*
-   * Recupera los roles actuales desde la base de datos.
-   * No utiliza los roles del token como fuente definitiva.
-   */
   const activeSession = await findActiveSession({
     userId: tokenPayload.userId,
     businessId: tokenPayload.businessId,
@@ -54,20 +51,20 @@ const authenticate: RequestHandler = async (request, _response, next) => {
     throw createAuthenticationError();
   }
 
-  /*
-   * Recupera las asignaciones actuales en cada petición.
-   * Si el administrador cambia las ubicaciones del empleado, no es
-   * necesario esperar a que expire su token.
-   */
-  const locationAccess = await findSessionLocationAccess(
-    tokenPayload.businessId,
-    tokenPayload.membershipId,
-    activeSession.roles,
-  );
+  const [locationAccess, permissions] = await Promise.all([
+    findSessionLocationAccess(
+      tokenPayload.businessId,
+      tokenPayload.membershipId,
+      activeSession.roles,
+    ),
+
+    findPermissionsForRoles(activeSession.roles),
+  ]);
 
   request.auth = {
     ...tokenPayload,
     roles: activeSession.roles,
+    permissions,
     locationAccess,
   };
 

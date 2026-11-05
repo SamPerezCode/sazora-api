@@ -5,6 +5,7 @@ import {
   findLoginIdentity,
   updateLastLogin,
 } from "../repositories/auth.repository";
+import { findPermissionsForRoles } from "../repositories/permission.repository";
 import type { LoginInput } from "../schemas/login.schema";
 import { verifyPassword } from "./password.service";
 import { signAccessToken } from "./token.service";
@@ -29,6 +30,7 @@ type LoginResult = Readonly<{
   membership: {
     id: string;
     roles: string[];
+    permissions: string[];
   };
 
   locationAccess: SessionLocationAccess;
@@ -47,20 +49,16 @@ const login = async (input: LoginInput): Promise<LoginResult> => {
     throw new AppError("Credenciales inválidas", 401, "INVALID_CREDENTIALS");
   }
 
-  /*
-   * La consulta se ejecuta después de verificar las credenciales para
-   * no revelar información de asignaciones ante intentos inválidos.
-   */
-  const locationAccess = await findSessionLocationAccess(
-    identity.businessId,
-    identity.membershipId,
-    identity.roles,
-  );
+  const [locationAccess, permissions] = await Promise.all([
+    findSessionLocationAccess(
+      identity.businessId,
+      identity.membershipId,
+      identity.roles,
+    ),
 
-  /*
-   * locationAccess no se incluye en el JWT. Las asignaciones pueden
-   * cambiar mientras el token sigue vigente.
-   */
+    findPermissionsForRoles(identity.roles),
+  ]);
+
   const accessToken = signAccessToken({
     tokenType: "access",
     userId: identity.userId,
@@ -89,6 +87,7 @@ const login = async (input: LoginInput): Promise<LoginResult> => {
     membership: {
       id: identity.membershipId,
       roles: identity.roles,
+      permissions,
     },
 
     locationAccess,

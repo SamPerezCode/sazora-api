@@ -24,16 +24,14 @@ type SessionLocationAccess = Readonly<{
 }>;
 
 /*
- * AccessTokenPayload representa únicamente el contenido firmado dentro
- * del JWT.
+ * AccessTokenPayload contiene solamente el contexto firmado en el JWT.
  *
- * AuthenticatedSession representa el contexto fresco recuperado desde
- * la base de datos para una petición HTTP autenticada.
- *
- * locationAccess no se almacena dentro del token.
+ * Los permisos y las ubicaciones se recuperan desde la base de datos
+ * en cada petición autenticada para reflejar cambios administrativos.
  */
 type AuthenticatedSession = Readonly<
   AccessTokenPayload & {
+    permissions: readonly string[];
     locationAccess: SessionLocationAccess;
   }
 >;
