@@ -3,6 +3,7 @@ import { z } from "zod";
 import { findSessionLocationAccess } from "../../modules/auth/repositories/auth-location.repository";
 import { findActiveSession } from "../../modules/auth/repositories/auth.repository";
 import { findPermissionsForRoles } from "../../modules/auth/repositories/permission.repository";
+import { resolveEffectiveRoles } from "../../modules/auth/services/effective-roles.service";
 import { verifyAccessToken } from "../../modules/auth/services/token.service";
 import type { RealtimeSocket } from "../realtime.types";
 
@@ -80,19 +81,29 @@ const authenticateRealtimeConnection = async (
       return;
     }
 
+    const effectiveRoles = resolveEffectiveRoles(
+      tokenPayload.roles,
+      activeSession.roles,
+    );
+
+    if (!effectiveRoles) {
+      next(createAuthenticationError());
+      return;
+    }
+
     const [locationAccess, permissions] = await Promise.all([
       findSessionLocationAccess(
         tokenPayload.businessId,
         tokenPayload.membershipId,
-        activeSession.roles,
+        effectiveRoles,
       ),
 
-      findPermissionsForRoles(activeSession.roles),
+      findPermissionsForRoles(effectiveRoles),
     ]);
 
     socket.data.auth = {
       ...tokenPayload,
-      roles: activeSession.roles,
+      roles: effectiveRoles,
       permissions,
       locationAccess,
     };

@@ -4,6 +4,7 @@ import { AppError } from "../../../shared/errors/app-error";
 import { findSessionLocationAccess } from "../repositories/auth-location.repository";
 import { findActiveSession } from "../repositories/auth.repository";
 import { findPermissionsForRoles } from "../repositories/permission.repository";
+import { resolveEffectiveRoles } from "../services/effective-roles.service";
 import { verifyAccessToken } from "../services/token.service";
 
 const createAuthenticationError = (): AppError =>
@@ -51,19 +52,28 @@ const authenticate: RequestHandler = async (request, _response, next) => {
     throw createAuthenticationError();
   }
 
+  const effectiveRoles = resolveEffectiveRoles(
+    tokenPayload.roles,
+    activeSession.roles,
+  );
+
+  if (!effectiveRoles) {
+    throw createAuthenticationError();
+  }
+
   const [locationAccess, permissions] = await Promise.all([
     findSessionLocationAccess(
       tokenPayload.businessId,
       tokenPayload.membershipId,
-      activeSession.roles,
+      effectiveRoles,
     ),
 
-    findPermissionsForRoles(activeSession.roles),
+    findPermissionsForRoles(effectiveRoles),
   ]);
 
   request.auth = {
     ...tokenPayload,
-    roles: activeSession.roles,
+    roles: effectiveRoles,
     permissions,
     locationAccess,
   };

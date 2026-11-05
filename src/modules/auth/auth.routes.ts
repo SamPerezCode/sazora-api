@@ -7,12 +7,15 @@ import {
   loginController,
   requestPasswordRecoveryController,
   resetPasswordController,
+  selectRoleController,
 } from "./controllers/auth.controller";
+
 import { authenticate } from "./middlewares/authenticate.middleware";
 
 const authRouter = Router();
 
 authRouter.post("/login", loginController);
+authRouter.post("/session/select-role", selectRoleController);
 authRouter.post("/password-recovery", requestPasswordRecoveryController);
 authRouter.post("/password-reset", resetPasswordController);
 authRouter.get("/session", authenticate, getCurrentSessionController);

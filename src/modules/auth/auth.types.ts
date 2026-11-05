@@ -1,5 +1,7 @@
 import type { LocationType } from "../locations/location.types";
 
+type AuthorizationMode = "ALL_ROLES" | "SINGLE_ROLE";
+
 type AccessTokenPayload = Readonly<{
   tokenType: "access";
   userId: string;
@@ -7,6 +9,15 @@ type AccessTokenPayload = Readonly<{
   membershipId: string;
   authVersion: number;
   roles: string[];
+}>;
+
+type RoleSelectionTokenPayload = Readonly<{
+  tokenType: "role_selection";
+  userId: string;
+  businessId: string;
+  membershipId: string;
+  authVersion: number;
+  assignedRoles: string[];
 }>;
 
 type SessionLocation = Readonly<{
@@ -39,6 +50,8 @@ type AuthenticatedSession = Readonly<
 export type {
   AccessTokenPayload,
   AuthenticatedSession,
+  AuthorizationMode,
+  RoleSelectionTokenPayload,
   SessionLocation,
   SessionLocationAccess,
 };

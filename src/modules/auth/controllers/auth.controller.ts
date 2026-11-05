@@ -6,14 +6,26 @@ import { changePasswordSchema } from "../schemas/change-password.schema";
 import { loginSchema } from "../schemas/login.schema";
 import { resetPasswordSchema } from "../schemas/reset-password.schema";
 import { requestPasswordRecoverySchema } from "../schemas/request-password-recovery.schema";
+import { selectRoleSchema } from "../schemas/select-role.schema";
 import { changePassword } from "../services/change-password.service";
 import { login } from "../services/login.service";
 import { requestPasswordRecovery } from "../services/request-password-recovery.service";
 import { resetPassword } from "../services/reset-password.service";
+import { selectRole } from "../services/select-role.service";
 
 const loginController: RequestHandler = async (request, response) => {
   const input = loginSchema.parse(request.body);
   const result = await login(input);
+
+  response.status(200).json({
+    status: "success",
+    data: result,
+  });
+};
+
+const selectRoleController: RequestHandler = async (request, response) => {
+  const input = selectRoleSchema.parse(request.body);
+  const result = await selectRole(input);
 
   response.status(200).json({
     status: "success",
@@ -104,7 +116,5 @@ export {
   loginController,
   requestPasswordRecoveryController,
   resetPasswordController,
+  selectRoleController,
 };
-/*
-RequestHandler: tipo de manejador proporcionado por Express.
-*/
