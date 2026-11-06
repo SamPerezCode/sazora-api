@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 import {
   createLocationController,
   getLocationController,
@@ -13,14 +13,35 @@ import {
 const locationRouter = Router();
 
 locationRouter.use(authenticate);
-locationRouter.use(authorizeRoles("ADMIN"));
 
-locationRouter.get("/", listLocationsController);
-locationRouter.post("/", createLocationController);
+locationRouter.get(
+  "/",
+  authorizePermissions("locations.read"),
+  listLocationsController,
+);
 
-locationRouter.get("/:locationId", getLocationController);
-locationRouter.patch("/:locationId", updateLocationController);
+locationRouter.post(
+  "/",
+  authorizePermissions("locations.manage"),
+  createLocationController,
+);
 
-locationRouter.patch("/:locationId/status", updateLocationStatusController);
+locationRouter.get(
+  "/:locationId",
+  authorizePermissions("locations.read"),
+  getLocationController,
+);
+
+locationRouter.patch(
+  "/:locationId",
+  authorizePermissions("locations.manage"),
+  updateLocationController,
+);
+
+locationRouter.patch(
+  "/:locationId/status",
+  authorizePermissions("locations.manage"),
+  updateLocationStatusController,
+);
 
 export { locationRouter };

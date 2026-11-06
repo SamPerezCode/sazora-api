@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 import {
   getEmployeeLocationsController,
   updateEmployeeLocationsController,
@@ -20,56 +20,56 @@ const employeeRouter = Router();
 employeeRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("employees.read"),
   listEmployeesController,
 );
 
 employeeRouter.post(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("employees.manage"),
   createEmployeeController,
 );
 
 employeeRouter.get(
   "/:employeeMembershipId/locations",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("employees.read"),
   getEmployeeLocationsController,
 );
 
 employeeRouter.put(
   "/:employeeMembershipId/locations",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("employees.manage"),
   updateEmployeeLocationsController,
 );
 
 employeeRouter.patch(
   "/:employeeMembershipId/status",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("employees.manage"),
   updateEmployeeStatusController,
 );
 
 employeeRouter.put(
   "/:employeeMembershipId/roles",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("employees.manage"),
   updateEmployeeRolesController,
 );
 
 employeeRouter.get(
   "/:employeeMembershipId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("employees.read"),
   getEmployeeController,
 );
 
 employeeRouter.patch(
   "/:employeeMembershipId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("employees.manage"),
   updateEmployeeController,
 );
 

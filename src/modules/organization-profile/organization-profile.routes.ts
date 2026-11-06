@@ -1,7 +1,8 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
+
 import {
   getOrganizationFiscalProfileController,
   updateOrganizationFiscalProfileController,
@@ -12,14 +13,14 @@ const organizationProfileRouter = Router();
 organizationProfileRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("organization.profile.read"),
   getOrganizationFiscalProfileController,
 );
 
 organizationProfileRouter.put(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("organization.profile.manage"),
   updateOrganizationFiscalProfileController,
 );
 

@@ -2,7 +2,7 @@ import { Router } from "express";
 
 import { businessLogoUpload } from "../../shared/images/business-logo-upload.middleware";
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 import {
   getBusinessSettingsController,
   removeBusinessLogoController,
@@ -15,14 +15,14 @@ const businessSettingsRouter = Router();
 businessSettingsRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("business.settings.read"),
   getBusinessSettingsController,
 );
 
 businessSettingsRouter.put(
   "/logo",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("business.settings.manage"),
   businessLogoUpload,
   updateBusinessLogoController,
 );
@@ -30,14 +30,14 @@ businessSettingsRouter.put(
 businessSettingsRouter.delete(
   "/logo",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("business.settings.manage"),
   removeBusinessLogoController,
 );
 
 businessSettingsRouter.patch(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("business.settings.manage"),
   updateBusinessSettingsController,
 );
 

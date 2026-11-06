@@ -31,7 +31,15 @@ const requireAuth = (request: Parameters<RequestHandler>[0]) => {
 const listLocationsController: RequestHandler = async (request, response) => {
   const auth = requireAuth(request);
 
-  const locations = await listLocations(auth.businessId);
+  const businessLocations = await listLocations(auth.businessId);
+
+  const locations = auth.locationAccess.hasGlobalAccess
+    ? businessLocations
+    : businessLocations.filter((location) =>
+        auth.locationAccess.locations.some(
+          (assignedLocation) => assignedLocation.id === location.id,
+        ),
+      );
 
   response.status(200).json({
     status: "success",
@@ -42,6 +50,19 @@ const listLocationsController: RequestHandler = async (request, response) => {
 const getLocationController: RequestHandler = async (request, response) => {
   const auth = requireAuth(request);
   const { locationId } = locationIdParamsSchema.parse(request.params);
+
+  if (
+    !auth.locationAccess.hasGlobalAccess &&
+    !auth.locationAccess.locations.some(
+      (assignedLocation) => assignedLocation.id === locationId,
+    )
+  ) {
+    throw new AppError(
+      "No tienes acceso a esta ubicación",
+      403,
+      "LOCATION_ACCESS_DENIED",
+    );
+  }
 
   const location = await getLocation(auth.businessId, locationId);
 
