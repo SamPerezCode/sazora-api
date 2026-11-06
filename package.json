@@ -11,7 +11,9 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "bootstrap:admin": "tsx src/scripts/create-initial-admin.ts",
+    "bootstrap:admin:prod": "node dist/scripts/create-initial-admin.js"
   },
   "keywords": [],
   "author": "",
