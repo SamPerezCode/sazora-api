@@ -1,14 +1,14 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 
 import {
   getInventoryKardexController,
   getInventoryPurchaseReportController,
+  getInventoryReconciliationController,
   getInventorySummaryController,
   getUnvaluedInventoryController,
-  getInventoryReconciliationController,
 } from "./controllers/inventory-report.controller";
 
 const inventoryReportRouter = Router();
@@ -16,35 +16,35 @@ const inventoryReportRouter = Router();
 inventoryReportRouter.get(
   "/summary",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.reports.read"),
   getInventorySummaryController,
 );
 
 inventoryReportRouter.get(
   "/unvalued",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.reports.read"),
   getUnvaluedInventoryController,
 );
 
 inventoryReportRouter.get(
   "/kardex",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.reports.read"),
   getInventoryKardexController,
 );
 
 inventoryReportRouter.get(
   "/purchases",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.reports.read"),
   getInventoryPurchaseReportController,
 );
 
 inventoryReportRouter.get(
   "/reconciliation",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.reconciliation.read"),
   getInventoryReconciliationController,
 );
 

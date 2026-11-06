@@ -2,6 +2,7 @@ import type { RequestHandler } from "express";
 
 import { emitInventoryChanged } from "../../../realtime/realtime.events";
 import { AppError } from "../../../shared/errors/app-error";
+import { resolveAssignedInventoryLocation } from "../../inventory-items/services/inventory-location-access.service";
 import {
   createInventoryMovementSchema,
   inventoryMovementIdParamsSchema,
@@ -30,7 +31,11 @@ const listInventoryMovementsController: RequestHandler = async (
 ) => {
   const auth = requireAuth(request);
 
-  const movements = await listInventoryMovements(auth.businessId);
+  const locationIds = auth.locationAccess.hasGlobalAccess
+    ? undefined
+    : auth.locationAccess.locations.map((location) => location.id);
+
+  const movements = await listInventoryMovements(auth.businessId, locationIds);
 
   response.status(200).json({
     status: "success",
@@ -53,6 +58,18 @@ const getInventoryMovementController: RequestHandler = async (
     inventoryMovementId,
   );
 
+  if (!auth.locationAccess.hasGlobalAccess) {
+    if (!movement.location) {
+      throw new AppError(
+        "No tienes acceso a este movimiento",
+        403,
+        "LOCATION_ACCESS_DENIED",
+      );
+    }
+
+    await resolveAssignedInventoryLocation(auth, movement.location.id);
+  }
+
   response.status(200).json({
     status: "success",
     data: { movement },
@@ -64,13 +81,19 @@ const createInventoryMovementController: RequestHandler = async (
   response,
 ) => {
   const auth = requireAuth(request);
-
   const input = createInventoryMovementSchema.parse(request.body);
+
+  const locationId = auth.locationAccess.hasGlobalAccess
+    ? input.locationId
+    : await resolveAssignedInventoryLocation(auth, input.locationId);
 
   const movement = await createInventoryMovement(
     auth.businessId,
     auth.membershipId,
-    input,
+    {
+      ...input,
+      locationId,
+    },
   );
 
   emitInventoryChanged(auth.businessId);

@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 
 import {
   listInventoryLocationBalancesController,
@@ -26,63 +26,67 @@ const inventoryItemRouter = Router();
 inventoryItemRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN", "PRODUCTION"),
+  authorizePermissions("inventory.items.read"),
   listInventoryItemsController,
 );
 
 inventoryItemRouter.post(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.items.manage"),
   createInventoryItemController,
 );
 
 inventoryItemRouter.get(
   "/location-balances",
   authenticate,
-  authorizeRoles("ADMIN", "PRODUCTION"),
+  authorizePermissions("inventory.balances.read"),
   listInventoryLocationBalancesController,
 );
 
 inventoryItemRouter.put(
   "/:inventoryItemId/locations/:locationId/valuation",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.valuation.manage"),
   valueInitialInventoryController,
 );
 
 inventoryItemRouter.get(
   "/:inventoryItemId/purchase-presentations",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.purchases.read"),
   listPurchasePresentationsController,
 );
 
 inventoryItemRouter.post(
   "/:inventoryItemId/purchase-presentations",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.purchases.create"),
   createPurchasePresentationController,
 );
 
+/*
+ * El detalle completo continúa reservado para quienes administran
+ * el catálogo. PRODUCTION utiliza el catálogo reducido del listado.
+ */
 inventoryItemRouter.get(
   "/:inventoryItemId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.items.manage"),
   getInventoryItemController,
 );
 
 inventoryItemRouter.patch(
   "/:inventoryItemId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.items.manage"),
   updateInventoryItemController,
 );
 
 inventoryItemRouter.patch(
   "/:inventoryItemId/status",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.items.manage"),
   updateInventoryItemStatusController,
 );
 

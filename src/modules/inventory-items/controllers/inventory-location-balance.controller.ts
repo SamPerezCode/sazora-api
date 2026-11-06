@@ -13,6 +13,7 @@ import {
   listLocationInventoryBalances,
   valueInitialInventory,
 } from "../services/inventory-location-balance.service";
+import { resolveAssignedInventoryLocation } from "../services/inventory-location-access.service";
 import { resolveProductionInventoryLocation } from "../services/production-inventory-access.service";
 
 const requireAuth = (request: Parameters<RequestHandler>[0]) => {
@@ -32,14 +33,43 @@ const listInventoryLocationBalancesController: RequestHandler = async (
   response,
 ) => {
   const auth = requireAuth(request);
-
   const query = inventoryLocationBalanceQuerySchema.parse(request.query);
 
-  const locationId = auth.roles.includes("ADMIN")
-    ? query.locationId
-    : await resolveProductionInventoryLocation(auth, query.locationId);
+  let locationId: string | undefined;
 
-  const result = await listLocationInventoryBalances(auth.businessId, locationId);
+  if (auth.locationAccess.hasGlobalAccess) {
+    /*
+     * ADMIN conserva el comportamiento actual:
+     * puede consultar una ubicación o el consolidado del negocio.
+     */
+    locationId = query.locationId;
+  } else if (
+    auth.roles.includes("PRODUCTION") &&
+    !auth.roles.includes("INVENTORY_MANAGER")
+  ) {
+    /*
+     * PRODUCTION continúa limitado exclusivamente
+     * a su planta predeterminada válida.
+     */
+    locationId = await resolveProductionInventoryLocation(
+      auth,
+      query.locationId,
+    );
+  } else {
+    /*
+     * INVENTORY_MANAGER puede consultar únicamente
+     * ubicaciones de inventario que tenga asignadas.
+     *
+     * Si omite locationId se utiliza su ubicación predeterminada.
+     * Nunca obtiene un consolidado global.
+     */
+    locationId = await resolveAssignedInventoryLocation(auth, query.locationId);
+  }
+
+  const result = await listLocationInventoryBalances(
+    auth.businessId,
+    locationId,
+  );
 
   response.status(200).json({
     status: "success",
@@ -53,10 +83,14 @@ const valueInitialInventoryController: RequestHandler = async (
 ) => {
   const auth = requireAuth(request);
 
-  const { inventoryItemId, locationId } =
+  const { inventoryItemId, locationId: requestedLocationId } =
     inventoryLocationBalanceParamsSchema.parse(request.params);
 
   const input = initialInventoryValuationSchema.parse(request.body);
+
+  const locationId = auth.locationAccess.hasGlobalAccess
+    ? requestedLocationId
+    : await resolveAssignedInventoryLocation(auth, requestedLocationId);
 
   const result = await valueInitialInventory(
     auth.businessId,

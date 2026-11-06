@@ -15,7 +15,9 @@ import { createValuedInventoryMovementRecord } from "../repositories/valued-inve
 
 const listInventoryMovements = async (
   businessId: string,
-): Promise<InventoryMovementSummary[]> => findInventoryMovements(businessId);
+  locationIds?: readonly string[],
+): Promise<InventoryMovementSummary[]> =>
+  findInventoryMovements(businessId, undefined, locationIds);
 
 const getInventoryMovement = async (
   businessId: string,

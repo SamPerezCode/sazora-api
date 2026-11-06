@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 import {
   createProductInventoryLinkController,
   getProductInventoryLinkController,
@@ -15,35 +15,35 @@ const productInventoryLinkRouter = Router();
 productInventoryLinkRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.links.manage"),
   listProductInventoryLinksController,
 );
 
 productInventoryLinkRouter.post(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.links.manage"),
   createProductInventoryLinkController,
 );
 
 productInventoryLinkRouter.get(
   "/:productInventoryLinkId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.links.manage"),
   getProductInventoryLinkController,
 );
 
 productInventoryLinkRouter.patch(
   "/:productInventoryLinkId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.links.manage"),
   updateProductInventoryLinkController,
 );
 
 productInventoryLinkRouter.patch(
   "/:productInventoryLinkId/status",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.links.manage"),
   updateProductInventoryLinkStatusController,
 );
 

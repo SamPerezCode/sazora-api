@@ -2,6 +2,7 @@ import type { RequestHandler } from "express";
 
 import { emitInventoryChanged } from "../../../realtime/realtime.events";
 import { AppError } from "../../../shared/errors/app-error";
+import { resolveAssignedInventoryLocation } from "../../inventory-items/services/inventory-location-access.service";
 
 import {
   createInventoryPurchaseSchema,
@@ -77,13 +78,19 @@ const createInventoryPurchaseController: RequestHandler = async (
   response,
 ) => {
   const auth = requireAuth(request);
-
   const input = createInventoryPurchaseSchema.parse(request.body);
+
+  const locationId = auth.locationAccess.hasGlobalAccess
+    ? input.locationId
+    : await resolveAssignedInventoryLocation(auth, input.locationId);
 
   const purchase = await createInventoryPurchase(
     auth.businessId,
     auth.membershipId,
-    input,
+    {
+      ...input,
+      locationId,
+    },
   );
 
   emitInventoryChanged(auth.businessId);
@@ -99,7 +106,6 @@ const getInventoryPurchaseController: RequestHandler = async (
   response,
 ) => {
   const auth = requireAuth(request);
-
   const { inventoryMovementId } = request.params;
 
   if (
@@ -117,6 +123,10 @@ const getInventoryPurchaseController: RequestHandler = async (
     auth.businessId,
     inventoryMovementId,
   );
+
+  if (!auth.locationAccess.hasGlobalAccess) {
+    await resolveAssignedInventoryLocation(auth, purchase.location.id);
+  }
 
   response.status(200).json({
     status: "success",

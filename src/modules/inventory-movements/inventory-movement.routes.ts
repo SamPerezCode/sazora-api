@@ -1,15 +1,13 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 import {
   createInventoryMovementController,
   getInventoryMovementController,
   listInventoryMovementsController,
 } from "./controllers/inventory-movement.controller";
-
 import { createInventoryTransferController } from "./controllers/inventory-transfer.controller";
-
 import {
   createInventoryPurchaseController,
   getInventoryPurchaseController,
@@ -20,42 +18,42 @@ const inventoryMovementRouter = Router();
 inventoryMovementRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.movements.read"),
   listInventoryMovementsController,
 );
 
 inventoryMovementRouter.post(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.movements.create"),
   createInventoryMovementController,
 );
 
 inventoryMovementRouter.post(
   "/purchases",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.purchases.create"),
   createInventoryPurchaseController,
 );
 
 inventoryMovementRouter.get(
   "/purchases/:inventoryMovementId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.purchases.read"),
   getInventoryPurchaseController,
 );
 
 inventoryMovementRouter.post(
   "/transfers",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.transfers.create"),
   createInventoryTransferController,
 );
 
 inventoryMovementRouter.get(
   "/:inventoryMovementId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("inventory.movements.read"),
   getInventoryMovementController,
 );
 
