@@ -6,6 +6,7 @@ const assignableEmployeeRoleSchema = z.enum([
   "PUBLIC_ORDER_MANAGER",
   "DELIVERY_DRIVER",
   "PRODUCTION",
+  "INVENTORY_MANAGER",
 ]);
 
 const passwordSchema = z

@@ -17,6 +17,7 @@ import {
   updateInventoryItemStatus,
 } from "../services/inventory-item.service";
 import { resolveProductionInventoryLocation } from "../services/production-inventory-access.service";
+import { resolveAssignedInventoryLocation } from "../services/inventory-location-access.service";
 
 const requireAuth = (request: Parameters<RequestHandler>[0]) => {
   if (!request.auth) {
@@ -76,11 +77,14 @@ const createInventoryItemController: RequestHandler = async (
   const auth = requireAuth(request);
   const input = createInventoryItemSchema.parse(request.body);
 
-  const item = await createInventoryItem(
-    auth.businessId,
-    auth.membershipId,
-    input,
-  );
+  const locationId = auth.locationAccess.hasGlobalAccess
+    ? input.locationId
+    : await resolveAssignedInventoryLocation(auth, input.locationId);
+
+  const item = await createInventoryItem(auth.businessId, auth.membershipId, {
+    ...input,
+    locationId,
+  });
 
   emitInventoryChanged(auth.businessId);
 
@@ -100,10 +104,21 @@ const updateInventoryItemController: RequestHandler = async (
 
   const input = updateInventoryItemSchema.parse(request.body);
 
+  const authorizedInput =
+    input.locationId && !auth.locationAccess.hasGlobalAccess
+      ? {
+          ...input,
+          locationId: await resolveAssignedInventoryLocation(
+            auth,
+            input.locationId,
+          ),
+        }
+      : input;
+
   const item = await updateInventoryItem(
     auth.businessId,
     inventoryItemId,
-    input,
+    authorizedInput,
   );
 
   emitInventoryChanged(auth.businessId);

@@ -6,14 +6,16 @@ type BusinessRoleCode =
   | "KITCHEN"
   | "PUBLIC_ORDER_MANAGER"
   | "DELIVERY_DRIVER"
-  | "PRODUCTION";
+  | "PRODUCTION"
+  | "INVENTORY_MANAGER";
 
 type AssignableEmployeeRoleCode =
   | "WAITER"
   | "KITCHEN"
   | "PUBLIC_ORDER_MANAGER"
   | "DELIVERY_DRIVER"
-  | "PRODUCTION";
+  | "PRODUCTION"
+  | "INVENTORY_MANAGER";
 
 type Employee = Readonly<{
   userId: string;

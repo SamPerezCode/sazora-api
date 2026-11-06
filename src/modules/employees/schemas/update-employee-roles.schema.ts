@@ -10,6 +10,7 @@ const updateEmployeeRolesSchema = z
           "PUBLIC_ORDER_MANAGER",
           "DELIVERY_DRIVER",
           "PRODUCTION",
+          "INVENTORY_MANAGER",
         ]),
       )
       .min(1, "Debes asignar al menos un rol")
