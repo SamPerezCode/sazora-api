@@ -1,0 +1,60 @@
+name: lemokaicoffe
+
+services:
+  mysql:
+    image: mysql:8.0.43
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Falta MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: sazora_db
+      MYSQL_USER: ${DB_USER:?Falta DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          MYSQL_PWD="$${MYSQL_PASSWORD}"
+          mysql --protocol=TCP -h 127.0.0.1
+          -u "$${MYSQL_USER}" "$${MYSQL_DATABASE}"
+          -e "SELECT 1" >/dev/null 2>&1
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: sazora_db
+      DB_USER: ${DB_USER:?Falta DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Falta JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      SMTP_HOST: ${SMTP_HOST:?Falta SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      SMTP_USER: ${SMTP_USER:?Falta SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:?Falta SMTP_PASSWORD}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:?Falta MAIL_FROM_NAME}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:?Falta MAIL_FROM_ADDRESS}
+      PASSWORD_RESET_URL_BASE: ${PASSWORD_RESET_URL_BASE:?Falta PASSWORD_RESET_URL_BASE}
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:5173}
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - uploads_data:/app/uploads
+
+volumes:
+  mysql_data:
+  uploads_data:
