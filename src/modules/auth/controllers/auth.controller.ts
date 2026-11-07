@@ -12,6 +12,7 @@ import { login } from "../services/login.service";
 import { requestPasswordRecovery } from "../services/request-password-recovery.service";
 import { resetPassword } from "../services/reset-password.service";
 import { selectRole } from "../services/select-role.service";
+import { getOperationalContext } from "../services/get-operational-context.service";
 
 const loginController: RequestHandler = async (request, response) => {
   const input = loginSchema.parse(request.body);
@@ -46,6 +47,28 @@ const getCurrentSessionController: RequestHandler = (request, response) => {
     status: "success",
     data: {
       session: request.auth,
+    },
+  });
+};
+
+const getOperationalContextController: RequestHandler = async (
+  request,
+  response,
+) => {
+  if (!request.auth) {
+    throw new AppError(
+      "Se requiere autenticación",
+      401,
+      "AUTHENTICATION_REQUIRED",
+    );
+  }
+
+  const context = await getOperationalContext(request.auth.businessId);
+
+  response.status(200).json({
+    status: "success",
+    data: {
+      context,
     },
   });
 };
@@ -113,6 +136,7 @@ const resetPasswordController: RequestHandler = async (request, response) => {
 export {
   changePasswordController,
   getCurrentSessionController,
+  getOperationalContextController,
   loginController,
   requestPasswordRecoveryController,
   resetPasswordController,

@@ -4,6 +4,7 @@ import { Router } from "express";
 import {
   changePasswordController,
   getCurrentSessionController,
+  getOperationalContextController,
   loginController,
   requestPasswordRecoveryController,
   resetPasswordController,
@@ -19,6 +20,7 @@ authRouter.post("/session/select-role", selectRoleController);
 authRouter.post("/password-recovery", requestPasswordRecoveryController);
 authRouter.post("/password-reset", resetPasswordController);
 authRouter.get("/session", authenticate, getCurrentSessionController);
+authRouter.get("/context", authenticate, getOperationalContextController);
 authRouter.patch("/password", authenticate, changePasswordController);
 
 export { authRouter };
