@@ -9,7 +9,7 @@ const resolveProductionLocation = async (
   auth: AuthenticatedSession,
   requestedLocationId: string,
 ): Promise<string> => {
-  if (!auth.roles.includes("ADMIN")) {
+  if (!auth.locationAccess.hasGlobalAccess) {
     const hasLocationAccess = auth.locationAccess.locations.some(
       (location) => location.id === requestedLocationId,
     );
@@ -65,7 +65,7 @@ const resolveProductionListScope = async (
     return [locationId];
   }
 
-  if (auth.roles.includes("ADMIN")) {
+  if (auth.locationAccess.hasGlobalAccess) {
     return undefined;
   }
 
@@ -78,7 +78,7 @@ const assertProductionMovementAccess = (
   auth: AuthenticatedSession,
   movement: InventoryMovement,
 ): void => {
-  if (auth.roles.includes("ADMIN")) {
+  if (auth.locationAccess.hasGlobalAccess) {
     return;
   }
 

@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 
 import {
   completeProductionOrderController,
@@ -25,77 +25,77 @@ const productionOrderRouter = Router();
 productionOrderRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN", "PRODUCTION"),
+  authorizePermissions("production.orders.read"),
   listProductionOrdersController,
 );
 
 productionOrderRouter.post(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("production.orders.manage"),
   createProductionOrderController,
 );
 
 productionOrderRouter.post(
   "/:productionOrderId/start",
   authenticate,
-  authorizeRoles("ADMIN", "PRODUCTION"),
+  authorizePermissions("production.orders.execute"),
   startProductionOrderController,
 );
 
 productionOrderRouter.post(
   "/:productionOrderId/complete",
   authenticate,
-  authorizeRoles("ADMIN", "PRODUCTION"),
+  authorizePermissions("production.orders.execute"),
   completeProductionOrderController,
 );
 
 productionOrderRouter.get(
   "/:productionOrderId/waste",
   authenticate,
-  authorizeRoles("ADMIN", "PRODUCTION"),
+  authorizePermissions("production.waste.read"),
   listProductionOrderWasteController,
 );
 
 productionOrderRouter.post(
   "/:productionOrderId/waste",
   authenticate,
-  authorizeRoles("ADMIN", "PRODUCTION"),
+  authorizePermissions("production.waste.create"),
   createProductionOrderWasteController,
 );
 
 productionOrderRouter.get(
   "/:productionOrderId/waste/:wasteRecordId",
   authenticate,
-  authorizeRoles("ADMIN", "PRODUCTION"),
+  authorizePermissions("production.waste.read"),
   getProductionOrderWasteController,
 );
 
 productionOrderRouter.get(
   "/:productionOrderId/performance",
   authenticate,
-  authorizeRoles("ADMIN", "PRODUCTION"),
+  authorizePermissions("production.reports.read"),
   getProductionOrderPerformanceController,
 );
 
 productionOrderRouter.get(
   "/:productionOrderId",
   authenticate,
-  authorizeRoles("ADMIN", "PRODUCTION"),
+  authorizePermissions("production.orders.read"),
   getProductionOrderController,
 );
 
 productionOrderRouter.put(
   "/:productionOrderId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("production.orders.manage"),
   updateProductionOrderController,
 );
 
 productionOrderRouter.patch(
   "/:productionOrderId/status",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("production.orders.manage"),
   updateProductionOrderStatusController,
 );
 

@@ -43,10 +43,7 @@ const listInventoryLocationBalancesController: RequestHandler = async (
      * puede consultar una ubicación o el consolidado del negocio.
      */
     locationId = query.locationId;
-  } else if (
-    auth.roles.includes("PRODUCTION") &&
-    !auth.roles.includes("INVENTORY_MANAGER")
-  ) {
+  } else if (!auth.permissions.includes("inventory.items.manage")) {
     /*
      * PRODUCTION continúa limitado exclusivamente
      * a su planta predeterminada válida.

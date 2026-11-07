@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 import {
   getPublicMenuSettingsCatalogController,
   updatePublicCategoryVisibilityController,
@@ -13,21 +13,21 @@ const publicMenuSettingsRouter = Router();
 publicMenuSettingsRouter.get(
   "/catalog",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("public_menu.manage"),
   getPublicMenuSettingsCatalogController,
 );
 
 publicMenuSettingsRouter.patch(
   "/categories/:categoryId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("public_menu.manage"),
   updatePublicCategoryVisibilityController,
 );
 
 publicMenuSettingsRouter.patch(
   "/products/:productId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("public_menu.manage"),
   updatePublicProductSettingsController,
 );
 

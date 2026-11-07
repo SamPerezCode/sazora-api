@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 import {
   createPublicOrderAssignmentController,
   listPublicOrderAssignmentsController,
@@ -14,28 +14,28 @@ const publicOrderAssignmentRouter = Router();
 publicOrderAssignmentRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("public_orders.assign"),
   listPublicOrderAssignmentsController,
 );
 
 publicOrderAssignmentRouter.post(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("public_orders.assign"),
   createPublicOrderAssignmentController,
 );
 
 publicOrderAssignmentRouter.put(
   "/:assignmentId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("public_orders.assign"),
   updatePublicOrderAssignmentController,
 );
 
 publicOrderAssignmentRouter.patch(
   "/:assignmentId/status",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("public_orders.assign"),
   updatePublicOrderAssignmentStatusController,
 );
 

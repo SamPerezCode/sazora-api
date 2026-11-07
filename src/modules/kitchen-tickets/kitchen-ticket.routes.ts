@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 import {
   createKitchenTicketPrintController,
   listKitchenTicketPrintsController,
@@ -16,42 +16,42 @@ const kitchenTicketRouter = Router();
 kitchenTicketRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN", "KITCHEN", "WAITER"),
+  authorizePermissions("kitchen.tickets.read"),
   listKitchenTicketsController,
 );
 
 kitchenTicketRouter.get(
   "/:kitchenTicketId/prints",
   authenticate,
-  authorizeRoles("ADMIN", "KITCHEN", "WAITER"),
+  authorizePermissions("kitchen.tickets.read"),
   listKitchenTicketPrintsController,
 );
 
 kitchenTicketRouter.post(
   "/:kitchenTicketId/prints",
   authenticate,
-  authorizeRoles("ADMIN", "KITCHEN", "WAITER"),
+  authorizePermissions("kitchen.tickets.print"),
   createKitchenTicketPrintController,
 );
 
 kitchenTicketRouter.post(
   "/:kitchenTicketId/prints/:kitchenTicketPrintId/reprint",
   authenticate,
-  authorizeRoles("ADMIN", "KITCHEN", "WAITER"),
+  authorizePermissions("kitchen.tickets.print"),
   reprintKitchenTicketController,
 );
 
 kitchenTicketRouter.patch(
   "/:kitchenTicketId/status",
   authenticate,
-  authorizeRoles("ADMIN", "KITCHEN", "WAITER"),
+  authorizePermissions("kitchen.tickets.update"),
   updateKitchenTicketStatusController,
 );
 
 kitchenTicketRouter.patch(
   "/:kitchenTicketId/items/:kitchenTicketItemId/status",
   authenticate,
-  authorizeRoles("ADMIN", "KITCHEN", "WAITER"),
+  authorizePermissions("kitchen.tickets.update"),
   updateKitchenTicketItemStatusController,
 );
 

@@ -29,7 +29,7 @@ const assertLocationAccess = (
   auth: AuthenticatedSession,
   locationId: string,
 ): void => {
-  if (auth.roles.includes("ADMIN")) {
+  if (auth.locationAccess.hasGlobalAccess) {
     return;
   }
 
@@ -79,6 +79,9 @@ const updateKitchenSettingsController: RequestHandler = async (
 ) => {
   const auth = requireAuth(request);
   const { locationId } = kitchenSettingsParamsSchema.parse(request.params);
+
+  assertLocationAccess(auth, locationId);
+
   const input = updateKitchenSettingsSchema.parse(request.body);
 
   const kitchenSettings = await updateKitchenSettings(

@@ -1,7 +1,8 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
+
 import {
   createPreparationAreaController,
   getPreparationAreaController,
@@ -22,38 +23,35 @@ const preparationAreaRouter = Router();
 preparationAreaRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN", "KITCHEN", "WAITER"),
+  authorizePermissions("kitchen.settings.read"),
   listPreparationAreasController,
 );
 
 preparationAreaRouter.get(
   "/:preparationAreaId",
   authenticate,
-  authorizeRoles("ADMIN", "KITCHEN"),
+  authorizePermissions("kitchen.settings.read"),
   getPreparationAreaController,
 );
 
-/**
- * Solamente ADMIN puede crear o modificar áreas.
- */
 preparationAreaRouter.post(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("kitchen.settings.manage"),
   createPreparationAreaController,
 );
 
 preparationAreaRouter.patch(
   "/:preparationAreaId/status",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("kitchen.settings.manage"),
   updatePreparationAreaStatusController,
 );
 
 preparationAreaRouter.patch(
   "/:preparationAreaId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("kitchen.settings.manage"),
   updatePreparationAreaController,
 );
 

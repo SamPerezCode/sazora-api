@@ -2,6 +2,8 @@ import type { RequestHandler } from "express";
 
 import type { AuthenticatedSession } from "../../auth/auth.types";
 
+import { resolveScopedLocationId } from "../../auth/services/scoped-location.service";
+
 import { AppError } from "../../../shared/errors/app-error";
 
 import { cancellationReportQuerySchema } from "../schemas/cancellation-report.schema";
@@ -32,10 +34,14 @@ const requireAuthentication = (
 
 const getSalesReportController: RequestHandler = async (request, response) => {
   const auth = requireAuthentication(request.auth);
-
   const query = salesReportQuerySchema.parse(request.query);
 
-  const report = await getSalesReport(auth.businessId, query);
+  const locationId = resolveScopedLocationId(auth, query.locationId);
+
+  const report = await getSalesReport(auth.businessId, {
+    ...query,
+    ...(locationId ? { locationId } : {}),
+  });
 
   response.status(200).json({
     status: "success",
@@ -48,10 +54,14 @@ const getCancellationReportController: RequestHandler = async (
   response,
 ) => {
   const auth = requireAuthentication(request.auth);
-
   const query = cancellationReportQuerySchema.parse(request.query);
 
-  const report = await getCancellationReport(auth.businessId, query);
+  const locationId = resolveScopedLocationId(auth, query.locationId);
+
+  const report = await getCancellationReport(auth.businessId, {
+    ...query,
+    ...(locationId ? { locationId } : {}),
+  });
 
   response.status(200).json({
     status: "success",
@@ -64,10 +74,14 @@ const getKitchenOperationReportController: RequestHandler = async (
   response,
 ) => {
   const auth = requireAuthentication(request.auth);
-
   const query = kitchenOperationReportQuerySchema.parse(request.query);
 
-  const report = await getKitchenOperationReport(auth.businessId, query);
+  const locationId = resolveScopedLocationId(auth, query.locationId);
+
+  const report = await getKitchenOperationReport(auth.businessId, {
+    ...query,
+    ...(locationId ? { locationId } : {}),
+  });
 
   response.status(200).json({
     status: "success",

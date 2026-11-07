@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 
 import {
   getCancellationReportController,
@@ -14,21 +14,21 @@ const salesReportRouter = Router();
 salesReportRouter.get(
   "/history",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("sales.reports.read"),
   getSalesReportController,
 );
 
 salesReportRouter.get(
   "/cancellations",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("sales.reports.read"),
   getCancellationReportController,
 );
 
 salesReportRouter.get(
   "/kitchen-operations",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("sales.reports.read"),
   getKitchenOperationReportController,
 );
 

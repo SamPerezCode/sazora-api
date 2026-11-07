@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 import {
   createRestaurantTableController,
   getRestaurantTableController,
@@ -15,35 +15,35 @@ const restaurantTableRouter = Router();
 restaurantTableRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("tables.read"),
   listRestaurantTablesController,
 );
 
 restaurantTableRouter.get(
   "/:restaurantTableId",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("tables.read"),
   getRestaurantTableController,
 );
 
 restaurantTableRouter.post(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("tables.manage"),
   createRestaurantTableController,
 );
 
 restaurantTableRouter.patch(
   "/:restaurantTableId/status",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("tables.manage"),
   updateRestaurantTableStatusController,
 );
 
 restaurantTableRouter.patch(
   "/:restaurantTableId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("tables.manage"),
   updateRestaurantTableController,
 );
 

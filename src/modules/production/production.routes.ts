@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 
 import {
   createProductionController,
@@ -14,21 +14,21 @@ const productionRouter = Router();
 productionRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN", "PRODUCTION"),
+  authorizePermissions("production.reports.read"),
   listProductionController,
 );
 
 productionRouter.post(
   "/",
   authenticate,
-  authorizeRoles("ADMIN", "PRODUCTION"),
+  authorizePermissions("production.quick.create"),
   createProductionController,
 );
 
 productionRouter.get(
   "/:productionId",
   authenticate,
-  authorizeRoles("ADMIN", "PRODUCTION"),
+  authorizePermissions("production.reports.read"),
   getProductionController,
 );
 

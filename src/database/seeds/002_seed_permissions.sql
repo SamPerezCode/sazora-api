@@ -119,6 +119,12 @@ VALUES
     ),
 
     (
+        'kitchen.dashboard.read',
+        'kitchen',
+        'Acceder al tablero de cocina',
+        'Permite acceder a la pantalla operativa del tablero de Cocina.'
+    ),
+    (
         'kitchen.settings.read',
         'kitchen',
         'Consultar configuración de cocina',
@@ -517,6 +523,7 @@ FROM roles AS r
 INNER JOIN permissions AS p
     ON p.code IN (
         'catalog.read',
+        'kitchen.dashboard.read',
         'kitchen.settings.read',
         'kitchen.tickets.read',
         'kitchen.tickets.update',

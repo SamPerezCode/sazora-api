@@ -9,7 +9,7 @@ const resolveKitchenLocationScope = async (
 ): Promise<string> => {
   let locationId: string;
 
-  if (auth.roles.includes("ADMIN")) {
+  if (auth.locationAccess.hasGlobalAccess) {
     if (!requestedLocationId) {
       throw new AppError(
         "Debes seleccionar el punto de venta de cocina",
@@ -82,7 +82,7 @@ const assertKitchenTicketLocationAccess = async (
     );
   }
 
-  if (auth.roles.includes("ADMIN")) {
+  if (auth.locationAccess.hasGlobalAccess) {
     return locationId;
   }
 

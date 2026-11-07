@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 
 import {
   createProductionRecipeController,
@@ -16,35 +16,35 @@ const productionRecipeRouter = Router();
 productionRecipeRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN", "PRODUCTION"),
+  authorizePermissions("production.recipes.read"),
   listProductionRecipesController,
 );
 
 productionRecipeRouter.post(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("production.recipes.manage"),
   createProductionRecipeController,
 );
 
 productionRecipeRouter.get(
   "/:productionRecipeId",
   authenticate,
-  authorizeRoles("ADMIN", "PRODUCTION"),
+  authorizePermissions("production.recipes.read"),
   getProductionRecipeController,
 );
 
 productionRecipeRouter.put(
   "/:productionRecipeId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("production.recipes.manage"),
   updateProductionRecipeController,
 );
 
 productionRecipeRouter.patch(
   "/:productionRecipeId/status",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("production.recipes.manage"),
   updateProductionRecipeStatusController,
 );
 

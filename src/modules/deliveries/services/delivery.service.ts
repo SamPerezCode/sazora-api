@@ -82,10 +82,9 @@ const handleActionResult = (
 const listDeliveries = async (
   businessId: string,
   membershipId: string,
-  roles: readonly string[],
+  permissions: readonly string[],
 ): Promise<Delivery[]> => {
-  const canViewAll =
-    roles.includes("ADMIN") || roles.includes("PUBLIC_ORDER_MANAGER");
+  const canViewAll = permissions.includes("deliveries.manage");
 
   return findDeliveries(businessId, canViewAll ? undefined : membershipId);
 };
@@ -93,7 +92,7 @@ const listDeliveries = async (
 const getDelivery = async (
   businessId: string,
   membershipId: string,
-  roles: readonly string[],
+  permissions: readonly string[],
   deliveryId: string,
 ): Promise<Delivery> => {
   const delivery = await findDeliveryById(businessId, deliveryId);
@@ -102,8 +101,7 @@ const getDelivery = async (
     throw new AppError("El domicilio no existe", 404, "DELIVERY_NOT_FOUND");
   }
 
-  const canViewAll =
-    roles.includes("ADMIN") || roles.includes("PUBLIC_ORDER_MANAGER");
+  const canViewAll = permissions.includes("deliveries.manage");
 
   if (!canViewAll && delivery.assignedDriverMembershipId !== membershipId) {
     throw new AppError(
@@ -138,14 +136,14 @@ const configureDelivery = async (
 const pickUpDelivery = async (
   businessId: string,
   actorMembershipId: string,
-  roles: readonly string[],
+  permissions: readonly string[],
   deliveryId: string,
 ): Promise<Delivery> =>
   handleActionResult(
     await transitionDriverDelivery(
       businessId,
       actorMembershipId,
-      canManageExternalDelivery(roles),
+      canManageExternalDelivery(permissions),
       deliveryId,
       "ASSIGNED",
       "PICKED_UP",
@@ -155,14 +153,14 @@ const pickUpDelivery = async (
 const startDelivery = async (
   businessId: string,
   actorMembershipId: string,
-  roles: readonly string[],
+  permissions: readonly string[],
   deliveryId: string,
 ): Promise<Delivery> =>
   handleActionResult(
     await transitionDriverDelivery(
       businessId,
       actorMembershipId,
-      canManageExternalDelivery(roles),
+      canManageExternalDelivery(permissions),
       deliveryId,
       "PICKED_UP",
       "OUT_FOR_DELIVERY",
@@ -172,20 +170,20 @@ const startDelivery = async (
 const deliverDelivery = async (
   businessId: string,
   actorMembershipId: string,
-  roles: readonly string[],
+  permissions: readonly string[],
   deliveryId: string,
 ): Promise<Delivery> =>
   handleActionResult(
     await markDeliveryDelivered(
       businessId,
       actorMembershipId,
-      canManageExternalDelivery(roles),
+      canManageExternalDelivery(permissions),
       deliveryId,
     ),
   );
 
-const canManageExternalDelivery = (roles: readonly string[]): boolean =>
-  roles.includes("ADMIN") || roles.includes("PUBLIC_ORDER_MANAGER");
+const canManageExternalDelivery = (permissions: readonly string[]): boolean =>
+  permissions.includes("deliveries.manage");
 
 export {
   configureDelivery,

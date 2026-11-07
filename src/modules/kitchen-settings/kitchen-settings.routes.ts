@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 import {
   getKitchenSettingsController,
   updateKitchenSettingsController,
@@ -12,14 +12,14 @@ const kitchenSettingsRouter = Router();
 kitchenSettingsRouter.get(
   "/:locationId",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER", "KITCHEN"),
+  authorizePermissions("kitchen.settings.read"),
   getKitchenSettingsController,
 );
 
 kitchenSettingsRouter.patch(
   "/:locationId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("kitchen.settings.manage"),
   updateKitchenSettingsController,
 );
 

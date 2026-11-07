@@ -31,7 +31,7 @@ const resolveLocationScope = (
   auth: AuthenticatedSession,
   requestedLocationId?: string,
 ): string | undefined => {
-  if (auth.roles.includes("ADMIN")) {
+  if (auth.locationAccess.hasGlobalAccess) {
     return requestedLocationId;
   }
 
@@ -90,12 +90,12 @@ const listRestaurantTablesController: RequestHandler = async (
 ) => {
   const auth = requireAuth(request);
   const query = restaurantTableQuerySchema.parse(request.query);
-  const isAdmin = auth.roles.includes("ADMIN");
+  const canManageTables = auth.permissions.includes("tables.manage");
   const locationId = resolveLocationScope(auth, query.locationId);
 
   const restaurantTables = await listRestaurantTables(auth.businessId, {
     ...(locationId === undefined ? {} : { locationId }),
-    activeOnly: isAdmin ? query.activeOnly : true,
+    activeOnly: canManageTables ? query.activeOnly : true,
   });
 
   response.status(200).json({
@@ -110,7 +110,7 @@ const getRestaurantTableController: RequestHandler = async (
 ) => {
   const auth = requireAuth(request);
   const query = restaurantTableQuerySchema.parse(request.query);
-  const isAdmin = auth.roles.includes("ADMIN");
+  const canManageTables = auth.permissions.includes("tables.manage");
   const locationId = resolveLocationScope(auth, query.locationId);
 
   const { restaurantTableId } = restaurantTableIdParamsSchema.parse(
@@ -122,7 +122,7 @@ const getRestaurantTableController: RequestHandler = async (
     restaurantTableId,
     {
       ...(locationId === undefined ? {} : { locationId }),
-      activeOnly: !isAdmin,
+      activeOnly: !canManageTables,
     },
   );
 

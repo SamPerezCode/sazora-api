@@ -7,7 +7,7 @@ const resolveOrderLocationScope = (
   requestedLocationId: string | undefined,
   required: boolean,
 ): string | undefined => {
-  if (auth.roles.includes("ADMIN")) {
+  if (auth.locationAccess.hasGlobalAccess) {
     if (required && !requestedLocationId) {
       throw new AppError(
         "Debes seleccionar el punto de venta de la orden",
@@ -57,7 +57,7 @@ const assertOrderLocationAccess = async (
   auth: AuthenticatedSession,
   orderId: string,
 ): Promise<void> => {
-  if (auth.roles.includes("ADMIN")) {
+  if (auth.locationAccess.hasGlobalAccess) {
     return;
   }
 

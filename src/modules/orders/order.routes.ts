@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 import {
   addOrderItemsController,
   cancelOrderController,
@@ -24,97 +24,98 @@ const orderRouter = Router();
 orderRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("orders.read"),
   listOrdersController,
 );
 
 orderRouter.post(
   "/",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("orders.manage"),
   createOrderController,
 );
 
 orderRouter.get(
   "/:orderId/kitchen-history",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("orders.read"),
   getOrderKitchenHistoryController,
 );
 
 orderRouter.get(
   "/:orderId",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("orders.read"),
   getOrderController,
 );
+
 orderRouter.patch(
   "/:orderId",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("orders.manage"),
   updateOrderController,
 );
 
 orderRouter.post(
   "/:orderId/cancel",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("orders.cancel"),
   cancelOrderController,
 );
 
 orderRouter.post(
   "/:orderId/confirm",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("orders.manage"),
   confirmOrderController,
 );
 
 orderRouter.post(
   "/:orderId/deliver",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("orders.manage"),
   deliverPrintOnlyOrderController,
 );
 
 orderRouter.post(
   "/:orderId/close",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("orders.close"),
   closeOrderController,
 );
 
 orderRouter.post(
   "/:orderId/items",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("orders.manage"),
   addOrderItemsController,
 );
 
 orderRouter.patch(
   "/:orderId/items/:orderItemId",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("orders.manage"),
   updateOrderItemController,
 );
 
 orderRouter.post(
   "/:orderId/items/:orderItemId/cancel-quantity",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("orders.cancel"),
   cancelOrderItemQuantityController,
 );
 
 orderRouter.post(
   "/:orderId/items/:orderItemId/cancel",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("orders.cancel"),
   cancelOrderItemController,
 );
 
 orderRouter.delete(
   "/:orderId/items/:orderItemId",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("orders.manage"),
   removeOrderItemController,
 );
 

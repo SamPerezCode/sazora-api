@@ -156,7 +156,7 @@ const assertProductionOrderAccess = (
   auth: AuthenticatedSession,
   productionOrder: ProductionOrder,
 ): void => {
-  if (auth.roles.includes("ADMIN")) {
+  if (auth.locationAccess.hasGlobalAccess) {
     return;
   }
 

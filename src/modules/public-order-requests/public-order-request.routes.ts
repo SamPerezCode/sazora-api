@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 import {
   acceptPublicOrderRequestController,
   closePublicOrderRequestOrderController,
@@ -26,56 +26,56 @@ publicOrderSubmissionRouter.post(
 publicOrderRequestRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN", "PUBLIC_ORDER_MANAGER"),
+  authorizePermissions("public_orders.read"),
   listPublicOrderRequestsController,
 );
 
 publicOrderRequestRouter.get(
   "/:requestId/order",
   authenticate,
-  authorizeRoles("ADMIN", "PUBLIC_ORDER_MANAGER"),
+  authorizePermissions("public_orders.read"),
   getPublicOrderRequestOrderController,
 );
 
 publicOrderRequestRouter.post(
   "/:requestId/close-order",
   authenticate,
-  authorizeRoles("ADMIN", "PUBLIC_ORDER_MANAGER"),
+  authorizePermissions("public_orders.manage"),
   closePublicOrderRequestOrderController,
 );
 
 publicOrderRequestRouter.get(
   "/:requestId",
   authenticate,
-  authorizeRoles("ADMIN", "PUBLIC_ORDER_MANAGER"),
+  authorizePermissions("public_orders.read"),
   getPublicOrderRequestController,
 );
 
 publicOrderRequestRouter.post(
   "/:requestId/contact",
   authenticate,
-  authorizeRoles("ADMIN", "PUBLIC_ORDER_MANAGER"),
+  authorizePermissions("public_orders.manage"),
   contactPublicOrderRequestController,
 );
 
 publicOrderRequestRouter.post(
   "/:requestId/reject",
   authenticate,
-  authorizeRoles("ADMIN", "PUBLIC_ORDER_MANAGER"),
+  authorizePermissions("public_orders.manage"),
   rejectPublicOrderRequestController,
 );
 
 publicOrderRequestRouter.post(
   "/:requestId/accept",
   authenticate,
-  authorizeRoles("ADMIN", "PUBLIC_ORDER_MANAGER"),
+  authorizePermissions("public_orders.manage"),
   acceptPublicOrderRequestController,
 );
 
 publicOrderRequestRouter.post(
   "/:requestId/confirm-order",
   authenticate,
-  authorizeRoles("ADMIN", "PUBLIC_ORDER_MANAGER"),
+  authorizePermissions("public_orders.manage"),
   confirmPublicOrderRequestOrderController,
 );
 

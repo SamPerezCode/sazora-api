@@ -2,7 +2,7 @@ import { Router } from "express";
 
 import { catalogImageUpload } from "../../shared/images/catalog-image-upload.middleware";
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 import {
   createCategoryController,
   getCategoryController,
@@ -18,28 +18,28 @@ const categoryRouter = Router();
 categoryRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("catalog.read"),
   listCategoriesController,
 );
 
 categoryRouter.get(
   "/:categoryId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("catalog.read"),
   getCategoryController,
 );
 
 categoryRouter.post(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("catalog.manage"),
   createCategoryController,
 );
 
 categoryRouter.put(
   "/:categoryId/image",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("catalog.manage"),
   catalogImageUpload,
   updateCategoryImageController,
 );
@@ -47,21 +47,21 @@ categoryRouter.put(
 categoryRouter.delete(
   "/:categoryId/image",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("catalog.manage"),
   removeCategoryImageController,
 );
 
 categoryRouter.patch(
   "/:categoryId/status",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("catalog.manage"),
   updateCategoryStatusController,
 );
 
 categoryRouter.patch(
   "/:categoryId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("catalog.manage"),
   updateCategoryController,
 );
 

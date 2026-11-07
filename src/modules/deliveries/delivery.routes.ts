@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 import {
   configureDeliveryController,
   deliverDeliveryController,
@@ -16,42 +16,42 @@ const deliveryRouter = Router();
 deliveryRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN", "PUBLIC_ORDER_MANAGER", "DELIVERY_DRIVER"),
+  authorizePermissions("deliveries.read"),
   listDeliveriesController,
 );
 
 deliveryRouter.post(
   "/public-order-requests/:requestId/configure",
   authenticate,
-  authorizeRoles("ADMIN", "PUBLIC_ORDER_MANAGER"),
+  authorizePermissions("deliveries.manage"),
   configureDeliveryController,
 );
 
 deliveryRouter.get(
   "/:deliveryId",
   authenticate,
-  authorizeRoles("ADMIN", "PUBLIC_ORDER_MANAGER", "DELIVERY_DRIVER"),
+  authorizePermissions("deliveries.read"),
   getDeliveryController,
 );
 
 deliveryRouter.post(
   "/:deliveryId/pick-up",
   authenticate,
-  authorizeRoles("ADMIN", "PUBLIC_ORDER_MANAGER", "DELIVERY_DRIVER"),
+  authorizePermissions("deliveries.execute"),
   pickUpDeliveryController,
 );
 
 deliveryRouter.post(
   "/:deliveryId/start",
   authenticate,
-  authorizeRoles("ADMIN", "PUBLIC_ORDER_MANAGER", "DELIVERY_DRIVER"),
+  authorizePermissions("deliveries.execute"),
   startDeliveryController,
 );
 
 deliveryRouter.post(
   "/:deliveryId/deliver",
   authenticate,
-  authorizeRoles("ADMIN", "PUBLIC_ORDER_MANAGER", "DELIVERY_DRIVER"),
+  authorizePermissions("deliveries.execute"),
   deliverDeliveryController,
 );
 

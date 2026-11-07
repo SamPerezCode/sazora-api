@@ -3,8 +3,9 @@ import { Router } from "express";
 import { catalogImageUpload } from "../../shared/images/catalog-image-upload.middleware";
 import { catalogImageWithFieldsUpload } from "../../shared/images/catalog-image-with-fields-upload.middleware";
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
-import { authorizeRoles } from "../auth/middlewares/authorize-roles.middleware";
 import { configureProductInventoryController } from "../product-inventory-links/controllers/configure-product-inventory.controller";
+import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
+
 import {
   createComboProductController,
   getComboProductController,
@@ -25,14 +26,14 @@ const productRouter = Router();
 productRouter.get(
   "/",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("catalog.read"),
   listProductsController,
 );
 
 productRouter.post(
   "/",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("catalog.manage"),
   catalogImageWithFieldsUpload,
   createProductController,
 );
@@ -40,7 +41,7 @@ productRouter.post(
 productRouter.post(
   "/combos",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("catalog.manage"),
   catalogImageWithFieldsUpload,
   createComboProductController,
 );
@@ -48,14 +49,14 @@ productRouter.post(
 productRouter.get(
   "/combos/:comboProductId",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("catalog.read"),
   getComboProductController,
 );
 
 productRouter.patch(
   "/combos/:comboProductId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("catalog.manage"),
   catalogImageWithFieldsUpload,
   updateComboProductController,
 );
@@ -63,21 +64,21 @@ productRouter.patch(
 productRouter.post(
   "/:productId/inventory-setup",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("catalog.manage", "inventory.links.manage"),
   configureProductInventoryController,
 );
 
 productRouter.get(
   "/:productId",
   authenticate,
-  authorizeRoles("ADMIN", "WAITER"),
+  authorizePermissions("catalog.read"),
   getProductController,
 );
 
 productRouter.put(
   "/:productId/image",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("catalog.manage"),
   catalogImageUpload,
   updateProductImageController,
 );
@@ -85,21 +86,21 @@ productRouter.put(
 productRouter.delete(
   "/:productId/image",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("catalog.manage"),
   removeProductImageController,
 );
 
 productRouter.patch(
   "/:productId/status",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("catalog.manage"),
   updateProductStatusController,
 );
 
 productRouter.patch(
   "/:productId",
   authenticate,
-  authorizeRoles("ADMIN"),
+  authorizePermissions("catalog.manage"),
   updateProductController,
 );
 

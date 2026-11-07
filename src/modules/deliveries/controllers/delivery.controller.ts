@@ -33,7 +33,7 @@ const listDeliveriesController: RequestHandler = async (request, response) => {
   const deliveries = await listDeliveries(
     auth.businessId,
     auth.membershipId,
-    auth.roles,
+    auth.permissions,
   );
 
   response.status(200).json({
@@ -49,7 +49,7 @@ const getDeliveryController: RequestHandler = async (request, response) => {
   const delivery = await getDelivery(
     auth.businessId,
     auth.membershipId,
-    auth.roles,
+    auth.permissions,
     deliveryId,
   );
 
@@ -99,7 +99,7 @@ const pickUpDeliveryController: RequestHandler = async (request, response) => {
   const delivery = await pickUpDelivery(
     auth.businessId,
     auth.membershipId,
-    auth.roles,
+    auth.permissions,
     deliveryId,
   );
 
@@ -116,7 +116,7 @@ const startDeliveryController: RequestHandler = async (request, response) => {
   const delivery = await startDelivery(
     auth.businessId,
     auth.membershipId,
-    auth.roles,
+    auth.permissions,
     deliveryId,
   );
 
@@ -133,7 +133,7 @@ const deliverDeliveryController: RequestHandler = async (request, response) => {
   const delivery = await deliverDelivery(
     auth.businessId,
     auth.membershipId,
-    auth.roles,
+    auth.permissions,
     deliveryId,
   );
 

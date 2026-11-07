@@ -33,7 +33,7 @@ const resolveLocationScope = (
   auth: AuthenticatedSession,
   requestedLocationId?: string,
 ): string | undefined => {
-  if (auth.roles.includes("ADMIN")) {
+  if (auth.locationAccess.hasGlobalAccess) {
     return requestedLocationId;
   }
 
@@ -84,13 +84,14 @@ const listPreparationAreasController: RequestHandler = async (
 ) => {
   const auth = requireAuth(request);
   const query = preparationAreaQuerySchema.parse(request.query);
-  const isAdmin = auth.roles.includes("ADMIN");
-
+  const canManageSettings = auth.permissions.includes(
+    "kitchen.settings.manage",
+  );
   const locationId = resolveLocationScope(auth, query.locationId);
 
   const preparationAreas = await listPreparationAreas(auth.businessId, {
     ...(locationId === undefined ? {} : { locationId }),
-    activeOnly: isAdmin ? query.activeOnly : true,
+    activeOnly: canManageSettings ? query.activeOnly : true,
   });
 
   response.status(200).json({
@@ -109,7 +110,9 @@ const getPreparationAreaController: RequestHandler = async (
     request.params,
   );
 
-  const isAdmin = auth.roles.includes("ADMIN");
+  const canManageSettings = auth.permissions.includes(
+    "kitchen.settings.manage",
+  );
   const locationId = resolveLocationScope(auth, query.locationId);
 
   const preparationArea = await getPreparationArea(
@@ -117,7 +120,7 @@ const getPreparationAreaController: RequestHandler = async (
     preparationAreaId,
     {
       ...(locationId === undefined ? {} : { locationId }),
-      activeOnly: !isAdmin,
+      activeOnly: !canManageSettings,
     },
   );
 

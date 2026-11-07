@@ -37,8 +37,9 @@ const listInventoryItemsController: RequestHandler = async (
 ) => {
   const auth = requireAuth(request);
 
-  const hasAdministrativeInventoryScope =
-    auth.roles.includes("ADMIN") || auth.roles.includes("INVENTORY_MANAGER");
+  const hasAdministrativeInventoryScope = auth.permissions.includes(
+    "inventory.items.manage",
+  );
 
   const items = hasAdministrativeInventoryScope
     ? await listInventoryItems(auth.businessId)

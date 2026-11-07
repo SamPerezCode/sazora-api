@@ -88,8 +88,7 @@ const normalizeRecipeData = (
 const listProductionRecipes = async (
   auth: AuthenticatedSession,
 ): Promise<ProductionRecipeSummary[]> => {
-  const activeOnly = !auth.roles.includes("ADMIN");
-
+  const activeOnly = !auth.permissions.includes("production.recipes.manage");
   return findProductionRecipes(auth.businessId, activeOnly);
 };
 
@@ -102,7 +101,11 @@ const getProductionRecipe = async (
     productionRecipeId,
   );
 
-  if (!recipe || (!recipe.isActive && !auth.roles.includes("ADMIN"))) {
+  const canManageRecipes = auth.permissions.includes(
+    "production.recipes.manage",
+  );
+
+  if (!recipe || (!recipe.isActive && !canManageRecipes)) {
     throw new AppError(
       "La receta de producción no existe",
       404,
