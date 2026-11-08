@@ -404,7 +404,6 @@ SELECT
 FROM roles AS r
 INNER JOIN permissions AS p
     ON p.code IN (
-        'dashboard.read',
         'locations.read',
         'catalog.read',
         'inventory.items.read',
@@ -465,7 +464,6 @@ SELECT
 FROM roles AS r
 INNER JOIN permissions AS p
     ON p.code IN (
-        'dashboard.read',
         'catalog.read',
         'tables.read',
         'orders.read',
