@@ -27,6 +27,7 @@ import { inventoryReportRouter } from "../modules/inventory-reports/inventory-re
 import { productionRecipeRouter } from "../modules/production-recipes/production-recipe.routes";
 import { productionOrderRouter } from "../modules/production-orders/production-order.routes";
 import { productionReportRouter } from "../modules/production-reports/production-report.routes";
+import { taxClassRouter } from "../modules/tax-classes/tax-class.routes";
 
 import {
   publicOrderRequestRouter,
@@ -65,5 +66,6 @@ apiRouter.use("/production-recipes", productionRecipeRouter);
 apiRouter.use("/production-orders", productionOrderRouter);
 apiRouter.use("/production-reports", productionReportRouter);
 apiRouter.use("/production", productionRouter);
+apiRouter.use("/tax-classes", taxClassRouter);
 
 export { apiRouter };

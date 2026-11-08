@@ -60,11 +60,24 @@ VALUES
         'Consultar ubicaciones',
         'Permite consultar ubicaciones del negocio.'
     ),
-    (
+      (
         'locations.manage',
         'locations',
         'Administrar ubicaciones',
         'Permite crear y modificar ubicaciones.'
+    ),
+
+    (
+        'taxes.read',
+        'taxes',
+        'Consultar impuestos',
+        'Permite consultar clases tributarias, tarifas y vigencias.'
+    ),
+    (
+        'taxes.manage',
+        'taxes',
+        'Administrar impuestos',
+        'Permite crear y modificar clases tributarias y sus tarifas.'
     ),
 
     (
