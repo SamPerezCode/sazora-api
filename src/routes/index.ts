@@ -31,6 +31,7 @@ import { taxClassRouter } from "../modules/tax-classes/tax-class.routes";
 import { cashRegisterRouter } from "../modules/cash-registers/cash-register.routes";
 import { cashSessionRouter } from "../modules/cash-sessions/cash-session.routes";
 import { cashMovementRouter } from "../modules/cash-movements/cash-movement.routes";
+import { paymentMethodRouter } from "../modules/payment-methods/payment-method.routes";
 
 import {
   publicOrderRequestRouter,
@@ -73,5 +74,6 @@ apiRouter.use("/tax-classes", taxClassRouter);
 apiRouter.use("/cash-registers", cashRegisterRouter);
 apiRouter.use("/cash-sessions", cashSessionRouter);
 apiRouter.use("/cash-movements", cashMovementRouter);
+apiRouter.use("/payment-methods", paymentMethodRouter);
 
 export { apiRouter };
