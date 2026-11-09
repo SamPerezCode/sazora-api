@@ -37,7 +37,7 @@ type OrderRow = RowDataPacket & {
 };
 
 type LocationStateRow = RowDataPacket & {
-  locationType: "PRODUCTION_WAREHOUSE" | "POINT_OF_SALE";
+  isSalesLocation: number;
   isActive: number;
 };
 
@@ -90,7 +90,7 @@ type CreateOrderResult =
       kind: "PRODUCT_UNAVAILABLE";
     }>
   | Readonly<{ kind: "LOCATION_NOT_AVAILABLE" }>
-  | Readonly<{ kind: "LOCATION_NOT_POINT_OF_SALE" }>
+  | Readonly<{ kind: "LOCATION_NOT_SALES_ENABLED" }>
   | Readonly<{ kind: "TABLE_LOCATION_MISMATCH" }>
   | Readonly<{ kind: "PRODUCT_NOT_AVAILABLE_AT_LOCATION" }>;
 
@@ -132,7 +132,7 @@ const createOrder = async (
     const [locationRows] = await connection.execute<LocationStateRow[]>(
       `
     SELECT
-      location_type AS locationType,
+      is_sales_location AS isSalesLocation,
       is_active AS isActive
     FROM business_locations
     WHERE
@@ -154,11 +154,11 @@ const createOrder = async (
       };
     }
 
-    if (location.locationType !== "POINT_OF_SALE") {
+    if (!location.isSalesLocation) {
       await connection.rollback();
 
       return {
-        kind: "LOCATION_NOT_POINT_OF_SALE",
+        kind: "LOCATION_NOT_SALES_ENABLED",
       };
     }
 

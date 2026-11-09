@@ -124,7 +124,7 @@ const confirmOrder = async (
       bl.business_id = ?
       AND bl.id = ?
       AND bl.is_active = TRUE
-      AND bl.location_type = 'POINT_OF_SALE'
+      AND bl.is_sales_location = TRUE
     LIMIT 1
   `,
       [businessId, order.locationId],

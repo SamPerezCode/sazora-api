@@ -13,6 +13,7 @@ type EmployeeListLocationRow = RowDataPacket & {
   code: string;
   name: string;
   locationType: LocationType;
+  isSalesLocation: number;
   isDefault: number;
 };
 
@@ -21,6 +22,7 @@ const mapLocation = (row: EmployeeListLocationRow): SessionLocation => ({
   code: row.code,
   name: row.name,
   locationType: row.locationType,
+  isSalesLocation: Boolean(row.isSalesLocation),
   isDefault: Boolean(row.isDefault),
 });
 
@@ -39,6 +41,7 @@ const findEmployeeListLocationAccessByBusinessId = async (
         bl.code,
         bl.name,
         bl.location_type AS locationType,
+        bl.is_sales_location AS isSalesLocation,
         bml.is_default AS isDefault
       FROM business_membership_locations AS bml
       INNER JOIN business_locations AS bl

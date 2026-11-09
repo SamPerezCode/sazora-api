@@ -77,16 +77,16 @@ const createOrder = async (
 
     case "LOCATION_NOT_AVAILABLE":
       throw new AppError(
-        "El punto de venta no existe, está inactivo o no pertenece al negocio",
+        "La ubicación no existe, está inactiva o no pertenece al negocio",
         409,
         "ORDER_LOCATION_NOT_AVAILABLE",
       );
 
-    case "LOCATION_NOT_POINT_OF_SALE":
+    case "LOCATION_NOT_SALES_ENABLED":
       throw new AppError(
-        "Las órdenes de venta solamente pueden crearse en puntos de venta",
+        "Esta ubicación no está habilitada para crear ventas",
         409,
-        "LOCATION_NOT_POINT_OF_SALE",
+        "LOCATION_NOT_SALES_ENABLED",
       );
 
     case "TABLE_LOCATION_MISMATCH":

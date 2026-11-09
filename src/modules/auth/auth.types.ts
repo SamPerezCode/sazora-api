@@ -25,6 +25,7 @@ type SessionLocation = Readonly<{
   code: string;
   name: string;
   locationType: LocationType;
+  isSalesLocation: boolean;
   isDefault: boolean;
 }>;
 

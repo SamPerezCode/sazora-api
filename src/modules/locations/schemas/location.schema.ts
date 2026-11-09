@@ -49,6 +49,8 @@ const createLocationSchema = z
 
     locationType: locationTypeSchema,
 
+    isSalesLocation: z.boolean().optional(),
+
     address: nullableText(250, "La dirección no puede superar 250 caracteres"),
 
     countryCode: z
@@ -104,6 +106,8 @@ const updateLocationSchema = z
     name: z.string().trim().min(2).max(150).optional(),
 
     locationType: locationTypeSchema.optional(),
+
+    isSalesLocation: z.boolean().optional(),
 
     address: nullableText(250, "La dirección no es válida"),
 

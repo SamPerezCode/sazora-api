@@ -10,7 +10,7 @@ const resolveOrderLocationScope = (
   if (auth.locationAccess.hasGlobalAccess) {
     if (required && !requestedLocationId) {
       throw new AppError(
-        "Debes seleccionar el punto de venta de la orden",
+        "Debes seleccionar la ubicación de la orden",
         400,
         "ORDER_LOCATION_REQUIRED",
       );
@@ -24,7 +24,7 @@ const resolveOrderLocationScope = (
 
   if (!locationId) {
     throw new AppError(
-      "Debes tener un punto de venta predeterminado",
+      "Debes tener una ubicación predeterminada",
       409,
       "DEFAULT_LOCATION_REQUIRED",
     );
@@ -42,11 +42,11 @@ const resolveOrderLocationScope = (
     );
   }
 
-  if (assignedLocation.locationType !== "POINT_OF_SALE") {
+  if (!assignedLocation.isSalesLocation) {
     throw new AppError(
-      "Las órdenes de venta solamente pueden gestionarse en puntos de venta",
+      "Esta ubicación no está habilitada para gestionar ventas",
       409,
-      "LOCATION_NOT_POINT_OF_SALE",
+      "LOCATION_NOT_SALES_ENABLED",
     );
   }
 

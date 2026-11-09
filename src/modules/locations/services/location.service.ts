@@ -18,19 +18,22 @@ import type {
   UpdateLocationInput,
 } from "../schemas/location.schema";
 
-const getCapabilities = (locationType: LocationType): LocationCapabilities => {
+const getCapabilities = (
+  locationType: LocationType,
+  isSalesLocation?: boolean,
+): LocationCapabilities => {
   if (locationType === "PRODUCTION_WAREHOUSE") {
     return {
       isInventoryLocation: true,
       isProductionLocation: true,
-      isSalesLocation: false,
+      isSalesLocation: isSalesLocation ?? false,
     };
   }
 
   return {
     isInventoryLocation: true,
     isProductionLocation: false,
-    isSalesLocation: true,
+    isSalesLocation: isSalesLocation ?? true,
   };
 };
 
@@ -80,7 +83,7 @@ const createLocation = async (
       phone: input.phone,
       email: input.email,
     },
-    getCapabilities(input.locationType),
+    getCapabilities(input.locationType, input.isSalesLocation),
   );
 };
 
@@ -141,7 +144,10 @@ const updateLocation = async (
     businessId,
     locationId,
     data,
-    getCapabilities(data.locationType),
+    getCapabilities(
+      data.locationType,
+      input.isSalesLocation ?? current.isSalesLocation,
+    ),
   );
 
   if (!location) {
