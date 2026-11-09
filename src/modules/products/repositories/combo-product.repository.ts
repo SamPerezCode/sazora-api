@@ -177,6 +177,8 @@ const createComboProductRecord = async (
             business_id,
             category_id,
             preparation_area_id,
+            tax_class_id,
+            price_includes_tax,
             fulfillment_mode,
             sku,
             name,
@@ -184,12 +186,14 @@ const createComboProductRecord = async (
             image_url,
             current_price
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
       [
         businessId,
         input.categoryId,
         input.preparationAreaId,
+        input.taxClassId,
+        input.priceIncludesTax,
         input.fulfillmentMode,
         input.sku,
         input.name,

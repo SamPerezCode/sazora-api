@@ -15,6 +15,8 @@ type ProductRow = RowDataPacket & {
   businessId: string;
   categoryId: string;
   preparationAreaId: string;
+  taxClassId: string | null;
+  priceIncludesTax: number;
   fulfillmentMode: ProductFulfillmentMode;
   sku: string | null;
   name: string;
@@ -43,6 +45,8 @@ const mapProductRow = (row: ProductRow): Product => ({
   businessId: row.businessId,
   categoryId: row.categoryId,
   preparationAreaId: row.preparationAreaId,
+  taxClassId: row.taxClassId,
+  priceIncludesTax: Boolean(row.priceIncludesTax),
   fulfillmentMode: row.fulfillmentMode,
   sku: row.sku,
   name: row.name,
@@ -76,6 +80,10 @@ const productListSelect = `
       AS categoryId,
     CAST(p.preparation_area_id AS CHAR)
       AS preparationAreaId,
+    CAST(p.tax_class_id AS CHAR)
+      AS taxClassId,
+      p.price_includes_tax
+  AS priceIncludesTax,
     p.fulfillment_mode AS fulfillmentMode,
     p.sku,
     p.name,
@@ -205,6 +213,10 @@ const findProductById = async (
             AS categoryId,
           CAST(preparation_area_id AS CHAR)
             AS preparationAreaId,
+          CAST(tax_class_id AS CHAR)
+            AS taxClassId,
+          price_includes_tax
+            AS priceIncludesTax,
           fulfillment_mode
             AS fulfillmentMode,
           sku,
@@ -237,23 +249,27 @@ const createProduct = async (
 ): Promise<Product> => {
   const [result] = await databasePool.execute<ResultSetHeader>(
     `
-        INSERT INTO products (
-          business_id,
-          category_id,
-          preparation_area_id,
-          fulfillment_mode,
-          sku,
-          name,
-          description,
-          image_url,
-          current_price
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO products (
+        business_id,
+        category_id,
+        preparation_area_id,
+        tax_class_id,
+        price_includes_tax,
+        fulfillment_mode,
+        sku,
+        name,
+        description,
+        image_url,
+        current_price
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
     [
       businessId,
       data.categoryId,
       data.preparationAreaId,
+      data.taxClassId,
+      data.priceIncludesTax,
       data.fulfillmentMode,
       data.sku,
       data.name,
@@ -320,6 +336,8 @@ const updateProduct = async (
       SET
         category_id = ?,
         preparation_area_id = ?,
+        tax_class_id = ?,
+        price_includes_tax = ?,
         fulfillment_mode = ?,
         sku = ?,
         name = ?,
@@ -332,6 +350,8 @@ const updateProduct = async (
     [
       data.categoryId,
       data.preparationAreaId,
+      data.taxClassId,
+      data.priceIncludesTax,
       data.fulfillmentMode,
       data.sku,
       data.name,

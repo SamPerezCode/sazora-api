@@ -2,6 +2,7 @@ import { AppError } from "../../../shared/errors/app-error";
 import { findCategoryById } from "../../categories/repositories/category.repository";
 import { findPreparationAreaById } from "../../preparation-areas/repositories/preparation-area.repository";
 import type { Product, UpdateProductData } from "../product.types";
+import { findTaxClassById } from "../../tax-classes/repositories/tax-class.repository";
 import {
   findProductById,
   updateProduct as updateProductRecord,
@@ -66,10 +67,39 @@ const updateProduct = async (
     }
   }
 
+  if (input.taxClassId !== undefined && input.taxClassId !== null) {
+    const taxClass = await findTaxClassById(businessId, input.taxClassId);
+
+    if (!taxClass) {
+      throw new AppError(
+        "La clase de impuesto no existe",
+        404,
+        "TAX_CLASS_NOT_FOUND",
+      );
+    }
+
+    if (!taxClass.isActive) {
+      throw new AppError(
+        "La clase de impuesto está desactivada",
+        409,
+        "TAX_CLASS_INACTIVE",
+      );
+    }
+  }
+
   const data: UpdateProductData = {
     categoryId: input.categoryId ?? currentProduct.categoryId,
+
     preparationAreaId:
       input.preparationAreaId ?? currentProduct.preparationAreaId,
+
+    taxClassId:
+      input.taxClassId !== undefined
+        ? input.taxClassId
+        : currentProduct.taxClassId,
+
+    priceIncludesTax: input.priceIncludesTax ?? currentProduct.priceIncludesTax,
+
     fulfillmentMode: input.fulfillmentMode ?? currentProduct.fulfillmentMode,
     sku: input.sku !== undefined ? input.sku : currentProduct.sku,
     name: input.name ?? currentProduct.name,

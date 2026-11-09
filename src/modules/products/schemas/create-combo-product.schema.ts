@@ -13,6 +13,28 @@ const moneySchema = z
     "El precio debe tener máximo dos decimales",
   );
 
+const nullableDatabaseIdSchema = z
+  .union([databaseIdSchema, z.literal(""), z.null()])
+  .optional()
+  .transform((value) => {
+    if (value === undefined || value === null || value === "") {
+      return null;
+    }
+
+    return value;
+  });
+
+const booleanFormFieldSchema = z
+  .union([z.boolean(), z.enum(["true", "false"])])
+  .optional()
+  .transform((value) => {
+    if (value === undefined) {
+      return true;
+    }
+
+    return value === true || value === "true";
+  });
+
 const componentSchema = z
   .object({
     productId: databaseIdSchema,
@@ -42,6 +64,10 @@ const createComboProductSchema = z
     categoryId: databaseIdSchema,
 
     preparationAreaId: databaseIdSchema,
+
+    taxClassId: nullableDatabaseIdSchema,
+
+    priceIncludesTax: booleanFormFieldSchema,
 
     fulfillmentMode: z.enum(["PREPARE_TO_ORDER", "READY_TO_SERVE"]),
 

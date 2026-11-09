@@ -8,6 +8,8 @@ type Product = Readonly<{
   businessId: string;
   categoryId: string;
   preparationAreaId: string;
+  taxClassId: string | null;
+  priceIncludesTax: boolean;
   fulfillmentMode: ProductFulfillmentMode;
   sku: string | null;
   name: string;
@@ -35,6 +37,8 @@ type ProductListItem = Product &
 type CreateProductData = Readonly<{
   categoryId: string;
   preparationAreaId: string;
+  taxClassId: string | null;
+  priceIncludesTax: boolean;
   fulfillmentMode: ProductFulfillmentMode;
   sku: string | null;
   name: string;
@@ -45,6 +49,8 @@ type CreateProductData = Readonly<{
 type UpdateProductData = Readonly<{
   categoryId: string;
   preparationAreaId: string;
+  taxClassId: string | null;
+  priceIncludesTax: boolean;
   fulfillmentMode: ProductFulfillmentMode;
   sku: string | null;
   name: string;

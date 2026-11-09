@@ -8,6 +8,7 @@ import { findPreparationAreaById } from "../../preparation-areas/repositories/pr
 import type { Product } from "../product.types";
 import { createProduct as createProductRecord } from "../repositories/product.repository";
 import type { CreateProductInput } from "../schemas/create-product.schema";
+import { findTaxClassById } from "../../tax-classes/repositories/tax-class.repository";
 
 const hasMySqlErrorCode = (error: unknown, expectedCode: string): boolean => {
   if (typeof error !== "object" || error === null || !("code" in error)) {
@@ -55,6 +56,26 @@ const createProduct = async (
       409,
       "PREPARATION_AREA_INACTIVE",
     );
+  }
+
+  if (input.taxClassId !== null) {
+    const taxClass = await findTaxClassById(businessId, input.taxClassId);
+
+    if (!taxClass) {
+      throw new AppError(
+        "La clase de impuesto no existe",
+        404,
+        "TAX_CLASS_NOT_FOUND",
+      );
+    }
+
+    if (!taxClass.isActive) {
+      throw new AppError(
+        "La clase de impuesto está desactivada",
+        409,
+        "TAX_CLASS_INACTIVE",
+      );
+    }
   }
 
   let imageUrl: string | null = null;

@@ -13,6 +13,32 @@ const moneySchema = z
     "El precio debe ser un valor válido con máximo dos decimales",
   );
 
+const optionalNullableDatabaseIdSchema = z
+  .union([databaseIdSchema, z.literal(""), z.null()])
+  .optional()
+  .transform((value) => {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null || value === "") {
+      return null;
+    }
+
+    return value;
+  });
+
+const optionalBooleanFormFieldSchema = z
+  .union([z.boolean(), z.enum(["true", "false"])])
+  .optional()
+  .transform((value) => {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    return value === true || value === "true";
+  });
+
 const productIdParamsSchema = z
   .object({
     productId: databaseIdSchema,
@@ -24,6 +50,10 @@ const updateProductSchema = z
     categoryId: databaseIdSchema.optional(),
 
     preparationAreaId: databaseIdSchema.optional(),
+
+    taxClassId: optionalNullableDatabaseIdSchema,
+
+    priceIncludesTax: optionalBooleanFormFieldSchema,
 
     fulfillmentMode: z.enum(["PREPARE_TO_ORDER", "READY_TO_SERVE"]).optional(),
 

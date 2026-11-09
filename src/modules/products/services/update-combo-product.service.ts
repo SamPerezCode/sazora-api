@@ -7,6 +7,8 @@ import { findCategoryById } from "../../categories/repositories/category.reposit
 import { findPreparationAreaById } from "../../preparation-areas/repositories/preparation-area.repository";
 import { updateComboProductRecord } from "../repositories/update-combo-product.repository";
 import type { UpdateComboProductInput } from "../schemas/update-combo-product.schema";
+import { findTaxClassById } from "../../tax-classes/repositories/tax-class.repository";
+
 import {
   getComboProduct,
   type ComboProductDetail,
@@ -63,6 +65,26 @@ const updateComboProduct = async (
         "El área de preparación está desactivada",
         409,
         "PREPARATION_AREA_INACTIVE",
+      );
+    }
+  }
+
+  if (input.taxClassId !== undefined && input.taxClassId !== null) {
+    const taxClass = await findTaxClassById(businessId, input.taxClassId);
+
+    if (!taxClass) {
+      throw new AppError(
+        "La clase de impuesto no existe",
+        404,
+        "TAX_CLASS_NOT_FOUND",
+      );
+    }
+
+    if (!taxClass.isActive) {
+      throw new AppError(
+        "La clase de impuesto está desactivada",
+        409,
+        "TAX_CLASS_INACTIVE",
       );
     }
   }

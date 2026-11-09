@@ -7,6 +7,8 @@ import type { UpdateComboProductInput } from "../schemas/update-combo-product.sc
 type LockedComboProductRow = RowDataPacket & {
   categoryId: string;
   preparationAreaId: string;
+  taxClassId: string | null;
+  priceIncludesTax: number;
   fulfillmentMode: ProductFulfillmentMode;
   sku: string | null;
   name: string;
@@ -77,6 +79,10 @@ const updateComboProductRecord = async (
               AS categoryId,
             CAST(p.preparation_area_id AS CHAR)
               AS preparationAreaId,
+            CAST(p.tax_class_id AS CHAR)
+              AS taxClassId,
+            p.price_includes_tax
+              AS priceIncludesTax,
             p.fulfillment_mode
               AS fulfillmentMode,
             p.sku,
@@ -344,6 +350,8 @@ const updateComboProductRecord = async (
         SET
           category_id = ?,
           preparation_area_id = ?,
+          tax_class_id = ?,
+          price_includes_tax = ?,
           fulfillment_mode = ?,
           sku = ?,
           name = ?,
@@ -358,6 +366,12 @@ const updateComboProductRecord = async (
         input.categoryId ?? currentCombo.categoryId,
 
         input.preparationAreaId ?? currentCombo.preparationAreaId,
+
+        input.taxClassId !== undefined
+          ? input.taxClassId
+          : currentCombo.taxClassId,
+
+        input.priceIncludesTax ?? Boolean(currentCombo.priceIncludesTax),
 
         input.fulfillmentMode ?? currentCombo.fulfillmentMode,
 

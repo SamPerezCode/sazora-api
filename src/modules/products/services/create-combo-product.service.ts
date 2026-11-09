@@ -11,6 +11,7 @@ import type { Product } from "../product.types";
 import { createComboProductRecord } from "../repositories/combo-product.repository";
 import { findProductById } from "../repositories/product.repository";
 import type { CreateComboProductInput } from "../schemas/create-combo-product.schema";
+import { findTaxClassById } from "../../tax-classes/repositories/tax-class.repository";
 
 type CreatedComboProduct = Readonly<{
   product: Product;
@@ -64,6 +65,26 @@ const createComboProduct = async (
       409,
       "PREPARATION_AREA_INACTIVE",
     );
+  }
+
+  if (input.taxClassId !== null) {
+    const taxClass = await findTaxClassById(businessId, input.taxClassId);
+
+    if (!taxClass) {
+      throw new AppError(
+        "La clase de impuesto no existe",
+        404,
+        "TAX_CLASS_NOT_FOUND",
+      );
+    }
+
+    if (!taxClass.isActive) {
+      throw new AppError(
+        "La clase de impuesto está desactivada",
+        409,
+        "TAX_CLASS_INACTIVE",
+      );
+    }
   }
 
   let imageUrl: string | null = null;
