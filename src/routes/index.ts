@@ -28,6 +28,7 @@ import { productionRecipeRouter } from "../modules/production-recipes/production
 import { productionOrderRouter } from "../modules/production-orders/production-order.routes";
 import { productionReportRouter } from "../modules/production-reports/production-report.routes";
 import { taxClassRouter } from "../modules/tax-classes/tax-class.routes";
+import { cashRegisterRouter } from "../modules/cash-registers/cash-register.routes";
 
 import {
   publicOrderRequestRouter,
@@ -67,5 +68,6 @@ apiRouter.use("/production-orders", productionOrderRouter);
 apiRouter.use("/production-reports", productionReportRouter);
 apiRouter.use("/production", productionRouter);
 apiRouter.use("/tax-classes", taxClassRouter);
+apiRouter.use("/cash-registers", cashRegisterRouter);
 
 export { apiRouter };
