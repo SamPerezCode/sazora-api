@@ -2,6 +2,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
 import type { ProductFulfillmentMode } from "../../products/product.types";
+import type { TaxType } from "../../tax-classes/tax-class.types";
 import type {
   OrderItemDetail,
   OrderItemStatus,
@@ -29,6 +30,16 @@ type OrderItemDetailRow = RowDataPacket & {
   productName: string;
   quantity: number;
   unitPrice: string;
+  taxClassId: string | null;
+  taxCode: string | null;
+  taxName: string | null;
+  taxType: TaxType | null;
+  taxRate: string;
+  priceIncludesTax: number;
+  unitNetPrice: string;
+  unitTaxAmount: string;
+  lineNetTotal: string;
+  lineTaxTotal: string;
   lineTotal: string;
   notes: string | null;
   status: OrderItemStatus;
@@ -65,6 +76,16 @@ const mapOrderItemDetailRow = (row: OrderItemDetailRow): OrderItemDetail => ({
   productName: row.productName,
   quantity: row.quantity,
   unitPrice: row.unitPrice,
+  taxClassId: row.taxClassId,
+  taxCode: row.taxCode,
+  taxName: row.taxName,
+  taxType: row.taxType,
+  taxRate: row.taxRate,
+  priceIncludesTax: Boolean(row.priceIncludesTax),
+  unitNetPrice: row.unitNetPrice,
+  unitTaxAmount: row.unitTaxAmount,
+  lineNetTotal: row.lineNetTotal,
+  lineTaxTotal: row.lineTaxTotal,
   lineTotal: row.lineTotal,
   notes: row.notes,
   status: row.status,
@@ -181,6 +202,22 @@ const updateOrderItem = async (
             product_name AS productName,
             quantity,
             CAST(unit_price AS CHAR) AS unitPrice,
+            CAST(tax_class_id AS CHAR) AS taxClassId,
+            tax_code AS taxCode,
+            tax_name AS taxName,
+            tax_type AS taxType,
+            CAST(tax_rate AS CHAR) AS taxRate,
+            price_includes_tax AS priceIncludesTax,
+            CAST(unit_net_price AS CHAR) AS unitNetPrice,
+            CAST(unit_tax_amount AS CHAR) AS unitTaxAmount,
+            CAST(
+              quantity * unit_net_price
+              AS CHAR
+            ) AS lineNetTotal,
+            CAST(
+              quantity * unit_tax_amount
+              AS CHAR
+            ) AS lineTaxTotal,
             CAST(quantity * unit_price AS CHAR) AS lineTotal,
             notes,
             status,

@@ -3,6 +3,9 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { databasePool } from "../../../database/pool";
 import type { ProductFulfillmentMode } from "../../products/product.types";
 import type { KitchenWorkflowMode } from "../../kitchen-settings/kitchen-settings.types";
+import { formatDateInTimezone } from "../../../shared/dates/local-date";
+import type { TaxType } from "../../tax-classes/tax-class.types";
+import { calculateOrderItemTax } from "../order-tax-calculation";
 import type {
   CreateOrderData,
   Order,
@@ -47,12 +50,22 @@ type ActiveOrderRow = RowDataPacket & {
   id: string;
 };
 
+type BusinessTimezoneRow = RowDataPacket & {
+  timezone: string;
+};
+
 type AvailableProductRow = RowDataPacket & {
   id: string;
   preparationAreaId: string;
   fulfillmentMode: ProductFulfillmentMode;
   name: string;
   currentPrice: string;
+  taxClassId: string | null;
+  taxCode: string | null;
+  taxName: string | null;
+  taxType: TaxType | null;
+  taxRate: string | null;
+  priceIncludesTax: number;
   isAvailable: number;
 };
 
@@ -218,38 +231,85 @@ const createOrder = async (
       }
     }
 
+    const [businessRows] = await connection.execute<BusinessTimezoneRow[]>(
+      `
+      SELECT timezone
+      FROM businesses
+      WHERE id = ?
+      LIMIT 1
+    `,
+      [businessId],
+    );
+
+    const business = businessRows[0];
+
+    if (!business) {
+      throw new Error("No fue posible recuperar la zona horaria del negocio");
+    }
+
+    const effectiveTaxDate = formatDateInTimezone(
+      new Date(),
+      business.timezone,
+    );
+
     const productIds = [...new Set(data.items.map((item) => item.productId))];
 
     const productPlaceholders = productIds.map(() => "?").join(", ");
 
     const [productRows] = await connection.execute<AvailableProductRow[]>(
       `
-        SELECT
-          CAST(p.id AS CHAR) AS id,
-          CAST(p.preparation_area_id AS CHAR)
-            AS preparationAreaId,
-          p.fulfillment_mode AS fulfillmentMode,
-          p.name,
-          CAST(p.current_price AS CHAR)
-            AS currentPrice,
-          (
-            p.is_active = TRUE
-            AND c.is_active = TRUE
-            AND pa.is_active = TRUE
-          ) AS isAvailable
-        FROM products AS p
-        INNER JOIN categories AS c
-          ON c.business_id = p.business_id
-          AND c.id = p.category_id
-        INNER JOIN preparation_areas AS pa
-          ON pa.business_id = p.business_id
-          AND pa.id = p.preparation_area_id
-        WHERE
-          p.business_id = ?
-          AND p.id IN (${productPlaceholders})
-        FOR SHARE
-      `,
-      [businessId, ...productIds],
+      SELECT
+        CAST(p.id AS CHAR) AS id,
+        CAST(p.preparation_area_id AS CHAR)
+          AS preparationAreaId,
+        p.fulfillment_mode AS fulfillmentMode,
+        p.name,
+        CAST(p.current_price AS CHAR)
+          AS currentPrice,
+        CAST(p.tax_class_id AS CHAR)
+          AS taxClassId,
+        tc.code AS taxCode,
+        tc.name AS taxName,
+        tc.tax_type AS taxType,
+        CAST(tr.rate AS CHAR) AS taxRate,
+        p.price_includes_tax AS priceIncludesTax,
+        (
+          p.is_active = TRUE
+          AND c.is_active = TRUE
+          AND pa.is_active = TRUE
+          AND (
+            p.tax_class_id IS NULL
+            OR (
+              tc.is_active = TRUE
+              AND tr.id IS NOT NULL
+            )
+          )
+        ) AS isAvailable
+      FROM products AS p
+      INNER JOIN categories AS c
+        ON c.business_id = p.business_id
+        AND c.id = p.category_id
+      INNER JOIN preparation_areas AS pa
+        ON pa.business_id = p.business_id
+        AND pa.id = p.preparation_area_id
+      LEFT JOIN tax_classes AS tc
+        ON tc.business_id = p.business_id
+        AND tc.id = p.tax_class_id
+      LEFT JOIN tax_rates AS tr
+        ON tr.business_id = p.business_id
+        AND tr.tax_class_id = p.tax_class_id
+        AND tr.is_active = TRUE
+        AND tr.valid_from <= ?
+        AND (
+          tr.valid_to IS NULL
+          OR tr.valid_to >= ?
+        )
+      WHERE
+        p.business_id = ?
+        AND p.id IN (${productPlaceholders})
+      FOR SHARE
+    `,
+      [effectiveTaxDate, effectiveTaxDate, businessId, ...productIds],
     );
 
     const productsById = new Map(
@@ -326,32 +386,57 @@ const createOrder = async (
         );
       }
 
+      const taxCalculation = calculateOrderItemTax({
+        listedUnitPrice: product.currentPrice,
+        taxRate: product.taxRate ?? "0.0000",
+        priceIncludesTax: Boolean(product.priceIncludesTax),
+      });
+
       const [orderItemInsertResult] = await connection.execute<ResultSetHeader>(
         `
-            INSERT INTO order_items (
-              business_id,
-              order_id,
-              product_id,
-              preparation_area_id,
-              fulfillment_mode,
-              added_by_membership_id,
-              product_name,
-              quantity,
-              unit_price,
-              notes
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `,
+      INSERT INTO order_items (
+        business_id,
+        order_id,
+        product_id,
+        tax_class_id,
+        preparation_area_id,
+        fulfillment_mode,
+        added_by_membership_id,
+        product_name,
+        quantity,
+        unit_price,
+        tax_code,
+        tax_name,
+        tax_type,
+        tax_rate,
+        price_includes_tax,
+        unit_net_price,
+        unit_tax_amount,
+        notes
+      )
+      VALUES (
+        ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?, ?
+      )
+    `,
         [
           businessId,
           orderId,
           product.id,
+          product.taxClassId,
           product.preparationAreaId,
           product.fulfillmentMode,
           data.openedByMembershipId,
           product.name,
           item.quantity,
-          product.currentPrice,
+          taxCalculation.unitPrice,
+          product.taxCode,
+          product.taxName,
+          product.taxType,
+          product.taxRate ?? "0.0000",
+          Boolean(product.priceIncludesTax),
+          taxCalculation.unitNetPrice,
+          taxCalculation.unitTaxAmount,
           item.notes,
         ],
       );

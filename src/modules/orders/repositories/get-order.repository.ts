@@ -3,6 +3,7 @@ import type { RowDataPacket } from "mysql2/promise";
 import { databasePool } from "../../../database/pool";
 import type { ProductFulfillmentMode } from "../../products/product.types";
 import type { KitchenWorkflowMode } from "../../kitchen-settings/kitchen-settings.types";
+import type { TaxType } from "../../tax-classes/tax-class.types";
 import type {
   OrderDetail,
   OrderItemDetail,
@@ -22,6 +23,8 @@ type OrderDetailRow = RowDataPacket & {
   customerCount: number | null;
   notes: string | null;
   subtotal: string;
+  netSubtotal: string;
+  taxTotal: string;
   confirmedAt: Date | null;
   deliveredAt: Date | null;
   closedAt: Date | null;
@@ -46,6 +49,16 @@ type OrderItemDetailRow = RowDataPacket & {
   productName: string;
   quantity: number;
   unitPrice: string;
+  taxClassId: string | null;
+  taxCode: string | null;
+  taxName: string | null;
+  taxType: TaxType | null;
+  taxRate: string;
+  priceIncludesTax: number;
+  unitNetPrice: string;
+  unitTaxAmount: string;
+  lineNetTotal: string;
+  lineTaxTotal: string;
   lineTotal: string;
   notes: string | null;
   status: OrderItemStatus;
@@ -67,6 +80,16 @@ const mapOrderItemDetailRow = (row: OrderItemDetailRow): OrderItemDetail => ({
   productName: row.productName,
   quantity: row.quantity,
   unitPrice: row.unitPrice,
+  taxClassId: row.taxClassId,
+  taxCode: row.taxCode,
+  taxName: row.taxName,
+  taxType: row.taxType,
+  taxRate: row.taxRate,
+  priceIncludesTax: Boolean(row.priceIncludesTax),
+  unitNetPrice: row.unitNetPrice,
+  unitTaxAmount: row.unitTaxAmount,
+  lineNetTotal: row.lineNetTotal,
+  lineTaxTotal: row.lineTaxTotal,
   lineTotal: row.lineTotal,
   notes: row.notes,
   status: row.status,
@@ -118,6 +141,39 @@ const findOrderDetailById = async (
             )
             AS CHAR
           ) AS subtotal,
+          CAST(
+            COALESCE(
+              (
+                SELECT SUM(
+                  oi.quantity * oi.unit_net_price
+                )
+                FROM order_items AS oi
+                WHERE
+                  oi.business_id = o.business_id
+                  AND oi.order_id = o.id
+                  AND oi.status = 'ACTIVE'
+              ),
+              0.000000
+            )
+            AS CHAR
+          ) AS netSubtotal,
+
+          CAST(
+            COALESCE(
+              (
+                SELECT SUM(
+                  oi.quantity * oi.unit_tax_amount
+                )
+                FROM order_items AS oi
+                WHERE
+                  oi.business_id = o.business_id
+                  AND oi.order_id = o.id
+                  AND oi.status = 'ACTIVE'
+              ),
+              0.000000
+            )
+            AS CHAR
+          ) AS taxTotal,
           o.confirmed_at AS confirmedAt,
           o.delivered_at AS deliveredAt,
           o.closed_at AS closedAt,
@@ -157,6 +213,22 @@ const findOrderDetailById = async (
             oi.product_name AS productName,
             oi.quantity,
             CAST(oi.unit_price AS CHAR) AS unitPrice,
+            CAST(oi.tax_class_id AS CHAR) AS taxClassId,
+            oi.tax_code AS taxCode,
+            oi.tax_name AS taxName,
+            oi.tax_type AS taxType,
+            CAST(oi.tax_rate AS CHAR) AS taxRate,
+            oi.price_includes_tax AS priceIncludesTax,
+            CAST(oi.unit_net_price AS CHAR) AS unitNetPrice,
+            CAST(oi.unit_tax_amount AS CHAR) AS unitTaxAmount,
+            CAST(
+              oi.quantity * oi.unit_net_price
+              AS CHAR
+            ) AS lineNetTotal,
+            CAST(
+              oi.quantity * oi.unit_tax_amount
+              AS CHAR
+            ) AS lineTaxTotal,
             CAST(oi.quantity * oi.unit_price AS CHAR) AS lineTotal,
             oi.notes,
             oi.status,
@@ -198,6 +270,9 @@ const findOrderDetailById = async (
       customerCount: order.customerCount,
       notes: order.notes,
       subtotal: order.subtotal,
+      netSubtotal: order.netSubtotal,
+      taxTotal: order.taxTotal,
+      total: order.subtotal,
       confirmedAt: order.confirmedAt,
       deliveredAt: order.deliveredAt,
       closedAt: order.closedAt,

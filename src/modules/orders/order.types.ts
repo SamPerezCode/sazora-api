@@ -1,6 +1,7 @@
 import type { LocationType } from "../locations/location.types";
 import type { ProductFulfillmentMode } from "../products/product.types";
 import type { KitchenWorkflowMode } from "../kitchen-settings/kitchen-settings.types";
+import type { TaxType } from "../tax-classes/tax-class.types";
 
 type OrderServiceType = "TABLE" | "TAKEAWAY" | "DELIVERY";
 
@@ -79,12 +80,25 @@ type AddOrderItemsData = Readonly<{
 
 type OrderItemDetail = OrderItem &
   Readonly<{
+    taxClassId: string | null;
+    taxCode: string | null;
+    taxName: string | null;
+    taxType: TaxType | null;
+    taxRate: string;
+    priceIncludesTax: boolean;
+    unitNetPrice: string;
+    unitTaxAmount: string;
+    lineNetTotal: string;
+    lineTaxTotal: string;
     lineTotal: string;
   }>;
 
 type OrderDetail = Order &
   Readonly<{
     subtotal: string;
+    netSubtotal: string;
+    taxTotal: string;
+    total: string;
     items: readonly OrderItemDetail[];
   }>;
 
