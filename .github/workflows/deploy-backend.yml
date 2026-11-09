@@ -1,0 +1,101 @@
+name: Desplegar backend en producción
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: backend-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    env:
+      AWS_REGION: us-west-2
+      ECR_REGISTRY: 828573071368.dkr.ecr.us-west-2.amazonaws.com
+      ECR_REPOSITORY: lemokaicoffe-backend
+      INSTANCE_ID: i-084831b50c0cb2f1a
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Autenticarse en AWS
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: arn:aws:iam::828573071368:role/lemokaicoffe-github-backend-prod
+          aws-region: us-west-2
+
+      - name: Construir y publicar la imagen
+        run: |
+          image="$ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA"
+
+          existing=$(aws ecr batch-get-image \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-ids "imageTag=$GITHUB_SHA" \
+            --query 'length(images)' --output text)
+
+          if [[ "$existing" == "1" ]]; then
+            echo "La imagen de este commit ya existe en ECR."
+            exit 0
+          fi
+
+          aws ecr get-login-password |
+            docker login --username AWS --password-stdin "$ECR_REGISTRY"
+          docker build --platform linux/amd64 --tag "$image" .
+          docker push "$image"
+
+      - name: Desplegar en EC2 y esperar el resultado
+        run: |
+          command_id=$(aws ssm send-command \
+            --document-name Lemokaicoffe-DeployBackend \
+            --instance-ids "$INSTANCE_ID" \
+            --parameters "ImageTag=$GITHUB_SHA" \
+            --timeout-seconds 120 \
+            --query 'Command.CommandId' --output text)
+          echo "Comando de Systems Manager: $command_id"
+
+          invocation=(--command-id "$command_id" --instance-id "$INSTANCE_ID")
+          error_file="$RUNNER_TEMP/ssm-error.txt"
+
+          for attempt in {1..150}; do
+            if status=$(aws ssm get-command-invocation "${invocation[@]}" \
+              --query 'Status' --output text 2>"$error_file"); then
+              case "$status" in
+                Success)
+                  aws ssm get-command-invocation "${invocation[@]}" \
+                    --query 'StandardOutputContent' --output text
+                  exit 0
+                  ;;
+                Pending|InProgress|Delayed|Cancelling)
+                  ;;
+                *)
+                  aws ssm get-command-invocation "${invocation[@]}" \
+                    --query '{Estado:StatusDetails,Salida:StandardOutputContent,Error:StandardErrorContent}' \
+                    --output json
+                  exit 1
+                  ;;
+              esac
+            elif [[ "$(<"$error_file")" != *InvocationDoesNotExist* ]]; then
+              cat "$error_file" >&2
+              exit 1
+            fi
+            sleep 5
+          done
+
+          echo "Se agotó la espera del comando $command_id. Revisa su estado en Systems Manager." >&2
+          exit 1
+
+      - name: Verificar la API por HTTPS
+        run: |
+          curl --fail --silent --show-error --retry 3 --max-time 10 \
+            --output /dev/null \
+            'https://api.lemokaicoffe.com.co/socket.io/?EIO=4&transport=polling'
