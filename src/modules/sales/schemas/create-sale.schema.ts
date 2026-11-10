@@ -58,9 +58,15 @@ const createSaleSchema = z
   })
   .strict();
 
+const saleIdParamsSchema = z
+  .object({
+    saleId: databaseIdSchema,
+  })
+  .strict();
+
 type CreateSaleInput = z.infer<typeof createSaleSchema>;
 type SalePaymentInput = z.infer<typeof salePaymentSchema>;
 
-export { createSaleSchema };
+export { createSaleSchema, saleIdParamsSchema };
 
 export type { CreateSaleInput, SalePaymentInput };
