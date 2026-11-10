@@ -43,10 +43,18 @@ interface CashSessionFilters {
   status?: CashSessionStatus;
 }
 
+interface CloseCashSessionData {
+  cashSessionId: string;
+  closedByMembershipId: string;
+  countedCashAmount: string;
+  closingNotes: string | null;
+}
+
 export type {
   CashSession,
   CashSessionEmployee,
   CashSessionFilters,
   CashSessionStatus,
+  CloseCashSessionData,
   OpenCashSessionData,
 };

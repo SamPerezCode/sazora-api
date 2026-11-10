@@ -10,6 +10,10 @@ import {
 } from "../repositories/cash-session.repository";
 import type { OpenCashSessionInput } from "../schemas/cash-session.schema";
 
+import type { CloseCashSessionInput } from "../schemas/cash-session.schema";
+import { closeCashSession as closeCashSessionRecord } from "../repositories/close-cash-session.repository";
+import { findCashSessionById } from "../repositories/cash-session.repository";
+
 const listCashSessions = async (
   businessId: string,
   filters: CashSessionFilters,
@@ -66,4 +70,51 @@ const openCashSession = async (
   }
 };
 
-export { listCashSessions, openCashSession };
+const closeCashSession = async (
+  businessId: string,
+  membershipId: string,
+  cashSessionId: string,
+  input: CloseCashSessionInput,
+): Promise<CashSession> => {
+  const result = await closeCashSessionRecord(businessId, {
+    cashSessionId,
+    closedByMembershipId: membershipId,
+    countedCashAmount: input.countedCashAmount,
+    closingNotes: input.closingNotes,
+  });
+
+  switch (result.kind) {
+    case "CLOSED": {
+      const cashSession = await findCashSessionById(businessId, cashSessionId);
+
+      if (!cashSession) {
+        throw new Error("No fue posible recuperar el turno de caja cerrado");
+      }
+
+      return cashSession;
+    }
+
+    case "CASH_SESSION_NOT_FOUND":
+      throw new AppError(
+        "El turno de caja no existe",
+        404,
+        "CASH_SESSION_NOT_FOUND",
+      );
+
+    case "CASH_SESSION_NOT_OPEN":
+      throw new AppError(
+        "El turno de caja ya está cerrado",
+        409,
+        "CASH_SESSION_NOT_OPEN",
+      );
+
+    case "NEGATIVE_EXPECTED_CASH":
+      throw new AppError(
+        `El efectivo esperado no puede ser negativo: ${result.expectedCashAmount}`,
+        409,
+        "NEGATIVE_EXPECTED_CASH",
+      );
+  }
+};
+
+export { closeCashSession, listCashSessions, openCashSession };

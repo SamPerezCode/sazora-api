@@ -3,14 +3,20 @@ import type { RequestHandler } from "express";
 import type { AuthenticatedSession } from "../../auth/auth.types";
 import { findCashRegisterById } from "../../cash-registers/repositories/cash-register.repository";
 import { AppError } from "../../../shared/errors/app-error";
+
 import {
-  cashSessionQuerySchema,
-  openCashSessionSchema,
-} from "../schemas/cash-session.schema";
-import {
+  closeCashSession,
   listCashSessions,
   openCashSession,
 } from "../services/cash-session.service";
+import {
+  cashSessionIdParamsSchema,
+  cashSessionQuerySchema,
+  closeCashSessionSchema,
+  openCashSessionSchema,
+} from "../schemas/cash-session.schema";
+
+import { findCashSessionById } from "../repositories/cash-session.repository";
 
 const requireAuth = (
   request: Parameters<RequestHandler>[0],
@@ -122,4 +128,42 @@ const openCashSessionController: RequestHandler = async (request, response) => {
   });
 };
 
-export { listCashSessionsController, openCashSessionController };
+const closeCashSessionController: RequestHandler = async (
+  request,
+  response,
+) => {
+  const auth = requireAuth(request);
+
+  const { cashSessionId } = cashSessionIdParamsSchema.parse(request.params);
+
+  const input = closeCashSessionSchema.parse(request.body);
+
+  const currentCashSession = await findCashSessionById(
+    auth.businessId,
+    cashSessionId,
+  );
+
+  if (currentCashSession) {
+    assertLocationAccess(auth, currentCashSession.cashRegister.locationId);
+  }
+
+  const cashSession = await closeCashSession(
+    auth.businessId,
+    auth.membershipId,
+    cashSessionId,
+    input,
+  );
+
+  response.status(200).json({
+    status: "success",
+    data: {
+      cashSession,
+    },
+  });
+};
+
+export {
+  closeCashSessionController,
+  listCashSessionsController,
+  openCashSessionController,
+};

@@ -43,9 +43,29 @@ const cashSessionQuerySchema = z
   })
   .strict();
 
+const cashSessionIdParamsSchema = z
+  .object({
+    cashSessionId: databaseIdSchema,
+  })
+  .strict();
+
+const closeCashSessionSchema = z
+  .object({
+    countedCashAmount: cashAmountSchema,
+    closingNotes: nullableNotesSchema,
+  })
+  .strict();
+
+type CloseCashSessionInput = z.infer<typeof closeCashSessionSchema>;
+
 type OpenCashSessionInput = z.infer<typeof openCashSessionSchema>;
 type CashSessionQuery = z.infer<typeof cashSessionQuerySchema>;
 
-export { cashSessionQuerySchema, openCashSessionSchema };
+export {
+  cashSessionIdParamsSchema,
+  cashSessionQuerySchema,
+  closeCashSessionSchema,
+  openCashSessionSchema,
+};
 
-export type { CashSessionQuery, OpenCashSessionInput };
+export type { CashSessionQuery, CloseCashSessionInput, OpenCashSessionInput };
