@@ -7,6 +7,9 @@ import type { OrderStatus } from "../order.types";
 import { deductOrderInventory } from "./deduct-order-inventory.repository";
 import type { KitchenWorkflowMode } from "../../kitchen-settings/kitchen-settings.types";
 
+import { consumeOrderReservations } from "../../inventory-reservatios/repositories/inventory-reservation.repository";
+import { reserveOrderItemInventoryOrThrow } from "../../inventory-reservatios/repositories/order-item-reservation.repository";
+
 type OrderStateRow = RowDataPacket & {
   status: OrderStatus;
   locationId: string;
@@ -18,6 +21,8 @@ type KitchenWorkflowRow = RowDataPacket & {
 
 type OrderItemToConfirmRow = RowDataPacket & {
   id: string;
+  productId: string;
+  quantity: number;
   preparationAreaId: string;
   fulfillmentMode: ProductFulfillmentMode;
   preparationAreaIsActive: number;
@@ -135,11 +140,12 @@ const confirmOrder = async (
     const [orderItemRows] = await connection.execute<OrderItemToConfirmRow[]>(
       `
           SELECT
-            CAST(oi.id AS CHAR) AS id,
-            CAST(oi.preparation_area_id AS CHAR)
-              AS preparationAreaId,
-            oi.fulfillment_mode AS fulfillmentMode,
-            pa.is_active AS preparationAreaIsActive
+          CAST(oi.id AS CHAR) AS id,
+          CAST(oi.product_id AS CHAR) AS productId,
+          oi.quantity,
+          CAST(oi.preparation_area_id AS CHAR) AS preparationAreaId,
+          oi.fulfillment_mode AS fulfillmentMode,
+          pa.is_active AS preparationAreaIsActive
           FROM order_items AS oi
           INNER JOIN preparation_areas AS pa
             ON pa.business_id = oi.business_id
@@ -168,6 +174,17 @@ const confirmOrder = async (
       return {
         kind: "PREPARATION_AREA_INACTIVE",
       };
+    }
+
+    for (const orderItem of orderItemRows) {
+      await reserveOrderItemInventoryOrThrow(connection, businessId, {
+        locationId: order.locationId,
+        orderId,
+        orderItemId: orderItem.id,
+        productId: orderItem.productId,
+        orderQuantity: orderItem.quantity,
+        expiresAt: null,
+      });
     }
 
     const inventoryResult = await deductOrderInventory(
@@ -215,6 +232,8 @@ const confirmOrder = async (
         locationId: inventoryResult.locationId,
       };
     }
+
+    await consumeOrderReservations(connection, businessId, orderId);
 
     const itemsByPreparationArea = new Map<string, OrderItemToConfirmRow[]>();
 

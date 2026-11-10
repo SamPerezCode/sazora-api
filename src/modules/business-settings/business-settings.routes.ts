@@ -5,6 +5,7 @@ import { authenticate } from "../auth/middlewares/authenticate.middleware";
 import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 import {
   getBusinessSettingsController,
+  initializeBusinessSettingsController,
   removeBusinessLogoController,
   updateBusinessLogoController,
   updateBusinessSettingsController,
@@ -17,6 +18,13 @@ businessSettingsRouter.get(
   authenticate,
   authorizePermissions("business.settings.read"),
   getBusinessSettingsController,
+);
+
+businessSettingsRouter.put(
+  "/initialize",
+  authenticate,
+  authorizePermissions("business.settings.manage"),
+  initializeBusinessSettingsController,
 );
 
 businessSettingsRouter.put(

@@ -33,6 +33,11 @@ type BusinessExistsRow = RowDataPacket & {
   id: string;
 };
 
+type InitializeBusinessSettingsResult = Readonly<{
+  settings: BusinessSettings;
+  created: boolean;
+}>;
+
 const mapBusinessSettingsRow = (
   row: BusinessSettingsRow,
 ): BusinessSettings => ({
@@ -98,6 +103,71 @@ const findBusinessSettingsByBusinessId = async (
   return settings ? mapBusinessSettingsRow(settings) : null;
 };
 
+const initializeBusinessSettings = async (
+  businessId: string,
+): Promise<InitializeBusinessSettingsResult | null> => {
+  const connection = await databasePool.getConnection();
+  let created: boolean | undefined;
+
+  try {
+    await connection.beginTransaction();
+
+    const [businessRows] = await connection.execute<BusinessExistsRow[]>(
+      `
+        SELECT CAST(id AS CHAR) AS id
+        FROM businesses
+        WHERE id = ?
+        LIMIT 1
+        FOR UPDATE
+      `,
+      [businessId],
+    );
+
+    if (!businessRows[0]) {
+      await connection.rollback();
+      return null;
+    }
+
+    const [insertResult] = await connection.execute<ResultSetHeader>(
+      `
+        INSERT IGNORE INTO business_settings (
+          business_id
+        )
+        VALUES (?)
+      `,
+      [businessId],
+    );
+
+    created = insertResult.affectedRows === 1;
+
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+
+  if (created === undefined) {
+    throw new Error(
+      "No fue posible determinar el resultado de la inicialización",
+    );
+  }
+
+  const settings = await findBusinessSettingsByBusinessId(businessId);
+
+  if (!settings) {
+    throw new Error(
+      "No fue posible recuperar la configuración inicializada del negocio",
+    );
+  }
+
+  return {
+    settings,
+    created,
+  };
+};
+
 const updateBusinessSettings = async (
   businessId: string,
   data: UpdateBusinessSettingsData,
@@ -122,17 +192,6 @@ const updateBusinessSettings = async (
       await connection.rollback();
       return null;
     }
-
-    await connection.execute<ResultSetHeader>(
-      `
-        INSERT IGNORE INTO business_settings (
-          business_id,
-          kitchen_ticket_footer
-        )
-        VALUES (?, 'Gracias por tu trabajo en cocina')
-      `,
-      [businessId],
-    );
 
     await connection.execute<ResultSetHeader>(
       `
@@ -207,6 +266,7 @@ const updateBusinessLogo = async (
 
 export {
   findBusinessSettingsByBusinessId,
+  initializeBusinessSettings,
   updateBusinessLogo,
   updateBusinessSettings,
 };

@@ -58,9 +58,24 @@ type UpdateProductData = Readonly<{
   currentPrice: string;
 }>;
 
+type ProductAvailabilityReason = "PRODUCT_INACTIVE" | "OUT_OF_STOCK" | null;
+
+type ProductCommercialAvailability = Readonly<{
+  productId: string;
+  locationId: string;
+  productName: string;
+  currentPrice: string;
+  isInventoryTracked: boolean;
+  maxOrderQuantity: number | null;
+  isAvailable: boolean;
+  unavailableReason: ProductAvailabilityReason;
+}>;
+
 export type {
   CreateProductData,
   Product,
+  ProductCommercialAvailability,
+  ProductAvailabilityReason,
   ProductFulfillmentMode,
   ProductInventoryTrackingType,
   ProductListItem,

@@ -6,6 +6,7 @@ import type { KitchenWorkflowMode } from "../../kitchen-settings/kitchen-setting
 import { formatDateInTimezone } from "../../../shared/dates/local-date";
 import type { TaxType } from "../../tax-classes/tax-class.types";
 import { calculateOrderItemTax } from "../order-tax-calculation";
+import { reserveOrderItemInventoryOrThrow } from "../../inventory-reservatios/repositories/order-item-reservation.repository";
 import type {
   CreateOrderData,
   Order,
@@ -476,6 +477,15 @@ const createOrder = async (
           item.notes,
         ],
       );
+
+      await reserveOrderItemInventoryOrThrow(connection, businessId, {
+        locationId: data.locationId,
+        orderId,
+        orderItemId,
+        productId: product.id,
+        orderQuantity: item.quantity,
+        expiresAt: null,
+      });
     }
 
     const [orderRows] = await connection.execute<OrderRow[]>(

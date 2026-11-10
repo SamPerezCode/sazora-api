@@ -5,6 +5,8 @@ import type { KitchenPreparationStatus } from "../../kitchen-tickets/kitchen-tic
 import type { OrderStatus } from "../order.types";
 import { reverseOrderItemInventory } from "./reverse-order-item-inventory.repository";
 
+import { releaseOrderReservations } from "../../inventory-reservatios/repositories/inventory-reservation.repository";
+
 type CancellableOrderStatus = "OPEN" | "CONFIRMED";
 
 type OrderStateRow = RowDataPacket & {
@@ -122,6 +124,9 @@ const cancelOrder = async (
       [businessId, orderId],
     );
 
+    if (previousStatus === "OPEN") {
+      await releaseOrderReservations(connection, businessId, orderId, reason);
+    }
     let confirmedKitchenItemRows: ConfirmedKitchenItemRow[] = [];
 
     const inventoryReversalMovementIdByOrderItemId = new Map<

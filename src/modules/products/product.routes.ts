@@ -5,6 +5,7 @@ import { catalogImageWithFieldsUpload } from "../../shared/images/catalog-image-
 import { authenticate } from "../auth/middlewares/authenticate.middleware";
 import { configureProductInventoryController } from "../product-inventory-links/controllers/configure-product-inventory.controller";
 import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
+import { getProductAvailabilityController } from "./controllers/product-availability.controller";
 
 import {
   createComboProductController,
@@ -22,6 +23,13 @@ import {
 } from "./controllers/product.controller";
 
 const productRouter = Router();
+
+productRouter.get(
+  "/availability",
+  authenticate,
+  authorizePermissions("catalog.read"),
+  getProductAvailabilityController,
+);
 
 productRouter.get(
   "/",

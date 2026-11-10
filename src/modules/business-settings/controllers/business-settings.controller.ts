@@ -6,6 +6,7 @@ import { getBusinessSettings } from "../services/get-business-settings.service";
 import { removeBusinessLogoReference } from "../services/remove-business-logo.service";
 import { replaceBusinessLogo } from "../services/update-business-logo.service";
 import { updateBusinessSettings } from "../services/update-business-settings.service";
+import { initializeBusinessSettings } from "../services/initialize-business-settings.service";
 
 const getBusinessSettingsController: RequestHandler = async (
   request,
@@ -25,6 +26,29 @@ const getBusinessSettingsController: RequestHandler = async (
     status: "success",
     data: {
       settings,
+    },
+  });
+};
+
+const initializeBusinessSettingsController: RequestHandler = async (
+  request,
+  response,
+) => {
+  if (!request.auth) {
+    throw new AppError(
+      "Se requiere autenticación",
+      401,
+      "AUTHENTICATION_REQUIRED",
+    );
+  }
+
+  const result = await initializeBusinessSettings(request.auth.businessId);
+
+  response.status(result.created ? 201 : 200).json({
+    status: "success",
+    data: {
+      settings: result.settings,
+      created: result.created,
     },
   });
 };
@@ -110,6 +134,7 @@ const removeBusinessLogoController: RequestHandler = async (
 
 export {
   getBusinessSettingsController,
+  initializeBusinessSettingsController,
   removeBusinessLogoController,
   updateBusinessLogoController,
   updateBusinessSettingsController,

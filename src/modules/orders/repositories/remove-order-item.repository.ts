@@ -3,6 +3,8 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { databasePool } from "../../../database/pool";
 import type { OrderStatus } from "../order.types";
 
+import { releaseOrderItemReservations } from "../../inventory-reservatios/repositories/inventory-reservation.repository";
+
 type OrderStateRow = RowDataPacket & {
   status: OrderStatus;
 };
@@ -88,6 +90,13 @@ const removeOrderItem = async (
       };
     }
 
+    await releaseOrderItemReservations(
+      connection,
+      businessId,
+      orderItemId,
+      "Producto retirado de la orden abierta",
+    );
+
     await connection.execute<ResultSetHeader>(
       `
         DELETE FROM order_items
@@ -98,6 +107,8 @@ const removeOrderItem = async (
       `,
       [businessId, orderId, orderItemId],
     );
+
+    await connection.commit();
 
     await connection.commit();
 

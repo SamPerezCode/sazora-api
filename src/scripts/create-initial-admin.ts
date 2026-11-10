@@ -92,6 +92,16 @@ const createInitialAdmin = async (): Promise<void> => {
 
     const businessId = String(businessResult.insertId);
 
+    await connection.execute<ResultSetHeader>(
+      `
+    INSERT INTO business_settings (
+      business_id
+    )
+    VALUES (?)
+  `,
+      [businessId],
+    );
+
     const [userResult] = await connection.execute<ResultSetHeader>(
       `
         INSERT INTO users (full_name, email, password_hash)

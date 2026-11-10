@@ -457,6 +457,38 @@ const releaseOrderReservations = async (
   return result.affectedRows;
 };
 
+const consumeOrderItemReservations = async (
+  connection: PoolConnection,
+  businessId: string,
+  orderId: string,
+  orderItemIds: readonly string[],
+): Promise<number> => {
+  if (orderItemIds.length === 0) {
+    return 0;
+  }
+
+  const placeholders = orderItemIds.map(() => "?").join(", ");
+
+  const [result] = await connection.execute<ResultSetHeader>(
+    `
+      UPDATE inventory_reservations
+      SET
+        status = 'CONSUMED',
+        consumed_at = CURRENT_TIMESTAMP(3),
+        released_at = NULL,
+        release_reason = NULL
+      WHERE
+        business_id = ?
+        AND order_id = ?
+        AND order_item_id IN (${placeholders})
+        AND status = 'ACTIVE'
+    `,
+    [businessId, orderId, ...orderItemIds],
+  );
+
+  return result.affectedRows;
+};
+
 const consumeOrderReservations = async (
   connection: PoolConnection,
   businessId: string,
@@ -515,6 +547,7 @@ const consumeOrderReservations = async (
 };
 
 export {
+  consumeOrderItemReservations,
   consumeOrderReservations,
   findActiveOrderReservations,
   findOrderItemReservations,

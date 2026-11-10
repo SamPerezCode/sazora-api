@@ -3,6 +3,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { databasePool } from "../../../database/pool";
 import type { ProductFulfillmentMode } from "../../products/product.types";
 import type { TaxType } from "../../tax-classes/tax-class.types";
+import { reserveOrderItemInventoryOrThrow } from "../../inventory-reservatios/repositories/order-item-reservation.repository";
 import type {
   OrderItemDetail,
   OrderItemStatus,
@@ -12,9 +13,11 @@ import type {
 
 type OrderStateRow = RowDataPacket & {
   status: OrderStatus;
+  locationId: string;
 };
 
 type CurrentOrderItemRow = RowDataPacket & {
+  productId: string;
   quantity: number;
   notes: string | null;
 };
@@ -109,7 +112,9 @@ const updateOrderItem = async (
 
     const [orderRows] = await connection.execute<OrderStateRow[]>(
       `
-        SELECT status
+        SELECT
+          status,
+          CAST(location_id AS CHAR) AS locationId
         FROM orders
         WHERE
           business_id = ?
@@ -143,6 +148,7 @@ const updateOrderItem = async (
     >(
       `
           SELECT
+            CAST(product_id AS CHAR) AS productId,
             quantity,
             notes
           FROM order_items
@@ -185,6 +191,15 @@ const updateOrderItem = async (
       `,
       [quantity, notes, businessId, orderId, orderItemId],
     );
+
+    await reserveOrderItemInventoryOrThrow(connection, businessId, {
+      locationId: order.locationId,
+      orderId,
+      orderItemId,
+      productId: currentOrderItem.productId,
+      orderQuantity: quantity,
+      expiresAt: null,
+    });
 
     const [updatedOrderItemRows] = await connection.execute<
       OrderItemDetailRow[]

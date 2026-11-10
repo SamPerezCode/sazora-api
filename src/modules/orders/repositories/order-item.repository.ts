@@ -11,6 +11,9 @@ import type {
 } from "../order.types";
 import { deductOrderInventory } from "./deduct-order-inventory.repository";
 
+import { consumeOrderItemReservations } from "../../inventory-reservatios/repositories/inventory-reservation.repository";
+import { reserveOrderItemInventoryOrThrow } from "../../inventory-reservatios/repositories/order-item-reservation.repository";
+
 import { formatDateInTimezone } from "../../../shared/dates/local-date";
 import type { TaxType } from "../../tax-classes/tax-class.types";
 import { calculateOrderItemTax } from "../order-tax-calculation";
@@ -353,6 +356,15 @@ const addOrderItems = async (
         notes: item.notes,
       });
 
+      await reserveOrderItemInventoryOrThrow(connection, businessId, {
+        locationId: order.locationId,
+        orderId,
+        orderItemId,
+        productId: product.id,
+        orderQuantity: item.quantity,
+        expiresAt: null,
+      });
+
       if (order.status === "CONFIRMED") {
         await connection.execute<ResultSetHeader>(
           `
@@ -587,6 +599,13 @@ const addOrderItems = async (
           locationId: inventoryResult.locationId,
         };
       }
+
+      await consumeOrderItemReservations(
+        connection,
+        businessId,
+        orderId,
+        orderItemIds,
+      );
 
       inventoryChanged = inventoryResult.kind === "DEDUCTED";
     }
