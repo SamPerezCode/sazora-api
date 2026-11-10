@@ -494,8 +494,22 @@ const createSaleRecord = async (
           oi.line_net_total,
           oi.line_tax_total,
           oi.line_total,
-          NULL,
-          NULL
+                    CASE
+            WHEN
+              inventory_cost.movementLineCount IS NOT NULL
+              AND inventory_cost.movementLineCount =
+                inventory_cost.valuedLineCount
+              THEN inventory_cost.costTotal
+            ELSE NULL
+          END,
+          CASE
+            WHEN
+              inventory_cost.movementLineCount IS NOT NULL
+              AND inventory_cost.movementLineCount =
+                inventory_cost.valuedLineCount
+              THEN oi.line_net_total - inventory_cost.costTotal
+            ELSE NULL
+          END
         FROM order_items AS oi
         INNER JOIN products AS p
           ON p.business_id = oi.business_id
@@ -506,6 +520,75 @@ const createSaleRecord = async (
         LEFT JOIN preparation_areas AS pa
           ON pa.business_id = oi.business_id
           AND pa.id = oi.preparation_area_id
+                  LEFT JOIN (
+          SELECT
+            im.business_id AS businessId,
+
+            CASE
+              WHEN im.source_type = 'ORDER_ITEM'
+                THEN im.source_id
+              ELSE SUBSTRING_INDEX(im.source_id, ':', 1)
+            END AS orderItemId,
+
+            COUNT(iml.id) AS movementLineCount,
+
+            SUM(
+              CASE
+                WHEN
+                  iml.cost_status = 'VALUED'
+                  AND iml.total_cost IS NOT NULL
+                  THEN 1
+                ELSE 0
+              END
+            ) AS valuedLineCount,
+
+            SUM(
+              CASE
+                WHEN
+                  im.movement_type = 'SALE'
+                  AND im.source_type = 'ORDER_ITEM'
+                  AND iml.direction = 'OUT'
+                  THEN iml.total_cost
+
+                WHEN
+                  im.movement_type = 'REVERSAL'
+                  AND im.source_type = 'ORDER_ITEM_CANCELLATION'
+                  AND iml.direction = 'IN'
+                  THEN -iml.total_cost
+
+                ELSE 0
+              END
+            ) AS costTotal
+
+          FROM inventory_movements AS im
+
+          INNER JOIN inventory_movement_lines AS iml
+            ON iml.business_id = im.business_id
+            AND iml.movement_id = im.id
+
+          WHERE
+            (
+              im.movement_type = 'SALE'
+              AND im.source_type = 'ORDER_ITEM'
+              AND iml.direction = 'OUT'
+            )
+            OR
+            (
+              im.movement_type = 'REVERSAL'
+              AND im.source_type = 'ORDER_ITEM_CANCELLATION'
+              AND iml.direction = 'IN'
+            )
+
+          GROUP BY
+            im.business_id,
+            CASE
+              WHEN im.source_type = 'ORDER_ITEM'
+                THEN im.source_id
+              ELSE SUBSTRING_INDEX(im.source_id, ':', 1)
+            END
+        ) AS inventory_cost
+          ON inventory_cost.businessId = oi.business_id
+          AND inventory_cost.orderItemId = CAST(oi.id AS CHAR)
         WHERE
           oi.business_id = ?
           AND oi.order_id = ?
