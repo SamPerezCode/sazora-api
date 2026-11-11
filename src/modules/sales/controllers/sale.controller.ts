@@ -21,6 +21,10 @@ import {
 import { getSaleRefund } from "../services/get-sale-refund.service";
 import { getSaleRefunds } from "../services/get-sale-refunds.service";
 
+import { resolveOrderLocationScope } from "../../orders/services/order-location-access.service";
+import { listSalesQuerySchema } from "../schemas/list-sales.schema";
+import { listSales } from "../services/list-sales.service";
+
 const requireAuth = (
   request: Parameters<RequestHandler>[0],
 ): AuthenticatedSession => {
@@ -176,11 +180,26 @@ const getSaleRefundController: RequestHandler = async (request, response) => {
   });
 };
 
+const listSalesController: RequestHandler = async (request, response) => {
+  const auth = requireAuth(request);
+  const query = listSalesQuerySchema.parse(request.query);
+
+  const locationId = resolveOrderLocationScope(auth, query.locationId, false);
+
+  const result = await listSales(auth.businessId, query, locationId);
+
+  response.status(200).json({
+    status: "success",
+    data: result,
+  });
+};
+
 export {
   createSaleController,
   createSaleRefundController,
   getSaleController,
   getSaleRefundController,
   getSaleRefundsController,
+  listSalesController,
   voidSaleController,
 };

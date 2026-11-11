@@ -120,12 +120,81 @@ interface CreateSaleData {
   payments: ResolvedSalePayment[];
 }
 
+interface SaleListItem {
+  id: string;
+  businessId: string;
+  locationId: string;
+  orderId: string;
+  cashSessionId: string;
+  commercialCustomerId: string | null;
+  customerName: string | null;
+  soldByMembershipId: string;
+  soldBy: SaleEmployee;
+  location: SaleLocation;
+  status: SaleStatus;
+  currencyCode: string;
+
+  itemCount: number;
+  unitsSold: number;
+
+  netSubtotal: string;
+  taxTotal: string;
+  discountTotal: string;
+  tipTotal: string;
+  total: string;
+  paidTotal: string;
+  changeTotal: string;
+
+  refundCount: number;
+  refundedNetAmount: string;
+  refundedTaxAmount: string;
+  refundedTotalAmount: string;
+
+  voidedAmount: string;
+  effectiveNetAmount: string;
+  effectiveTaxAmount: string;
+  effectiveTotalAmount: string;
+
+  voidedByMembershipId: string | null;
+  voidedBy: SaleEmployee | null;
+  voidReason: string | null;
+  voidedAt: Date | null;
+
+  soldAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface ListSalesFilters {
+  locationId?: string;
+  cashSessionId?: string;
+  status?: SaleStatus;
+  from?: Date;
+  to?: Date;
+  page: number;
+  pageSize: number;
+}
+
+interface SaleListResult {
+  sales: SaleListItem[];
+
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export type {
   CreateSaleData,
+  ListSalesFilters,
   ResolvedSalePayment,
   Sale,
   SaleEmployee,
   SaleItem,
+  SaleListItem,
+  SaleListResult,
   SaleLocation,
   SalePayment,
   SaleStatus,

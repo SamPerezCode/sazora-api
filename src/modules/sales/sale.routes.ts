@@ -8,10 +8,18 @@ import {
   getSaleController,
   getSaleRefundController,
   getSaleRefundsController,
+  listSalesController,
   voidSaleController,
 } from "./controllers/sale.controller";
 
 const saleRouter = Router();
+
+saleRouter.get(
+  "/",
+  authenticate,
+  authorizePermissions("orders.read"),
+  listSalesController,
+);
 
 saleRouter.post(
   "/",
