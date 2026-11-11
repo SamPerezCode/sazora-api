@@ -263,6 +263,7 @@ const voidSaleRecord = async (
             INSERT INTO sale_void_payments (
               business_id,
               sale_id,
+              cash_session_id,
               sale_payment_id,
               processed_by_membership_id,
               cash_movement_id,
@@ -275,13 +276,14 @@ const voidSaleRecord = async (
               reason
             )
             VALUES (
-              ?, ?, ?, ?, NULL,
+              ?, ?, ?, ?, ?, NULL,
               ?, ?, ?, ?, ?, ?, ?
             )
           `,
         [
           businessId,
           saleId,
+          cashSessionId,
           payment.id,
           membershipId,
           payment.paymentMethodCode,

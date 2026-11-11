@@ -4,6 +4,7 @@ import { authenticate } from "../auth/middlewares/authenticate.middleware";
 import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 import {
   closeCashSessionController,
+  getCashSessionReconciliationController,
   listCashSessionsController,
   openCashSessionController,
 } from "./controllers/cash-session.controller";
@@ -22,6 +23,12 @@ cashSessionRouter.post(
   "/open",
   authorizePermissions("cash.sessions.open"),
   openCashSessionController,
+);
+
+cashSessionRouter.get(
+  "/:cashSessionId/reconciliation",
+  authorizePermissions("cash.sessions.read"),
+  getCashSessionReconciliationController,
 );
 
 cashSessionRouter.post(

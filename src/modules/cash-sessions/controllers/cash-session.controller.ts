@@ -17,6 +17,7 @@ import {
 } from "../schemas/cash-session.schema";
 
 import { findCashSessionById } from "../repositories/cash-session.repository";
+import { getCashSessionReconciliation } from "../services/cash-session-reconciliation.service";
 
 const requireAuth = (
   request: Parameters<RequestHandler>[0],
@@ -162,8 +163,30 @@ const closeCashSessionController: RequestHandler = async (
   });
 };
 
+const getCashSessionReconciliationController: RequestHandler = async (
+  request,
+  response,
+) => {
+  const auth = requireAuth(request);
+
+  const { cashSessionId } = cashSessionIdParamsSchema.parse(request.params);
+
+  const reconciliation = await getCashSessionReconciliation(
+    auth,
+    cashSessionId,
+  );
+
+  response.status(200).json({
+    status: "success",
+    data: {
+      reconciliation,
+    },
+  });
+};
+
 export {
   closeCashSessionController,
+  getCashSessionReconciliationController,
   listCashSessionsController,
   openCashSessionController,
 };
