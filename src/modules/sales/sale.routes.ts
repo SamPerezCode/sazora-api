@@ -4,7 +4,11 @@ import { authenticate } from "../auth/middlewares/authenticate.middleware";
 import { authorizePermissions } from "../auth/middlewares/authorize-permissions.middleware";
 import {
   createSaleController,
+  createSaleRefundController,
   getSaleController,
+  getSaleRefundController,
+  getSaleRefundsController,
+  voidSaleController,
 } from "./controllers/sale.controller";
 
 const saleRouter = Router();
@@ -14,6 +18,34 @@ saleRouter.post(
   authenticate,
   authorizePermissions("orders.close"),
   createSaleController,
+);
+
+saleRouter.post(
+  "/:saleId/void",
+  authenticate,
+  authorizePermissions("sales.void"),
+  voidSaleController,
+);
+
+saleRouter.post(
+  "/:saleId/refunds",
+  authenticate,
+  authorizePermissions("sales.refunds.create"),
+  createSaleRefundController,
+);
+
+saleRouter.get(
+  "/:saleId/refunds",
+  authenticate,
+  authorizePermissions("sales.refunds.read"),
+  getSaleRefundsController,
+);
+
+saleRouter.get(
+  "/:saleId/refunds/:refundId",
+  authenticate,
+  authorizePermissions("sales.refunds.read"),
+  getSaleRefundController,
 );
 
 saleRouter.get(
