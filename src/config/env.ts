@@ -2,6 +2,24 @@ import { config } from "dotenv";
 import { z } from "zod";
 
 config({ quiet: true });
+const clientOriginsSchema = z.preprocess(
+  (value) => {
+    const rawValue =
+      typeof value === "string" && value.trim()
+        ? value
+        : "http://localhost:5173";
+
+    return rawValue
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean);
+  },
+  z
+    .array(
+      z.string().url("Cada origen de CLIENT_ORIGIN debe ser una URL válida"),
+    )
+    .min(1, "CLIENT_ORIGIN debe contener al menos un origen"),
+);
 
 const environmentSchema = z.object({
   NODE_ENV: z
@@ -51,10 +69,7 @@ const environmentSchema = z.object({
     .string()
     .url("PASSWORD_RESET_URL_BASE debe ser una URL válida"),
 
-  CLIENT_ORIGIN: z
-    .string()
-    .url("CLIENT_ORIGIN debe ser una URL válida")
-    .default("http://localhost:5173"),
+  CLIENT_ORIGIN: clientOriginsSchema,
 });
 
 const environment = environmentSchema.parse(process.env);
