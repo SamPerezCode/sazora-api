@@ -6600,11 +6600,18 @@ VALUES
         'Cancelar pedidos',
         'Permite cancelar pedidos o cantidades de productos.'
     ),
+
     (
         'orders.close',
         'orders',
         'Cerrar pedidos',
         'Permite cerrar y entregar pedidos.'
+    ),
+        (
+        'kitchen.dashboard.read',
+        'kitchen',
+        'Acceder al tablero de cocina',
+        'Permite acceder a la pantalla operativa del tablero de Cocina.'
     ),
 
     (
@@ -7004,13 +7011,15 @@ SELECT
     p.id
 FROM roles AS r
 INNER JOIN permissions AS p
-    ON p.code IN (
-        'catalog.read',
-        'kitchen.settings.read',
-        'kitchen.tickets.read',
-        'kitchen.tickets.update',
-        'kitchen.tickets.print'
-    )
+  ON p.code IN (
+      'catalog.read',
+      'kitchen.dashboard.read',
+      'kitchen.settings.read',
+      'kitchen.tickets.read',
+      'kitchen.tickets.update',
+      'kitchen.tickets.print'
+  )
+
 WHERE
     r.code = 'KITCHEN'
     AND r.is_active = TRUE
