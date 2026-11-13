@@ -7,15 +7,10 @@ type BusinessRoleCode =
   | "PUBLIC_ORDER_MANAGER"
   | "DELIVERY_DRIVER"
   | "PRODUCTION"
+  | "CASHIER"
   | "INVENTORY_MANAGER";
 
-type AssignableEmployeeRoleCode =
-  | "WAITER"
-  | "KITCHEN"
-  | "PUBLIC_ORDER_MANAGER"
-  | "DELIVERY_DRIVER"
-  | "PRODUCTION"
-  | "INVENTORY_MANAGER";
+type AssignableEmployeeRoleCode = BusinessRoleCode;
 
 type Employee = Readonly<{
   userId: string;

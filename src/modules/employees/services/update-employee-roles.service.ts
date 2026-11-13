@@ -32,11 +32,11 @@ const updateEmployeeRoles = async (
         "EMPLOYEE_NOT_FOUND",
       );
 
-    case "ADMIN_MEMBERSHIP_NOT_EDITABLE":
+    case "LAST_ACTIVE_ADMIN_ROLE_REMOVAL_NOT_ALLOWED":
       throw new AppError(
-        "Los roles de una membresía administrativa no pueden modificarse desde este endpoint",
+        "No puedes retirar el rol ADMIN al último administrador activo del negocio",
         409,
-        "ADMIN_MEMBERSHIP_ROLES_NOT_EDITABLE",
+        "LAST_ACTIVE_ADMIN_ROLE_REMOVAL_NOT_ALLOWED",
       );
 
     case "ROLE_NOT_AVAILABLE":

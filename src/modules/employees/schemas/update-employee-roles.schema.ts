@@ -5,16 +5,18 @@ const updateEmployeeRolesSchema = z
     roles: z
       .array(
         z.enum([
+          "ADMIN",
           "WAITER",
           "KITCHEN",
           "PUBLIC_ORDER_MANAGER",
           "DELIVERY_DRIVER",
           "PRODUCTION",
+          "CASHIER",
           "INVENTORY_MANAGER",
         ]),
       )
       .min(1, "Debes asignar al menos un rol")
-      .max(5, "No puedes asignar más de cinco roles")
+      .max(8, "No puedes asignar más de ocho roles")
       .transform((roles) => [...new Set(roles)]),
   })
   .strict();

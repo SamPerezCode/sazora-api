@@ -3,11 +3,15 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { databasePool } from "../../../database/pool";
 import type { AssignableEmployeeRoleCode } from "../employee.types";
 
+type BusinessRow = RowDataPacket & {
+  id: string;
+};
+
 type MembershipRow = RowDataPacket & {
   id: string;
 };
 
-type AdminRoleRow = RowDataPacket & {
+type ActiveAdminRoleRow = RowDataPacket & {
   id: string;
 };
 
@@ -24,7 +28,7 @@ type ReplaceEmployeeRolesResult =
       kind: "MEMBERSHIP_NOT_FOUND";
     }>
   | Readonly<{
-      kind: "ADMIN_MEMBERSHIP_NOT_EDITABLE";
+      kind: "LAST_ACTIVE_ADMIN_ROLE_REMOVAL_NOT_ALLOWED";
     }>
   | Readonly<{
       kind: "ROLE_NOT_AVAILABLE";
@@ -40,10 +44,33 @@ const replaceEmployeeRoles = async (
   try {
     await connection.beginTransaction();
 
+    /*
+     * El bloqueo del negocio serializa las modificaciones de roles.
+     * Esto evita que dos administradores sean degradados al mismo tiempo
+     * y que ambas operaciones crean que todavía existe otro administrador.
+     */
+    const [businessRows] = await connection.execute<BusinessRow[]>(
+      `
+        SELECT CAST(id AS CHAR) AS id
+        FROM businesses
+        WHERE id = ?
+        LIMIT 1
+        FOR UPDATE
+      `,
+      [businessId],
+    );
+
+    if (!businessRows[0]) {
+      await connection.rollback();
+
+      return {
+        kind: "MEMBERSHIP_NOT_FOUND",
+      };
+    }
+
     const [membershipRows] = await connection.execute<MembershipRow[]>(
       `
-        SELECT
-          CAST(id AS CHAR) AS id
+        SELECT CAST(id AS CHAR) AS id
         FROM business_memberships
         WHERE
           business_id = ?
@@ -62,29 +89,71 @@ const replaceEmployeeRoles = async (
       };
     }
 
-    const [adminRoleRows] = await connection.execute<AdminRoleRow[]>(
+    /*
+     * Determinar si la membresía seleccionada representa actualmente
+     * a un administrador activo.
+     */
+    const [currentAdminRows] = await connection.execute<ActiveAdminRoleRow[]>(
       `
-        SELECT
-          CAST(bmr.id AS CHAR) AS id
-        FROM business_membership_roles AS bmr
-        INNER JOIN roles AS r
-          ON r.id = bmr.role_id
-        WHERE
-          bmr.business_membership_id = ?
-          AND bmr.is_active = TRUE
-          AND r.is_active = TRUE
-          AND r.code = 'ADMIN'
-        LIMIT 1
-      `,
-      [employeeMembershipId],
+          SELECT CAST(bmr.id AS CHAR) AS id
+          FROM business_membership_roles AS bmr
+          INNER JOIN roles AS r
+            ON r.id = bmr.role_id
+          INNER JOIN business_memberships AS bm
+            ON bm.id = bmr.business_membership_id
+          INNER JOIN users AS u
+            ON u.id = bm.user_id
+          WHERE
+            bm.business_id = ?
+            AND bm.id = ?
+            AND bm.is_active = TRUE
+            AND u.is_active = TRUE
+            AND bmr.is_active = TRUE
+            AND r.is_active = TRUE
+            AND r.code = 'ADMIN'
+          LIMIT 1
+        `,
+      [businessId, employeeMembershipId],
     );
 
-    if (adminRoleRows[0]) {
-      await connection.rollback();
+    const isRemovingAdminRole =
+      Boolean(currentAdminRows[0]) && !roles.includes("ADMIN");
 
-      return {
-        kind: "ADMIN_MEMBERSHIP_NOT_EDITABLE",
-      };
+    if (isRemovingAdminRole) {
+      /*
+       * Antes de retirar ADMIN, debe existir otro administrador activo
+       * perteneciente al mismo negocio.
+       */
+      const [otherAdminRows] = await connection.execute<ActiveAdminRoleRow[]>(
+        `
+            SELECT CAST(bmr.id AS CHAR) AS id
+            FROM business_membership_roles AS bmr
+            INNER JOIN roles AS r
+              ON r.id = bmr.role_id
+            INNER JOIN business_memberships AS bm
+              ON bm.id = bmr.business_membership_id
+            INNER JOIN users AS u
+              ON u.id = bm.user_id
+            WHERE
+              bm.business_id = ?
+              AND bm.id <> ?
+              AND bm.is_active = TRUE
+              AND u.is_active = TRUE
+              AND bmr.is_active = TRUE
+              AND r.is_active = TRUE
+              AND r.code = 'ADMIN'
+            LIMIT 1
+          `,
+        [businessId, employeeMembershipId],
+      );
+
+      if (!otherAdminRows[0]) {
+        await connection.rollback();
+
+        return {
+          kind: "LAST_ACTIVE_ADMIN_ROLE_REMOVAL_NOT_ALLOWED",
+        };
+      }
     }
 
     const rolePlaceholders = roles.map(() => "?").join(", ");
