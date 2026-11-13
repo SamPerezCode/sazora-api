@@ -80,6 +80,14 @@ const createPublicOrderRequest = async (
     );
   }
 
+  if (result.kind === "LOCATION_NOT_AVAILABLE") {
+    throw new AppError(
+      "El punto de venta seleccionado no está disponible",
+      409,
+      "PUBLIC_ORDER_LOCATION_NOT_AVAILABLE",
+    );
+  }
+
   if (result.kind === "PRODUCTS_NOT_AVAILABLE") {
     throw new AppError(
       `Algunos productos ya no están disponibles: ${result.productIds.join(", ")}`,

@@ -42,6 +42,10 @@ const createPublicOrderRequestController: RequestHandler = async (
         publicCode: createdRequest.publicCode,
         status: createdRequest.status,
         serviceType: createdRequest.serviceType,
+        location: {
+          id: createdRequest.locationId,
+          name: createdRequest.locationName,
+        },
         subtotal: createdRequest.subtotal,
         createdAt: createdRequest.createdAt,
       },

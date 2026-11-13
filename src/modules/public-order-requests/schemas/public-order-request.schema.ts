@@ -16,6 +16,8 @@ const optionalText = (maximumLength: number) =>
 
 const createPublicOrderRequestSchema = z
   .object({
+    locationId: databaseIdSchema,
+
     serviceType: z.enum(["DELIVERY", "TAKEAWAY"]),
 
     customerName: z

@@ -13,6 +13,7 @@ import { findPublicOrderRequestById } from "./public-order-request.repository";
 
 type RequestStateRow = RowDataPacket & {
   status: PublicOrderRequestStatus;
+  locationId: string;
   serviceType: PublicOrderRequestServiceType;
   notes: string | null;
 };
@@ -74,6 +75,7 @@ const markPublicOrderRequestContacted = async (
       `
         SELECT
           status,
+          CAST(location_id AS CHAR) AS locationId,
           service_type AS serviceType,
           notes
         FROM public_order_requests
@@ -254,9 +256,13 @@ const acceptPublicOrderRequestRecord = async (
             service_type AS serviceType,
             notes
           FROM public_order_requests
+          INNER JOIN preparation_area_locations AS pal
+            ON pal.business_id = p.business_id
+            AND pal.preparation_area_id = p.preparation_area_id
           WHERE
             business_id = ?
             AND id = ?
+            AND pal.location_id = ?
           LIMIT 1
           FOR UPDATE
         `,
@@ -333,18 +339,20 @@ const acceptPublicOrderRequestRecord = async (
 
     const [orderResult] = await connection.execute<ResultSetHeader>(
       `
-          INSERT INTO orders (
-            business_id,
-            restaurant_table_id,
-            opened_by_membership_id,
-            service_type,
-            customer_count,
-            notes
-          )
-          VALUES (?, NULL, ?, ?, NULL, ?)
-        `,
+        INSERT INTO orders (
+          business_id,
+          location_id,
+          restaurant_table_id,
+          opened_by_membership_id,
+          service_type,
+          customer_count,
+          notes
+        )
+        VALUES (?, ?, NULL, ?, ?, NULL, ?)
+      `,
       [
         businessId,
+        currentRequest.locationId,
         membershipId,
         currentRequest.serviceType,
         currentRequest.notes,

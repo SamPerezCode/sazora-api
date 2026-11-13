@@ -10,6 +10,7 @@ type NewPublicOrderRequestItem = Readonly<{
 }>;
 
 type CreatePublicOrderRequestData = Readonly<{
+  locationId: string;
   serviceType: PublicOrderRequestServiceType;
   customerName: string;
   customerPhone: string;
@@ -33,6 +34,8 @@ type PublicOrderRequest = Readonly<{
   id: string;
   publicCode: string;
   businessId: string;
+  locationId: string;
+  locationName: string;
   serviceType: PublicOrderRequestServiceType;
   status: PublicOrderRequestStatus;
   customerName: string;
@@ -71,6 +74,8 @@ type PublicOrderTrackingItem = Readonly<{
 
 type PublicOrderTracking = Readonly<{
   businessName: string;
+  locationId: string;
+  locationName: string;
   publicCode: string;
   serviceType: PublicOrderRequestServiceType;
   requestStatus: PublicOrderRequestStatus;

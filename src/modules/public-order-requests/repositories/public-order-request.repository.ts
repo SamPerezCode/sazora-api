@@ -6,6 +6,11 @@ import { databasePool } from "../../../database/pool";
 import type { KitchenPreparationStatus } from "../../kitchen-tickets/kitchen-ticket.types";
 import type { OrderStatus } from "../../orders/order.types";
 
+type LocationRow = RowDataPacket & {
+  id: string;
+  name: string;
+};
+
 import type {
   CreatePublicOrderRequestData,
   PublicOrderRequest,
@@ -21,6 +26,8 @@ type PublicOrderTrackingRow = RowDataPacket & {
   requestId: string;
   businessId: string;
   businessName: string;
+  locationId: string;
+  locationName: string;
   publicCode: string;
   serviceType: PublicOrderRequestServiceType;
   requestStatus: PublicOrderRequestStatus;
@@ -67,6 +74,8 @@ type RequestRow = RowDataPacket & {
   id: string;
   publicCode: string;
   businessId: string;
+  locationId: string;
+  locationName: string;
   serviceType: PublicOrderRequestServiceType;
   status: PublicOrderRequestStatus;
   customerName: string;
@@ -118,6 +127,9 @@ type CreateRequestResult =
       kind: "CREATED";
       request: PublicOrderRequest;
       timezone: string;
+    }>
+  | Readonly<{
+      kind: "LOCATION_NOT_AVAILABLE";
     }>;
 
 interface PublicOrderRequestOrderContextRow extends RowDataPacket {
@@ -136,6 +148,8 @@ const requestSelect = `
     CAST(por.id AS CHAR) AS id,
     por.public_code AS publicCode,
     CAST(por.business_id AS CHAR) AS businessId,
+    CAST(por.location_id AS CHAR) AS locationId,
+    bl.name AS locationName,
     por.service_type AS serviceType,
     por.status,
     por.customer_name AS customerName,
@@ -155,6 +169,9 @@ const requestSelect = `
     por.created_at AS createdAt,
     por.updated_at AS updatedAt
   FROM public_order_requests AS por
+  INNER JOIN business_locations AS bl
+    ON bl.business_id = por.business_id
+    AND bl.id = por.location_id
 `;
 
 const mapRequestRow = (
@@ -164,6 +181,8 @@ const mapRequestRow = (
   id: row.id,
   publicCode: row.publicCode,
   businessId: row.businessId,
+  locationId: row.locationId,
+  locationName: row.locationName,
   serviceType: row.serviceType,
   status: row.status,
   customerName: row.customerName,
@@ -312,6 +331,32 @@ const createPublicOrderRequestRecord = async (
       };
     }
 
+    const [locationRows] = await connection.execute<LocationRow[]>(
+      `
+        SELECT
+          CAST(id AS CHAR) AS id,
+          name
+        FROM business_locations
+        WHERE
+          business_id = ?
+          AND id = ?
+          AND location_type = 'POINT_OF_SALE'
+          AND is_sales_location = TRUE
+          AND is_active = TRUE
+        LIMIT 1
+        FOR SHARE
+      `,
+      [business.businessId, data.locationId],
+    );
+
+    if (!locationRows[0]) {
+      await connection.rollback();
+
+      return {
+        kind: "LOCATION_NOT_AVAILABLE",
+      };
+    }
+
     const productIds = data.items.map((item) => item.productId);
 
     const placeholders = productIds.map(() => "?").join(", ");
@@ -326,6 +371,9 @@ const createPublicOrderRequestRecord = async (
         INNER JOIN categories AS c
           ON c.business_id = p.business_id
           AND c.id = p.category_id
+        INNER JOIN preparation_area_locations AS pal
+          ON pal.business_id = p.business_id
+          AND pal.preparation_area_id = p.preparation_area_id
         INNER JOIN preparation_areas AS pa
           ON pa.business_id = p.business_id
           AND pa.id = p.preparation_area_id
@@ -338,9 +386,10 @@ const createPublicOrderRequestRecord = async (
           AND c.is_active = TRUE
           AND c.is_publicly_visible = TRUE
           AND pa.is_active = TRUE
+          AND pal.location_id = ?
         FOR SHARE
       `,
-      [business.businessId, ...productIds],
+      [business.businessId, data.locationId, ...productIds],
     );
 
     const productById = new Map(
@@ -386,22 +435,24 @@ const createPublicOrderRequestRecord = async (
 
     const [requestResult] = await connection.execute<ResultSetHeader>(
       `
-          INSERT INTO public_order_requests (
-            public_code,
-            business_id,
-            service_type,
-            customer_name,
-            customer_phone,
-            customer_email,
-            delivery_address,
-            notes,
-            subtotal
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
+        INSERT INTO public_order_requests (
+          public_code,
+          business_id,
+          location_id,
+          service_type,
+          customer_name,
+          customer_phone,
+          customer_email,
+          delivery_address,
+          notes,
+          subtotal
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
       [
         publicCode,
         business.businessId,
+        data.locationId,
         data.serviceType,
         data.customerName,
         data.customerPhone,
@@ -645,6 +696,8 @@ const findPublicOrderTracking = async (
         CAST(por.id AS CHAR) AS requestId,
         CAST(por.business_id AS CHAR) AS businessId,
         b.name AS businessName,
+        CAST(por.location_id AS CHAR) AS locationId,
+        bl.name AS locationName,
         por.public_code AS publicCode,
         por.service_type AS serviceType,
         por.status AS requestStatus,
@@ -658,12 +711,15 @@ const findPublicOrderTracking = async (
       FROM public_order_requests AS por
       INNER JOIN businesses AS b
         ON b.id = por.business_id
+      INNER JOIN business_locations AS bl
+        ON bl.business_id = por.business_id
+        AND bl.id = por.location_id
       LEFT JOIN orders AS o
         ON o.business_id = por.business_id
         AND o.id = por.order_id
-        LEFT JOIN public_order_deliveries AS pod
-      ON pod.business_id = por.business_id
-      AND pod.public_order_request_id = por.id
+      LEFT JOIN public_order_deliveries AS pod
+        ON pod.business_id = por.business_id
+        AND pod.public_order_request_id = por.id
       WHERE
         b.slug = ?
         AND por.public_code = ?
@@ -717,6 +773,8 @@ const findPublicOrderTracking = async (
 
   return {
     businessName: tracking.businessName,
+    locationId: tracking.locationId,
+    locationName: tracking.locationName,
     publicCode: tracking.publicCode,
     serviceType: tracking.serviceType,
     requestStatus: tracking.requestStatus,

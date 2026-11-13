@@ -5,6 +5,7 @@ import type {
   PublicBusinessProfile,
   PublicMenu,
   PublicMenuCategory,
+  PublicMenuLocation,
   PublicMenuProduct,
 } from "../public-menu.types";
 
@@ -26,6 +27,14 @@ type PublicBusinessRow = RowDataPacket & {
   publicOrderingEnabled: number;
 };
 
+type PublicLocationRow = RowDataPacket & {
+  id: string;
+  code: string;
+  name: string;
+  address: string | null;
+  phone: string | null;
+};
+
 type PublicMenuItemRow = RowDataPacket & {
   categoryId: string;
   categoryName: string;
@@ -38,6 +47,7 @@ type PublicMenuItemRow = RowDataPacket & {
   productImageUrl: string | null;
   currentPrice: string;
   productIsPubliclyOrderable: number;
+  availableLocationIds: string | null;
 };
 
 interface MutablePublicMenuCategory {
@@ -65,6 +75,22 @@ const mapPublicBusiness = (row: PublicBusinessRow): PublicBusinessProfile => ({
   publicMenuDescription: row.publicMenuDescription,
   publicOrderingEnabled: Boolean(row.publicOrderingEnabled),
 });
+
+const mapPublicLocation = (row: PublicLocationRow): PublicMenuLocation => ({
+  id: row.id,
+  code: row.code,
+  name: row.name,
+  address: row.address,
+  phone: row.phone,
+});
+
+const parseLocationIds = (value: string | null): string[] => {
+  if (!value) {
+    return [];
+  }
+
+  return [...new Set(value.split(",").filter(Boolean))];
+};
 
 const findPublicMenuByBusinessSlug = async (
   businessSlug: string,
@@ -105,6 +131,27 @@ const findPublicMenuByBusinessSlug = async (
     return null;
   }
 
+  const [locationRows] = await databasePool.execute<PublicLocationRow[]>(
+    `
+      SELECT
+        CAST(id AS CHAR) AS id,
+        code,
+        name,
+        address,
+        phone
+      FROM business_locations
+      WHERE
+        business_id = ?
+        AND location_type = 'POINT_OF_SALE'
+        AND is_sales_location = TRUE
+        AND is_active = TRUE
+      ORDER BY
+        name ASC,
+        id ASC
+    `,
+    [businessRow.businessId],
+  );
+
   const [itemRows] = await databasePool.execute<PublicMenuItemRow[]>(
     `
       SELECT
@@ -118,7 +165,24 @@ const findPublicMenuByBusinessSlug = async (
         p.description AS productDescription,
         p.image_url AS productImageUrl,
         CAST(p.current_price AS CHAR) AS currentPrice,
-        p.is_publicly_orderable AS productIsPubliclyOrderable
+        p.is_publicly_orderable AS productIsPubliclyOrderable,
+        (
+          SELECT GROUP_CONCAT(
+            DISTINCT CAST(pal.location_id AS CHAR)
+            ORDER BY pal.location_id
+            SEPARATOR ','
+          )
+          FROM preparation_area_locations AS pal
+          INNER JOIN business_locations AS available_location
+            ON available_location.business_id = pal.business_id
+            AND available_location.id = pal.location_id
+          WHERE
+            pal.business_id = p.business_id
+            AND pal.preparation_area_id = p.preparation_area_id
+            AND available_location.location_type = 'POINT_OF_SALE'
+            AND available_location.is_sales_location = TRUE
+            AND available_location.is_active = TRUE
+        ) AS availableLocationIds
       FROM categories AS c
       INNER JOIN products AS p
         ON p.business_id = c.business_id
@@ -126,7 +190,7 @@ const findPublicMenuByBusinessSlug = async (
       INNER JOIN preparation_areas AS pa
         ON pa.business_id = p.business_id
         AND pa.id = p.preparation_area_id
-        WHERE
+      WHERE
         c.business_id = ?
         AND c.is_active = TRUE
         AND c.is_publicly_visible = TRUE
@@ -161,6 +225,8 @@ const findPublicMenuByBusinessSlug = async (
       categoryMap.set(row.categoryId, category);
     }
 
+    const availableLocationIds = parseLocationIds(row.availableLocationIds);
+
     category.products.push({
       id: row.productId,
       name: row.productName,
@@ -169,7 +235,9 @@ const findPublicMenuByBusinessSlug = async (
       currentPrice: row.currentPrice,
       isOrderable:
         Boolean(row.productIsPubliclyOrderable) &&
-        Boolean(businessRow.publicOrderingEnabled),
+        Boolean(businessRow.publicOrderingEnabled) &&
+        availableLocationIds.length > 0,
+      availableLocationIds,
     });
   }
 
@@ -177,6 +245,7 @@ const findPublicMenuByBusinessSlug = async (
 
   return {
     business: mapPublicBusiness(businessRow),
+    locations: locationRows.map(mapPublicLocation),
     categories,
   };
 };

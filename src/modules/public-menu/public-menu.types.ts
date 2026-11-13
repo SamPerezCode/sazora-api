@@ -15,6 +15,14 @@ type PublicBusinessProfile = Readonly<{
   publicOrderingEnabled: boolean;
 }>;
 
+type PublicMenuLocation = Readonly<{
+  id: string;
+  code: string;
+  name: string;
+  address: string | null;
+  phone: string | null;
+}>;
+
 type PublicMenuProduct = Readonly<{
   id: string;
   name: string;
@@ -22,6 +30,7 @@ type PublicMenuProduct = Readonly<{
   imageUrl: string | null;
   currentPrice: string;
   isOrderable: boolean;
+  availableLocationIds: string[];
 }>;
 
 type PublicMenuCategory = Readonly<{
@@ -35,6 +44,7 @@ type PublicMenuCategory = Readonly<{
 
 type PublicMenu = Readonly<{
   business: PublicBusinessProfile;
+  locations: PublicMenuLocation[];
   categories: PublicMenuCategory[];
 }>;
 
@@ -42,5 +52,6 @@ export type {
   PublicBusinessProfile,
   PublicMenu,
   PublicMenuCategory,
+  PublicMenuLocation,
   PublicMenuProduct,
 };
