@@ -8,6 +8,7 @@ import type {
   OrderDetail,
   OrderItemDetail,
   OrderItemStatus,
+  OrderPaymentStatus,
   OrderServiceType,
   OrderStatus,
 } from "../order.types";
@@ -20,6 +21,8 @@ type OrderDetailRow = RowDataPacket & {
   openedByMembershipId: string;
   serviceType: OrderServiceType;
   status: OrderStatus;
+  paymentStatus: OrderPaymentStatus;
+  paymentVerifiedAt: Date | null;
   customerCount: number | null;
   notes: string | null;
   subtotal: string;
@@ -124,6 +127,8 @@ const findOrderDetailById = async (
             AS openedByMembershipId,
           o.service_type AS serviceType,
           o.status,
+          o.payment_status AS paymentStatus,
+          o.payment_verified_at AS paymentVerifiedAt,
           o.kitchen_workflow_mode AS kitchenWorkflowMode,
           o.customer_count AS customerCount,
           o.notes,
@@ -266,6 +271,8 @@ const findOrderDetailById = async (
       openedByMembershipId: order.openedByMembershipId,
       serviceType: order.serviceType,
       status: order.status,
+      paymentStatus: order.paymentStatus,
+      paymentVerifiedAt: order.paymentVerifiedAt,
       kitchenWorkflowMode: order.kitchenWorkflowMode,
       customerCount: order.customerCount,
       notes: order.notes,

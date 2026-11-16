@@ -1,8 +1,5 @@
 import type { LocationType } from "../locations/location.types";
-import type {
-  PaymentMethod,
-  PaymentType,
-} from "../payment-methods/payment-method.types";
+import type { PaymentType } from "../payment-methods/payment-method.types";
 import type { TaxType } from "../tax-classes/tax-class.types";
 
 type SaleStatus = "COMPLETED" | "PARTIALLY_REFUNDED" | "REFUNDED" | "VOIDED";
@@ -102,7 +99,16 @@ interface Sale {
 }
 
 interface ResolvedSalePayment {
-  paymentMethod: PaymentMethod;
+  orderPaymentId: string | null;
+  existingCashMovementId: string | null;
+  processedByMembershipId: string;
+  paymentMethodId: string;
+  paymentMethodCode: string;
+  paymentMethodName: string;
+  paymentType: PaymentType;
+  requiresReference: boolean;
+  affectsCash: boolean;
+  allowsChange: boolean;
   amount: string;
   tenderedAmount: string;
   changeAmount: string;
@@ -115,6 +121,7 @@ interface CreateSaleData {
   cashSessionId: string;
   commercialCustomerId: string | null;
   soldByMembershipId: string;
+  advancePaymentBatchId: string | null;
   paidTotal: string;
   changeTotal: string;
   payments: ResolvedSalePayment[];

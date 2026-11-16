@@ -1,12 +1,19 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
+import { decimalToScaledBigInt } from "../../../shared/math/fixed-decimal";
+import type {
+  OrderPaymentStatus,
+  OrderServiceType,
+} from "../../orders/order.types";
 import type { CreateSaleData } from "../sale.types";
 
 interface OrderSaleStateRow extends RowDataPacket {
   id: string;
   locationId: string;
+  serviceType: OrderServiceType;
   status: "OPEN" | "CONFIRMED" | "DELIVERED" | "CLOSED" | "CANCELLED";
+  paymentStatus: OrderPaymentStatus;
   netSubtotal: string;
   taxTotal: string;
   total: string;
@@ -31,6 +38,14 @@ interface CustomerStateRow extends RowDataPacket {
 interface PaymentMethodStateRow extends RowDataPacket {
   id: string;
   isActive: number;
+}
+
+interface AdvancePaymentStateRow extends RowDataPacket {
+  id: string;
+  cashSessionId: string;
+  status: "VERIFIED" | "CONSUMED" | "REFUNDED" | "VOIDED";
+  paidTotal: string;
+  changeTotal: string;
 }
 
 interface CreatedSaleRecord {
@@ -65,6 +80,9 @@ type CreateSaleResult =
       kind: "CUSTOMER_NOT_FOUND";
     }>
   | Readonly<{
+      kind: "ADVANCE_PAYMENT_NOT_AVAILABLE";
+    }>
+  | Readonly<{
       kind: "CUSTOMER_NOT_ACTIVE";
     }>
   | Readonly<{
@@ -86,7 +104,9 @@ const findOrderSaleState = async (
       SELECT
         CAST(o.id AS CHAR) AS id,
         CAST(o.location_id AS CHAR) AS locationId,
+        o.service_type AS serviceType,
         o.status,
+        o.payment_status AS paymentStatus,
         CAST(
           COALESCE(
             SUM(
@@ -139,7 +159,9 @@ const findOrderSaleState = async (
       GROUP BY
         o.id,
         o.location_id,
-        o.status
+        o.service_type,
+        o.status,
+        o.payment_status
       LIMIT 1
     `,
     [businessId, orderId],
@@ -162,7 +184,9 @@ const createSaleRecord = async (
         SELECT
           CAST(o.id AS CHAR) AS id,
           CAST(o.location_id AS CHAR) AS locationId,
+          o.service_type AS serviceType,
           o.status,
+          o.payment_status AS paymentStatus,
           CAST(
             COALESCE(
               SUM(
@@ -210,14 +234,16 @@ const createSaleRecord = async (
           ON oi.business_id = o.business_id
           AND oi.order_id = o.id
         WHERE
-          o.business_id = ?
-          AND o.id = ?
-        GROUP BY
-          o.id,
-          o.location_id,
-          o.status
-        LIMIT 1
-        FOR UPDATE
+        o.business_id = ?
+        AND o.id = ?
+      GROUP BY
+        o.id,
+        o.location_id,
+        o.service_type,
+        o.status,
+        o.payment_status
+      LIMIT 1
+      FOR UPDATE
       `,
       [businessId, data.orderId],
     );
@@ -263,7 +289,49 @@ const createSaleRecord = async (
       };
     }
 
-    if (Number(order.total) !== Number(data.paidTotal)) {
+    if (data.advancePaymentBatchId !== null) {
+      const [advancePaymentRows] = await connection.execute<
+        AdvancePaymentStateRow[]
+      >(
+        `
+        SELECT
+          CAST(id AS CHAR) AS id,
+          CAST(cash_session_id AS CHAR) AS cashSessionId,
+          status,
+          CAST(paid_total AS CHAR) AS paidTotal,
+          CAST(change_total AS CHAR) AS changeTotal
+        FROM order_payment_batches
+        WHERE
+          business_id = ?
+          AND id = ?
+          AND order_id = ?
+        LIMIT 1
+        FOR UPDATE
+      `,
+        [businessId, data.advancePaymentBatchId, data.orderId],
+      );
+
+      const advancePayment = advancePaymentRows[0];
+
+      const advancePaymentIsAvailable =
+        advancePayment?.status === "VERIFIED" &&
+        advancePayment.cashSessionId === data.cashSessionId &&
+        advancePayment.paidTotal === data.paidTotal &&
+        advancePayment.changeTotal === data.changeTotal;
+
+      if (!advancePaymentIsAvailable) {
+        await connection.rollback();
+
+        return {
+          kind: "ADVANCE_PAYMENT_NOT_AVAILABLE",
+        };
+      }
+    }
+
+    const orderTotalCents = decimalToScaledBigInt(order.total, 2);
+    const paidTotalCents = decimalToScaledBigInt(data.paidTotal, 2);
+
+    if (orderTotalCents !== paidTotalCents) {
       await connection.rollback();
 
       return {
@@ -303,7 +371,7 @@ const createSaleRecord = async (
       };
     }
 
-    if (cashSession.status !== "OPEN") {
+    if (data.advancePaymentBatchId === null && cashSession.status !== "OPEN") {
       await connection.rollback();
 
       return {
@@ -355,6 +423,9 @@ const createSaleRecord = async (
     }
 
     for (const payment of data.payments) {
+      if (payment.orderPaymentId !== null) {
+        continue;
+      }
       const [paymentMethodRows] = await connection.execute<
         PaymentMethodStateRow[]
       >(
@@ -369,7 +440,7 @@ const createSaleRecord = async (
             LIMIT 1
             FOR UPDATE
           `,
-        [businessId, payment.paymentMethod.id],
+        [businessId, payment.paymentMethodId],
       );
 
       const paymentMethod = paymentMethodRows[0];
@@ -379,7 +450,7 @@ const createSaleRecord = async (
 
         return {
           kind: "PAYMENT_METHOD_NOT_AVAILABLE",
-          paymentMethodId: payment.paymentMethod.id,
+          paymentMethodId: payment.paymentMethodId,
         };
       }
     }
@@ -599,8 +670,6 @@ const createSaleRecord = async (
     );
 
     for (const payment of data.payments) {
-      const method = payment.paymentMethod;
-
       const [paymentInsertResult] = await connection.execute<ResultSetHeader>(
         `
             INSERT INTO sale_payments (
@@ -626,7 +695,7 @@ const createSaleRecord = async (
               ?,
               ?,
               ?,
-              NULL,
+              ?,
               ?,
               ?,
               ?,
@@ -643,14 +712,15 @@ const createSaleRecord = async (
         [
           businessId,
           createdSale.saleId,
-          method.id,
-          data.soldByMembershipId,
-          method.code,
-          method.name,
-          method.paymentType,
-          method.requiresReference,
-          method.affectsCash,
-          method.allowsChange,
+          payment.paymentMethodId,
+          payment.processedByMembershipId,
+          payment.existingCashMovementId,
+          payment.paymentMethodCode,
+          payment.paymentMethodName,
+          payment.paymentType,
+          payment.requiresReference,
+          payment.affectsCash,
+          payment.allowsChange,
           payment.amount,
           payment.tenderedAmount,
           payment.changeAmount,
@@ -659,7 +729,7 @@ const createSaleRecord = async (
         ],
       );
 
-      if (method.affectsCash) {
+      if (payment.affectsCash && payment.orderPaymentId === null) {
         const salePaymentId = paymentInsertResult.insertId.toString();
 
         const [cashMovementInsertResult] =
@@ -714,6 +784,24 @@ const createSaleRecord = async (
           ],
         );
       }
+
+      if (payment.orderPaymentId !== null) {
+        await connection.execute<ResultSetHeader>(
+          `
+      UPDATE order_payments
+      SET sale_payment_id = ?
+      WHERE
+        business_id = ?
+        AND id = ?
+        AND sale_payment_id IS NULL
+    `,
+          [
+            paymentInsertResult.insertId.toString(),
+            businessId,
+            payment.orderPaymentId,
+          ],
+        );
+      }
     }
 
     await connection.execute<ResultSetHeader>(
@@ -721,6 +809,11 @@ const createSaleRecord = async (
         UPDATE orders
         SET
           status = 'CLOSED',
+          payment_status = 'CONSUMED',
+          payment_verified_at = COALESCE(
+            payment_verified_at,
+            CURRENT_TIMESTAMP(3)
+          ),
           closed_at = CURRENT_TIMESTAMP(3)
         WHERE
           business_id = ?
@@ -729,6 +822,29 @@ const createSaleRecord = async (
       `,
       [businessId, data.orderId],
     );
+
+    if (data.advancePaymentBatchId !== null) {
+      await connection.execute<ResultSetHeader>(
+        `
+      UPDATE order_payment_batches
+      SET
+        sale_id = ?,
+        status = 'CONSUMED',
+        consumed_at = CURRENT_TIMESTAMP(3)
+      WHERE
+        business_id = ?
+        AND id = ?
+        AND order_id = ?
+        AND status = 'VERIFIED'
+    `,
+        [
+          createdSale.saleId,
+          businessId,
+          data.advancePaymentBatchId,
+          data.orderId,
+        ],
+      );
+    }
 
     await connection.execute<ResultSetHeader>(
       `

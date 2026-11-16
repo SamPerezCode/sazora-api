@@ -19,6 +19,11 @@ import {
   updateOrderItemController,
 } from "./controllers/order.controller";
 
+import {
+  getOrderPaymentController,
+  verifyOrderPaymentController,
+} from "../order-payments/controllers/order-payment.controller";
+
 const orderRouter = Router();
 
 orderRouter.get(
@@ -33,6 +38,20 @@ orderRouter.post(
   authenticate,
   authorizePermissions("orders.manage"),
   createOrderController,
+);
+
+orderRouter.get(
+  "/:orderId/payments",
+  authenticate,
+  authorizePermissions("orders.payments.read"),
+  getOrderPaymentController,
+);
+
+orderRouter.post(
+  "/:orderId/payments",
+  authenticate,
+  authorizePermissions("orders.payments.manage"),
+  verifyOrderPaymentController,
 );
 
 orderRouter.get(

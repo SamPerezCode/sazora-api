@@ -47,14 +47,13 @@ const salePaymentSchema = z
 const createSaleSchema = z
   .object({
     orderId: databaseIdSchema,
-    cashSessionId: databaseIdSchema,
-
+    cashSessionId: databaseIdSchema.optional(),
     commercialCustomerId: databaseIdSchema.nullable().optional().default(null),
 
     payments: z
       .array(salePaymentSchema)
-      .min(1, "Debes registrar al menos una forma de pago")
-      .max(20, "No puedes registrar más de 20 pagos"),
+      .max(20, "No puedes registrar más de 20 pagos")
+      .default([]),
   })
   .strict();
 

@@ -6,6 +6,7 @@ import type {
   ListOrdersFilters,
   OrderListItem,
   OrderListResult,
+  OrderPaymentStatus,
   OrderServiceType,
   OrderStatus,
 } from "../order.types";
@@ -17,6 +18,8 @@ type OrderListRow = RowDataPacket & {
   openedByMembershipId: string;
   serviceType: OrderServiceType;
   status: OrderStatus;
+  paymentStatus: OrderPaymentStatus;
+  paymentVerifiedAt: Date | null;
   kitchenWorkflowMode: KitchenWorkflowMode | null;
   customerCount: number | null;
   notes: string | null;
@@ -48,6 +51,8 @@ const mapOrderListRow = (row: OrderListRow): OrderListItem => ({
   openedByMembershipId: row.openedByMembershipId,
   serviceType: row.serviceType,
   status: row.status,
+  paymentStatus: row.paymentStatus,
+  paymentVerifiedAt: row.paymentVerifiedAt,
   kitchenWorkflowMode: row.kitchenWorkflowMode,
   customerCount: row.customerCount,
   notes: row.notes,
@@ -125,6 +130,8 @@ const findOrdersByBusinessId = async (
             AS openedByMembershipId,
           o.service_type AS serviceType,
           o.status,
+          o.payment_status AS paymentStatus,
+          o.payment_verified_at AS paymentVerifiedAt,
           o.kitchen_workflow_mode AS kitchenWorkflowMode,
           o.customer_count AS customerCount,
           o.notes,

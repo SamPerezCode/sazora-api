@@ -55,6 +55,13 @@ const confirmOrder = async (
         "ORDER_NOT_OPEN",
       );
 
+    case "ORDER_PAYMENT_REQUIRED":
+      throw new AppError(
+        "Debes verificar el pago antes de enviar esta orden a cocina",
+        409,
+        "ORDER_PAYMENT_REQUIRED",
+      );
+
     case "ORDER_HAS_NO_ITEMS":
       throw new AppError(
         "No se puede confirmar una orden sin productos",

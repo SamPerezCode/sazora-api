@@ -10,6 +10,7 @@ import { reserveOrderItemInventoryOrThrow } from "../../inventory-reservatios/re
 import type {
   CreateOrderData,
   Order,
+  OrderPaymentStatus,
   OrderServiceType,
   OrderStatus,
 } from "../order.types";
@@ -26,6 +27,8 @@ type OrderRow = RowDataPacket & {
   openedByMembershipId: string;
   serviceType: OrderServiceType;
   status: OrderStatus;
+  paymentStatus: OrderPaymentStatus;
+  paymentVerifiedAt: Date | null;
   kitchenWorkflowMode: KitchenWorkflowMode | null;
   customerCount: number | null;
   notes: string | null;
@@ -110,6 +113,8 @@ const mapOrderRow = (row: OrderRow): Order => ({
   openedByMembershipId: row.openedByMembershipId,
   serviceType: row.serviceType,
   status: row.status,
+  paymentStatus: row.paymentStatus,
+  paymentVerifiedAt: row.paymentVerifiedAt,
   kitchenWorkflowMode: row.kitchenWorkflowMode,
   customerCount: row.customerCount,
   notes: row.notes,
@@ -503,6 +508,9 @@ const createOrder = async (
         AS openedByMembershipId,
       o.service_type AS serviceType,
       o.status,
+      o.payment_status AS paymentStatus,
+      o.payment_verified_at AS paymentVerifiedAt,
+      o.kitchen_workflow_mode AS kitchenWorkflowMode,
       o.customer_count AS customerCount,
       o.notes,
       o.confirmed_at AS confirmedAt,

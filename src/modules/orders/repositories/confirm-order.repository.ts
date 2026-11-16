@@ -3,7 +3,11 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { databasePool } from "../../../database/pool";
 import type { ProductFulfillmentMode } from "../../products/product.types";
 import type { KitchenPreparationStatus } from "../../kitchen-tickets/kitchen-ticket.types";
-import type { OrderStatus } from "../order.types";
+import type {
+  OrderPaymentStatus,
+  OrderServiceType,
+  OrderStatus,
+} from "../order.types";
 import { deductOrderInventory } from "./deduct-order-inventory.repository";
 import type { KitchenWorkflowMode } from "../../kitchen-settings/kitchen-settings.types";
 
@@ -12,6 +16,8 @@ import { reserveOrderItemInventoryOrThrow } from "../../inventory-reservatios/re
 
 type OrderStateRow = RowDataPacket & {
   status: OrderStatus;
+  serviceType: OrderServiceType;
+  paymentStatus: OrderPaymentStatus;
   locationId: string;
 };
 
@@ -46,6 +52,9 @@ type ConfirmOrderResult =
     }>
   | Readonly<{
       kind: "ORDER_NOT_OPEN";
+    }>
+  | Readonly<{
+      kind: "ORDER_PAYMENT_REQUIRED";
     }>
   | Readonly<{
       kind: "ORDER_HAS_NO_ITEMS";
@@ -86,6 +95,8 @@ const confirmOrder = async (
       `
         SELECT
           status,
+          service_type AS serviceType,
+          payment_status AS paymentStatus,
           CAST(location_id AS CHAR) AS locationId
         FROM orders
         WHERE
@@ -106,11 +117,11 @@ const confirmOrder = async (
       };
     }
 
-    if (order.status !== "OPEN") {
+    if (order.serviceType !== "TABLE" && order.paymentStatus !== "VERIFIED") {
       await connection.rollback();
 
       return {
-        kind: "ORDER_NOT_OPEN",
+        kind: "ORDER_PAYMENT_REQUIRED",
       };
     }
 

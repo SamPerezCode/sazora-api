@@ -7,6 +7,9 @@ type OrderServiceType = "TABLE" | "TAKEAWAY" | "DELIVERY";
 
 type OrderStatus = "OPEN" | "CONFIRMED" | "DELIVERED" | "CLOSED" | "CANCELLED";
 
+type OrderPaymentStatus =
+  "PENDING" | "VERIFIED" | "CONSUMED" | "REFUNDED" | "VOIDED";
+
 type OrderItemStatus = "ACTIVE" | "CANCELLED";
 
 type OrderLocation = Readonly<{
@@ -26,6 +29,8 @@ type Order = Readonly<{
   openedByMembershipId: string;
   serviceType: OrderServiceType;
   status: OrderStatus;
+  paymentStatus: OrderPaymentStatus;
+  paymentVerifiedAt: Date | null;
   kitchenWorkflowMode: KitchenWorkflowMode | null;
   customerCount: number | null;
   notes: string | null;
@@ -153,6 +158,7 @@ export type {
   OrderListItem,
   OrderListResult,
   OrderLocation,
+  OrderPaymentStatus,
   OrderServiceType,
   OrderStatus,
   UpdateOrderData,
