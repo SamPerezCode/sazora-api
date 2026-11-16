@@ -123,6 +123,14 @@ const createSaleRefund = async (
         409,
         "INSUFFICIENT_CASH_FOR_REFUND",
       );
+
+    case "LEGACY_SUBCENT_PAYMENT":
+      throw new AppError(
+        `El pago ${result.salePaymentId} contiene un saldo histórico ` +
+          `menor a un centavo y requiere conciliación manual`,
+        409,
+        "LEGACY_SUBCENT_REFUND_REQUIRES_REVIEW",
+      );
   }
 };
 

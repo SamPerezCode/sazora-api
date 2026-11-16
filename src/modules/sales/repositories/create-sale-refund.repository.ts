@@ -5,6 +5,12 @@ import {
   decimalToScaledBigInt,
   scaledBigIntToDecimal,
 } from "../../../shared/math/fixed-decimal";
+import {
+  calculateRefundItemMoney,
+  centsToMoney,
+  databaseMoneyToExactCents,
+  inputMoneyToCents,
+} from "../sale-refund-calculation";
 import type { SaleStatus } from "../sale.types";
 import type { CreateSaleRefundData } from "../sale-refund.types";
 import { restoreSaleRefundInventory } from "./restore-sale-refund-inventory.repository";
@@ -26,11 +32,11 @@ interface SaleItemStateRow extends RowDataPacket {
   productName: string;
   quantity: number;
   refundedQuantity: string;
-  lineNetTotal: string;
   lineTaxTotal: string;
+  lineTotal: string;
   costTotal: string | null;
-  refundedNetAmount: string;
   refundedTaxAmount: string;
+  refundedTotalAmount: string;
   refundedCostAmount: string | null;
 }
 
@@ -51,6 +57,21 @@ interface CashBalanceRow extends RowDataPacket {
 
 interface RemainingQuantityRow extends RowDataPacket {
   remainingQuantity: string;
+}
+
+interface SaleItemStateRow extends RowDataPacket {
+  id: string;
+  orderItemId: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  refundedQuantity: string;
+  lineTaxTotal: string;
+  lineTotal: string;
+  costTotal: string | null;
+  refundedTaxAmount: string;
+  refundedTotalAmount: string;
+  refundedCostAmount: string | null;
 }
 
 type CreateSaleRefundResult =
@@ -94,14 +115,20 @@ type CreateSaleRefundResult =
       receivedTotal: string;
     }>
   | Readonly<{
+      kind: "LEGACY_SUBCENT_PAYMENT";
+      salePaymentId: string;
+      originalAmount: string;
+      refundedAmount: string;
+    }>
+  | Readonly<{
       kind: "INSUFFICIENT_CASH";
       expectedCashAmount: string;
       requiredCashAmount: string;
     }>;
 
-const MONEY_SCALE = 6;
+const COST_SCALE = 6;
 
-const allocateAmount = (
+const allocateInternalAmount = (
   originalAmount: bigint,
   refundedAmount: bigint,
   originalQuantity: number,
@@ -116,7 +143,6 @@ const allocateAmount = (
     (originalAmount * BigInt(requestedQuantity)) / BigInt(originalQuantity)
   );
 };
-
 const createSaleRefundRecord = async (
   businessId: string,
   saleId: string,
@@ -228,22 +254,9 @@ const createSaleRefundRecord = async (
               )
               AS CHAR
             ) AS refundedQuantity,
-            CAST(si.line_net_total AS CHAR) AS lineNetTotal,
             CAST(si.line_tax_total AS CHAR) AS lineTaxTotal,
+            CAST(si.line_total AS CHAR) AS lineTotal,
             CAST(si.cost_total AS CHAR) AS costTotal,
-            CAST(
-              COALESCE(
-                (
-                  SELECT SUM(sri.net_amount)
-                  FROM sale_refund_items AS sri
-                  WHERE
-                    sri.business_id = si.business_id
-                    AND sri.sale_item_id = si.id
-                ),
-                0
-              )
-              AS CHAR
-            ) AS refundedNetAmount,
             CAST(
               COALESCE(
                 (
@@ -257,6 +270,19 @@ const createSaleRefundRecord = async (
               )
               AS CHAR
             ) AS refundedTaxAmount,
+            CAST(
+              COALESCE(
+                (
+                  SELECT SUM(sri.total_amount)
+                  FROM sale_refund_items AS sri
+                  WHERE
+                    sri.business_id = si.business_id
+                    AND sri.sale_item_id = si.id
+                ),
+                0
+              )
+              AS CHAR
+            ) AS refundedTotalAmount,
             CAST(
               (
                 SELECT SUM(sri.cost_amount)
@@ -302,50 +328,30 @@ const createSaleRefundRecord = async (
         };
       }
 
-      const originalNet = decimalToScaledBigInt(item.lineNetTotal, MONEY_SCALE);
-
-      const originalTax = decimalToScaledBigInt(item.lineTaxTotal, MONEY_SCALE);
-
-      const refundedNet = decimalToScaledBigInt(
-        item.refundedNetAmount,
-        MONEY_SCALE,
-      );
-
-      const refundedTax = decimalToScaledBigInt(
-        item.refundedTaxAmount,
-        MONEY_SCALE,
-      );
-
-      const netAmount = allocateAmount(
-        originalNet,
-        refundedNet,
-        item.quantity,
+      const refundMoney = calculateRefundItemMoney({
+        originalTotalAmount: item.lineTotal,
+        originalTaxAmount: item.lineTaxTotal,
+        refundedTotalAmount: item.refundedTotalAmount,
+        refundedTaxAmount: item.refundedTaxAmount,
+        originalQuantity: item.quantity,
         availableQuantity,
-        requestedItem.quantity,
-      );
-
-      const taxAmount = allocateAmount(
-        originalTax,
-        refundedTax,
-        item.quantity,
-        availableQuantity,
-        requestedItem.quantity,
-      );
+        requestedQuantity: requestedItem.quantity,
+      });
 
       const originalCost =
         item.costTotal === null
           ? null
-          : decimalToScaledBigInt(item.costTotal, MONEY_SCALE);
+          : decimalToScaledBigInt(item.costTotal, COST_SCALE);
 
       const refundedCost =
         item.refundedCostAmount === null
           ? 0n
-          : decimalToScaledBigInt(item.refundedCostAmount, MONEY_SCALE);
+          : decimalToScaledBigInt(item.refundedCostAmount, COST_SCALE);
 
       const costAmount =
         originalCost === null
           ? null
-          : allocateAmount(
+          : allocateInternalAmount(
               originalCost,
               refundedCost,
               item.quantity,
@@ -357,9 +363,9 @@ const createSaleRefundRecord = async (
         state: item,
         quantity: requestedItem.quantity,
         restoreInventory: requestedItem.restoreInventory,
-        netAmount,
-        taxAmount,
-        totalAmount: netAmount + taxAmount,
+        netAmount: refundMoney.netAmountCents,
+        taxAmount: refundMoney.taxAmountCents,
+        totalAmount: refundMoney.totalAmountCents,
         costAmount,
       });
     }
@@ -374,7 +380,16 @@ const createSaleRefundRecord = async (
       0n,
     );
 
-    const refundTotalAmount = refundNetAmount + refundTaxAmount;
+    const refundTotalAmount = preparedItems.reduce(
+      (total, item) => total + item.totalAmount,
+      0n,
+    );
+
+    if (refundNetAmount + refundTaxAmount !== refundTotalAmount) {
+      throw new Error(
+        "La distribución del reembolso no conserva neto, impuesto y total",
+      );
+    }
 
     const hasUnknownCost = preparedItems.some(
       (item) => item.costAmount === null,
@@ -453,17 +468,22 @@ const createSaleRefundRecord = async (
         };
       }
 
-      const originalAmount = decimalToScaledBigInt(payment.amount, MONEY_SCALE);
+      const originalAmount = databaseMoneyToExactCents(payment.amount);
 
-      const refundedAmount = decimalToScaledBigInt(
-        payment.refundedAmount,
-        MONEY_SCALE,
-      );
+      const refundedAmount = databaseMoneyToExactCents(payment.refundedAmount);
 
-      const requestedAmount = decimalToScaledBigInt(
-        requestedPayment.amount,
-        MONEY_SCALE,
-      );
+      if (originalAmount === null || refundedAmount === null) {
+        await connection.rollback();
+
+        return {
+          kind: "LEGACY_SUBCENT_PAYMENT",
+          salePaymentId: payment.id,
+          originalAmount: payment.amount,
+          refundedAmount: payment.refundedAmount,
+        };
+      }
+
+      const requestedAmount = inputMoneyToCents(requestedPayment.amount);
 
       const availableAmount = originalAmount - refundedAmount;
 
@@ -473,7 +493,7 @@ const createSaleRefundRecord = async (
         return {
           kind: "REFUND_PAYMENT_EXCEEDED",
           salePaymentId: payment.id,
-          availableAmount: scaledBigIntToDecimal(availableAmount, MONEY_SCALE),
+          availableAmount: centsToMoney(availableAmount),
         };
       }
 
@@ -495,8 +515,8 @@ const createSaleRefundRecord = async (
 
       return {
         kind: "REFUND_TOTAL_MISMATCH",
-        expectedTotal: scaledBigIntToDecimal(refundTotalAmount, MONEY_SCALE),
-        receivedTotal: scaledBigIntToDecimal(receivedTotal, MONEY_SCALE),
+        expectedTotal: centsToMoney(refundTotalAmount),
+        receivedTotal: centsToMoney(receivedTotal),
       };
     }
 
@@ -547,22 +567,23 @@ const createSaleRefundRecord = async (
         [businessId, data.cashSessionId],
       );
 
-      const expectedCashAmount =
-        balanceRows[0]?.expectedCashAmount ?? "0.000000";
+      const expectedCashAmount = balanceRows[0]?.expectedCashAmount ?? "0.00";
 
-      if (
-        decimalToScaledBigInt(expectedCashAmount, MONEY_SCALE) <
-        cashRefundAmount
-      ) {
+      const expectedCashCents = databaseMoneyToExactCents(expectedCashAmount);
+
+      if (expectedCashCents === null) {
+        throw new Error(
+          `La caja contiene un saldo subcentavo incompatible: ${expectedCashAmount}`,
+        );
+      }
+
+      if (expectedCashCents < cashRefundAmount) {
         await connection.rollback();
 
         return {
           kind: "INSUFFICIENT_CASH",
-          expectedCashAmount,
-          requiredCashAmount: scaledBigIntToDecimal(
-            cashRefundAmount,
-            MONEY_SCALE,
-          ),
+          expectedCashAmount: centsToMoney(expectedCashCents),
+          requiredCashAmount: centsToMoney(cashRefundAmount),
         };
       }
     }
@@ -632,12 +653,12 @@ const createSaleRefundRecord = async (
         data.processedByMembershipId,
         refundKind,
         data.reason,
-        scaledBigIntToDecimal(refundNetAmount, MONEY_SCALE),
-        scaledBigIntToDecimal(refundTaxAmount, MONEY_SCALE),
-        scaledBigIntToDecimal(refundTotalAmount, MONEY_SCALE),
+        centsToMoney(refundNetAmount),
+        centsToMoney(refundTaxAmount),
+        centsToMoney(refundTotalAmount),
         refundCostAmount === null
           ? null
-          : scaledBigIntToDecimal(refundCostAmount, MONEY_SCALE),
+          : scaledBigIntToDecimal(refundCostAmount, COST_SCALE),
       ],
     );
 
@@ -670,12 +691,12 @@ const createSaleRefundRecord = async (
           item.state.productName,
           item.quantity,
           item.restoreInventory,
-          scaledBigIntToDecimal(item.netAmount, MONEY_SCALE),
-          scaledBigIntToDecimal(item.taxAmount, MONEY_SCALE),
-          scaledBigIntToDecimal(item.totalAmount, MONEY_SCALE),
+          centsToMoney(item.netAmount),
+          centsToMoney(item.taxAmount),
+          centsToMoney(item.totalAmount),
           item.costAmount === null
             ? null
-            : scaledBigIntToDecimal(item.costAmount, MONEY_SCALE),
+            : scaledBigIntToDecimal(item.costAmount, COST_SCALE),
         ],
       );
 
@@ -746,7 +767,7 @@ const createSaleRefundRecord = async (
           payment.state.paymentType,
           payment.state.requiresReference,
           payment.state.affectsCash,
-          scaledBigIntToDecimal(payment.amount, MONEY_SCALE),
+          centsToMoney(payment.amount),
           payment.reference,
           payment.notes,
         ],
@@ -783,7 +804,7 @@ const createSaleRefundRecord = async (
           businessId,
           data.cashSessionId,
           data.processedByMembershipId,
-          scaledBigIntToDecimal(payment.amount, MONEY_SCALE),
+          centsToMoney(payment.amount),
           `Devolución ${refundId}: ${data.reason}`,
           payment.reference,
           refundPaymentId,
