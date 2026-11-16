@@ -57,9 +57,27 @@ interface RecordOrderPaymentData {
   }[];
 }
 
+interface RefundOrderPaymentData {
+  cashSessionId?: string | undefined;
+  processedByMembershipId: string;
+  reason: string;
+  payments: {
+    orderPaymentId: string;
+    reference: string | null;
+    notes: string | null;
+  }[];
+}
+
+interface RefundedOrderPayment {
+  refundId: string;
+  totalAmount: string;
+}
+
 export type {
   OrderPayment,
   OrderPaymentBatch,
   OrderPaymentBatchStatus,
   RecordOrderPaymentData,
+  RefundedOrderPayment,
+  RefundOrderPaymentData,
 };

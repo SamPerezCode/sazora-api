@@ -7,12 +7,14 @@ import { reserveOrderItemInventoryOrThrow } from "../../inventory-reservatios/re
 import type {
   OrderItemDetail,
   OrderItemStatus,
+  OrderPaymentStatus,
   OrderStatus,
   UpdateOrderItemData,
 } from "../order.types";
 
 type OrderStateRow = RowDataPacket & {
   status: OrderStatus;
+  paymentStatus: OrderPaymentStatus;
   locationId: string;
 };
 
@@ -65,6 +67,9 @@ type UpdateOrderItemResult =
       kind: "ORDER_NOT_OPEN";
     }>
   | Readonly<{
+      kind: "ORDER_PAYMENT_LOCKED";
+    }>
+  | Readonly<{
       kind: "ORDER_ITEM_NOT_FOUND";
     }>;
 
@@ -114,6 +119,7 @@ const updateOrderItem = async (
       `
         SELECT
           status,
+          payment_status AS paymentStatus,
           CAST(location_id AS CHAR) AS locationId
         FROM orders
         WHERE
@@ -140,6 +146,14 @@ const updateOrderItem = async (
 
       return {
         kind: "ORDER_NOT_OPEN",
+      };
+    }
+
+    if (order.paymentStatus !== "PENDING") {
+      await connection.rollback();
+
+      return {
+        kind: "ORDER_PAYMENT_LOCKED",
       };
     }
 

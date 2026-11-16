@@ -21,6 +21,7 @@ import {
 
 import {
   getOrderPaymentController,
+  refundOrderPaymentController,
   verifyOrderPaymentController,
 } from "../order-payments/controllers/order-payment.controller";
 
@@ -52,6 +53,13 @@ orderRouter.post(
   authenticate,
   authorizePermissions("orders.payments.manage"),
   verifyOrderPaymentController,
+);
+
+orderRouter.post(
+  "/:orderId/payments/refund",
+  authenticate,
+  authorizePermissions("orders.payments.refund"),
+  refundOrderPaymentController,
 );
 
 orderRouter.get(

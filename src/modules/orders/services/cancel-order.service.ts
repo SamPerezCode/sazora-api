@@ -120,6 +120,13 @@ const cancelOrder = async (
         "ORDER_NOT_CANCELLABLE",
       );
 
+    case "ORDER_PAYMENT_REFUND_REQUIRED":
+      throw new AppError(
+        "Debes devolver el pago anticipado antes de cancelar la orden",
+        409,
+        "ORDER_PAYMENT_REFUND_REQUIRED",
+      );
+
     case "ORDER_HAS_DELIVERED_ITEMS":
       throw new AppError(
         "No se puede cancelar completamente una orden que ya tiene productos entregados",

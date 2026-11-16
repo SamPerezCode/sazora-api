@@ -1,12 +1,12 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
-import type { OrderStatus } from "../order.types";
-
+import type { OrderPaymentStatus, OrderStatus } from "../order.types";
 import { releaseOrderItemReservations } from "../../inventory-reservatios/repositories/inventory-reservation.repository";
 
 type OrderStateRow = RowDataPacket & {
   status: OrderStatus;
+  paymentStatus: OrderPaymentStatus;
 };
 
 type OrderItemIdentityRow = RowDataPacket & {
@@ -24,6 +24,9 @@ type RemoveOrderItemResult =
       kind: "ORDER_NOT_OPEN";
     }>
   | Readonly<{
+      kind: "ORDER_PAYMENT_LOCKED";
+    }>
+  | Readonly<{
       kind: "ORDER_ITEM_NOT_FOUND";
     }>;
 
@@ -39,7 +42,9 @@ const removeOrderItem = async (
 
     const [orderRows] = await connection.execute<OrderStateRow[]>(
       `
-        SELECT status
+        SELECT
+          status,
+          payment_status AS paymentStatus
         FROM orders
         WHERE
           business_id = ?
@@ -65,6 +70,14 @@ const removeOrderItem = async (
 
       return {
         kind: "ORDER_NOT_OPEN",
+      };
+    }
+
+    if (order.paymentStatus !== "PENDING") {
+      await connection.rollback();
+
+      return {
+        kind: "ORDER_PAYMENT_LOCKED",
       };
     }
 
@@ -107,8 +120,6 @@ const removeOrderItem = async (
       `,
       [businessId, orderId, orderItemId],
     );
-
-    await connection.commit();
 
     await connection.commit();
 

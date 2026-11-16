@@ -7,6 +7,7 @@ import type {
   AddOrderItemsData,
   OrderItem,
   OrderItemStatus,
+  OrderPaymentStatus,
   OrderStatus,
 } from "../order.types";
 import { deductOrderInventory } from "./deduct-order-inventory.repository";
@@ -20,6 +21,7 @@ import { calculateOrderItemTax } from "../order-tax-calculation";
 
 type OrderStateRow = RowDataPacket & {
   status: OrderStatus;
+  paymentStatus: OrderPaymentStatus;
   locationId: string;
 };
 
@@ -89,6 +91,9 @@ type AddOrderItemsResult =
       kind: "ORDER_NOT_EDITABLE";
     }>
   | Readonly<{
+      kind: "ORDER_PAYMENT_LOCKED";
+    }>
+  | Readonly<{
       kind: "PRODUCT_NOT_FOUND";
     }>
   | Readonly<{
@@ -146,8 +151,9 @@ const addOrderItems = async (
     const [orderRows] = await connection.execute<OrderStateRow[]>(
       `
         SELECT
-        status,
-        CAST(location_id AS CHAR) AS locationId
+          status,
+          payment_status AS paymentStatus,
+          CAST(location_id AS CHAR) AS locationId
         FROM orders
         WHERE
           business_id = ?
@@ -173,6 +179,14 @@ const addOrderItems = async (
 
       return {
         kind: "ORDER_NOT_EDITABLE",
+      };
+    }
+
+    if (order.paymentStatus !== "PENDING") {
+      await connection.rollback();
+
+      return {
+        kind: "ORDER_PAYMENT_LOCKED",
       };
     }
 

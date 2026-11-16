@@ -55,6 +55,13 @@ const addItemsToOrder = async (
         "ORDER_NOT_EDITABLE",
       );
 
+    case "ORDER_PAYMENT_LOCKED":
+      throw new AppError(
+        "No puedes agregar productos después de verificar el pago. Primero devuelve el pago y cancela la orden.",
+        409,
+        "ORDER_PAYMENT_LOCKED",
+      );
+
     case "PRODUCT_NOT_FOUND":
       throw new AppError(
         "Uno de los productos no existe",

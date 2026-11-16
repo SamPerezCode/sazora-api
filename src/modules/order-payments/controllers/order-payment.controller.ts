@@ -3,6 +3,8 @@ import type { RequestHandler } from "express";
 import { AppError } from "../../../shared/errors/app-error";
 import type { AuthenticatedSession } from "../../auth/auth.types";
 import { assertOrderLocationAccess } from "../../orders/services/order-location-access.service";
+import { refundOrderPaymentSchema } from "../schemas/refund-order-payment.schema";
+import { refundOrderPayment } from "../services/refund-order-payment.service";
 
 import {
   orderPaymentParamsSchema,
@@ -69,4 +71,31 @@ const verifyOrderPaymentController: RequestHandler = async (
   });
 };
 
-export { getOrderPaymentController, verifyOrderPaymentController };
+const refundOrderPaymentController: RequestHandler = async (
+  request,
+  response,
+) => {
+  const auth = requireAuth(request);
+  const { orderId } = orderPaymentParamsSchema.parse(request.params);
+  const input = refundOrderPaymentSchema.parse(request.body);
+
+  await assertOrderLocationAccess(auth, orderId);
+
+  const result = await refundOrderPayment(
+    auth.businessId,
+    auth.membershipId,
+    orderId,
+    input,
+  );
+
+  response.status(201).json({
+    status: "success",
+    data: result,
+  });
+};
+
+export {
+  getOrderPaymentController,
+  refundOrderPaymentController,
+  verifyOrderPaymentController,
+};

@@ -2,7 +2,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
 import type { KitchenPreparationStatus } from "../../kitchen-tickets/kitchen-ticket.types";
-import type { OrderStatus } from "../order.types";
+import type { OrderPaymentStatus, OrderStatus } from "../order.types";
 import { reverseOrderItemInventory } from "./reverse-order-item-inventory.repository";
 
 import { releaseOrderReservations } from "../../inventory-reservatios/repositories/inventory-reservation.repository";
@@ -11,6 +11,7 @@ type CancellableOrderStatus = "OPEN" | "CONFIRMED";
 
 type OrderStateRow = RowDataPacket & {
   status: OrderStatus;
+  paymentStatus: OrderPaymentStatus;
 };
 
 type ActiveOrderItemRow = RowDataPacket & {
@@ -58,6 +59,9 @@ type CancelOrderResult =
       currentStatus: OrderStatus;
     }>
   | Readonly<{
+      kind: "ORDER_PAYMENT_REFUND_REQUIRED";
+    }>
+  | Readonly<{
       kind: "ORDER_HAS_DELIVERED_ITEMS";
     }>;
 
@@ -74,7 +78,9 @@ const cancelOrder = async (
 
     const [orderRows] = await connection.execute<OrderStateRow[]>(
       `
-        SELECT status
+        SELECT
+          status,
+          payment_status AS paymentStatus
         FROM orders
         WHERE
           business_id = ?
@@ -101,6 +107,14 @@ const cancelOrder = async (
       return {
         kind: "ORDER_NOT_CANCELLABLE",
         currentStatus: order.status,
+      };
+    }
+
+    if (order.paymentStatus === "VERIFIED") {
+      await connection.rollback();
+
+      return {
+        kind: "ORDER_PAYMENT_REFUND_REQUIRED",
       };
     }
 

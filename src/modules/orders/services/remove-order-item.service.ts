@@ -30,6 +30,13 @@ const removeItemFromOrder = async (
         "ORDER_NOT_OPEN",
       );
 
+    case "ORDER_PAYMENT_LOCKED":
+      throw new AppError(
+        "No puedes retirar productos después de verificar el pago. Primero devuelve el pago y cancela la orden.",
+        409,
+        "ORDER_PAYMENT_LOCKED",
+      );
+
     case "ORDER_ITEM_NOT_FOUND":
       throw new AppError(
         "El producto no existe dentro de la orden",

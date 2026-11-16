@@ -2,6 +2,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
 import type {
+  OrderPaymentStatus,
   OrderServiceType,
   OrderStatus,
   UpdateOrderData,
@@ -9,6 +10,7 @@ import type {
 
 type CurrentOrderRow = RowDataPacket & {
   status: OrderStatus;
+  paymentStatus: OrderPaymentStatus;
   serviceType: OrderServiceType;
   restaurantTableId: string | null;
   customerCount: number | null;
@@ -34,6 +36,9 @@ type UpdateOrderResult =
     }>
   | Readonly<{
       kind: "ORDER_NOT_OPEN";
+    }>
+  | Readonly<{
+      kind: "ORDER_PAYMENT_LOCKED";
     }>
   | Readonly<{
       kind: "TABLE_NOT_FOUND";
@@ -62,6 +67,7 @@ const updateOrder = async (
       `
         SELECT
           status,
+          payment_status AS paymentStatus,
           service_type AS serviceType,
           CAST(restaurant_table_id AS CHAR) AS restaurantTableId,
           CAST(location_id AS CHAR) AS locationId,
@@ -92,6 +98,14 @@ const updateOrder = async (
 
       return {
         kind: "ORDER_NOT_OPEN",
+      };
+    }
+
+    if (currentOrder.paymentStatus !== "PENDING") {
+      await connection.rollback();
+
+      return {
+        kind: "ORDER_PAYMENT_LOCKED",
       };
     }
 
