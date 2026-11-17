@@ -62,6 +62,13 @@ const confirmOrder = async (
         "ORDER_PAYMENT_REQUIRED",
       );
 
+    case "ORDER_PAYMENT_TOTAL_MISMATCH":
+      throw new AppError(
+        "El pago anticipado no coincide con el total actual de la orden. Devuelve el pago y registra nuevamente la orden.",
+        409,
+        "ORDER_PAYMENT_TOTAL_MISMATCH",
+      );
+
     case "ORDER_HAS_NO_ITEMS":
       throw new AppError(
         "No se puede confirmar una orden sin productos",

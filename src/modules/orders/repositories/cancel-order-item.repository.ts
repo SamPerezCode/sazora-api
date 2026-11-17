@@ -2,11 +2,16 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
 import type { KitchenPreparationStatus } from "../../kitchen-tickets/kitchen-ticket.types";
-import type { OrderItemStatus, OrderStatus } from "../order.types";
+import type {
+  OrderItemStatus,
+  OrderPaymentStatus,
+  OrderStatus,
+} from "../order.types";
 import { reverseOrderItemInventory } from "./reverse-order-item-inventory.repository";
 
 type OrderStateRow = RowDataPacket & {
   status: OrderStatus;
+  paymentStatus: OrderPaymentStatus;
 };
 
 type OrderItemCancellationContextRow = RowDataPacket & {
@@ -57,6 +62,9 @@ type CancelOrderItemResult =
       kind: "ORDER_NOT_CONFIRMED";
     }>
   | Readonly<{
+      kind: "ORDER_PAYMENT_LOCKED";
+    }>
+  | Readonly<{
       kind: "ORDER_ITEM_NOT_FOUND";
     }>
   | Readonly<{
@@ -77,7 +85,9 @@ const cancelOrderItem = async (
 
     const [orderRows] = await connection.execute<OrderStateRow[]>(
       `
-          SELECT status
+          SELECT
+            status,
+            payment_status AS paymentStatus
           FROM orders
           WHERE
             business_id = ?
@@ -103,6 +113,14 @@ const cancelOrderItem = async (
 
       return {
         kind: "ORDER_NOT_CONFIRMED",
+      };
+    }
+
+    if (order.paymentStatus !== "PENDING") {
+      await connection.rollback();
+
+      return {
+        kind: "ORDER_PAYMENT_LOCKED",
       };
     }
 

@@ -14,7 +14,11 @@ import {
 
 import { applyLocationInventoryMovement } from "../../inventory-movements/repositories/location-inventory-ledger.repository";
 import type { KitchenPreparationStatus } from "../../kitchen-tickets/kitchen-ticket.types";
-import type { OrderItemStatus, OrderStatus } from "../order.types";
+import type {
+  OrderItemStatus,
+  OrderPaymentStatus,
+  OrderStatus,
+} from "../order.types";
 
 type CancellablePreparationStatus = Exclude<
   KitchenPreparationStatus,
@@ -23,6 +27,7 @@ type CancellablePreparationStatus = Exclude<
 
 type OrderRow = RowDataPacket & {
   status: OrderStatus;
+  paymentStatus: OrderPaymentStatus;
   locationId: string;
 };
 
@@ -70,6 +75,7 @@ type CancelOrderItemQuantityResult =
     }>
   | Readonly<{ kind: "ORDER_NOT_FOUND" }>
   | Readonly<{ kind: "ORDER_NOT_CONFIRMED" }>
+  | Readonly<{ kind: "ORDER_PAYMENT_LOCKED" }>
   | Readonly<{ kind: "ORDER_ITEM_NOT_FOUND" }>
   | Readonly<{ kind: "ORDER_ITEM_NOT_CANCELLABLE" }>
   | Readonly<{
@@ -353,7 +359,8 @@ const cancelOrderItemQuantity = async (
       `
         SELECT
           status,
-        CAST(location_id AS CHAR) AS locationId
+          payment_status AS paymentStatus,
+          CAST(location_id AS CHAR) AS locationId
         FROM orders
         WHERE business_id = ? AND id = ?
         LIMIT 1
@@ -372,6 +379,11 @@ const cancelOrderItemQuantity = async (
     if (order.status !== "CONFIRMED") {
       await connection.rollback();
       return { kind: "ORDER_NOT_CONFIRMED" };
+    }
+
+    if (order.paymentStatus !== "PENDING") {
+      await connection.rollback();
+      return { kind: "ORDER_PAYMENT_LOCKED" };
     }
 
     const [contextRows] = await connection.execute<ItemContextRow[]>(

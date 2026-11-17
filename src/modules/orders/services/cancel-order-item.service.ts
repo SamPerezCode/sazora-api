@@ -71,6 +71,13 @@ const cancelItemFromConfirmedOrder = async (
         "ORDER_NOT_CONFIRMED",
       );
 
+    case "ORDER_PAYMENT_LOCKED":
+      throw new AppError(
+        "No puedes cancelar productos individualmente porque la orden tiene un pago anticipado. Primero devuelve el pago y cancela la orden completa.",
+        409,
+        "ORDER_PAYMENT_LOCKED",
+      );
+
     case "ORDER_ITEM_NOT_FOUND":
       throw new AppError(
         "El producto no existe dentro de la orden",

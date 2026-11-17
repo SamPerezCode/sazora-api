@@ -21,6 +21,14 @@ type OrderStateRow = RowDataPacket & {
   locationId: string;
 };
 
+type VerifiedPaymentBatchRow = RowDataPacket & {
+  paidTotal: string;
+};
+
+type PaymentAmountMatchRow = RowDataPacket & {
+  amountsMatch: number;
+};
+
 type KitchenWorkflowRow = RowDataPacket & {
   workflowMode: KitchenWorkflowMode;
 };
@@ -55,6 +63,9 @@ type ConfirmOrderResult =
     }>
   | Readonly<{
       kind: "ORDER_PAYMENT_REQUIRED";
+    }>
+  | Readonly<{
+      kind: "ORDER_PAYMENT_TOTAL_MISMATCH";
     }>
   | Readonly<{
       kind: "ORDER_HAS_NO_ITEMS";
@@ -117,12 +128,85 @@ const confirmOrder = async (
       };
     }
 
+    if (order.status !== "OPEN") {
+      await connection.rollback();
+
+      return {
+        kind: "ORDER_NOT_OPEN",
+      };
+    }
+
     if (order.serviceType !== "TABLE" && order.paymentStatus !== "VERIFIED") {
       await connection.rollback();
 
       return {
         kind: "ORDER_PAYMENT_REQUIRED",
       };
+    }
+
+    if (order.serviceType !== "TABLE") {
+      const [paymentBatchRows] = await connection.execute<
+        VerifiedPaymentBatchRow[]
+      >(
+        `
+        SELECT
+          CAST(paid_total AS CHAR) AS paidTotal
+        FROM order_payment_batches
+        WHERE
+          business_id = ?
+          AND order_id = ?
+          AND status = 'VERIFIED'
+        LIMIT 1
+        FOR UPDATE
+      `,
+        [businessId, orderId],
+      );
+
+      const paymentBatch = paymentBatchRows[0];
+
+      if (!paymentBatch) {
+        await connection.rollback();
+
+        return {
+          kind: "ORDER_PAYMENT_TOTAL_MISMATCH",
+        };
+      }
+
+      const [amountMatchRows] = await connection.execute<
+        PaymentAmountMatchRow[]
+      >(
+        `
+        SELECT
+          (
+            ROUND(
+              COALESCE(
+                SUM(
+                  CASE
+                    WHEN status = 'ACTIVE'
+                      THEN line_total
+                    ELSE 0
+                  END
+                ),
+                0
+              ),
+              2
+            ) = CAST(? AS DECIMAL(18, 2))
+          ) AS amountsMatch
+        FROM order_items
+        WHERE
+          business_id = ?
+          AND order_id = ?
+      `,
+        [paymentBatch.paidTotal, businessId, orderId],
+      );
+
+      if (!amountMatchRows[0]?.amountsMatch) {
+        await connection.rollback();
+
+        return {
+          kind: "ORDER_PAYMENT_TOTAL_MISMATCH",
+        };
+      }
     }
 
     const [workflowRows] = await connection.execute<KitchenWorkflowRow[]>(
