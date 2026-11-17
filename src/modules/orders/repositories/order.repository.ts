@@ -13,6 +13,7 @@ import type {
   OrderPaymentStatus,
   OrderServiceType,
   OrderStatus,
+  OrderSourceChannel,
 } from "../order.types";
 
 type OrderRow = RowDataPacket & {
@@ -26,11 +27,15 @@ type OrderRow = RowDataPacket & {
   restaurantTableId: string | null;
   openedByMembershipId: string;
   serviceType: OrderServiceType;
+  sourceChannel: OrderSourceChannel;
   status: OrderStatus;
   paymentStatus: OrderPaymentStatus;
   paymentVerifiedAt: Date | null;
   kitchenWorkflowMode: KitchenWorkflowMode | null;
   customerCount: number | null;
+  customerName: string | null;
+  customerPhone: string | null;
+  customerEmail: string | null;
   notes: string | null;
   confirmedAt: Date | null;
   deliveredAt: Date | null;
@@ -112,11 +117,15 @@ const mapOrderRow = (row: OrderRow): Order => ({
   restaurantTableId: row.restaurantTableId,
   openedByMembershipId: row.openedByMembershipId,
   serviceType: row.serviceType,
+  sourceChannel: row.sourceChannel,
   status: row.status,
   paymentStatus: row.paymentStatus,
   paymentVerifiedAt: row.paymentVerifiedAt,
   kitchenWorkflowMode: row.kitchenWorkflowMode,
   customerCount: row.customerCount,
+  customerName: row.customerName,
+  customerPhone: row.customerPhone,
+  customerEmail: row.customerEmail,
   notes: row.notes,
   confirmedAt: row.confirmedAt,
   deliveredAt: row.deliveredAt,
@@ -350,10 +359,14 @@ const createOrder = async (
       restaurant_table_id,
       opened_by_membership_id,
       service_type,
+      source_channel,
       customer_count,
+      customer_name,
+      customer_phone,
+      customer_email,
       notes
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
       [
         businessId,
@@ -361,7 +374,11 @@ const createOrder = async (
         data.restaurantTableId,
         data.openedByMembershipId,
         data.serviceType,
+        data.sourceChannel,
         data.customerCount,
+        data.customerName,
+        data.customerPhone,
+        data.customerEmail,
         data.notes,
       ],
     );
@@ -507,11 +524,15 @@ const createOrder = async (
       CAST(o.opened_by_membership_id AS CHAR)
         AS openedByMembershipId,
       o.service_type AS serviceType,
+      o.source_channel AS sourceChannel,
       o.status,
       o.payment_status AS paymentStatus,
       o.payment_verified_at AS paymentVerifiedAt,
       o.kitchen_workflow_mode AS kitchenWorkflowMode,
       o.customer_count AS customerCount,
+      o.customer_name AS customerName,
+      o.customer_phone AS customerPhone,
+      o.customer_email AS customerEmail,
       o.notes,
       o.confirmed_at AS confirmedAt,
       o.delivered_at AS deliveredAt,

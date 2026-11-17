@@ -5,6 +5,8 @@ import type { TaxType } from "../tax-classes/tax-class.types";
 
 type OrderServiceType = "TABLE" | "TAKEAWAY" | "DELIVERY";
 
+type OrderSourceChannel = "IN_PERSON" | "WHATSAPP" | "PHONE" | "PUBLIC_MENU";
+
 type OrderStatus = "OPEN" | "CONFIRMED" | "DELIVERED" | "CLOSED" | "CANCELLED";
 
 type OrderPaymentStatus =
@@ -28,11 +30,15 @@ type Order = Readonly<{
   restaurantTableId: string | null;
   openedByMembershipId: string;
   serviceType: OrderServiceType;
+  sourceChannel: OrderSourceChannel;
   status: OrderStatus;
   paymentStatus: OrderPaymentStatus;
   paymentVerifiedAt: Date | null;
   kitchenWorkflowMode: KitchenWorkflowMode | null;
   customerCount: number | null;
+  customerName: string | null;
+  customerPhone: string | null;
+  customerEmail: string | null;
   notes: string | null;
   confirmedAt: Date | null;
   deliveredAt: Date | null;
@@ -73,7 +79,11 @@ type CreateOrderData = Readonly<{
   restaurantTableId: string | null;
   openedByMembershipId: string;
   serviceType: OrderServiceType;
+  sourceChannel: Exclude<OrderSourceChannel, "PUBLIC_MENU">;
   customerCount: number | null;
+  customerName: string | null;
+  customerPhone: string | null;
+  customerEmail: string | null;
   notes: string | null;
   items: readonly NewOrderItemData[];
 }>;
@@ -142,6 +152,9 @@ type UpdateOrderData = Readonly<{
   serviceType?: OrderServiceType;
   restaurantTableId?: string | null;
   customerCount?: number | null;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  customerEmail?: string | null;
   notes?: string | null;
 }>;
 
@@ -162,5 +175,6 @@ export type {
   OrderServiceType,
   OrderStatus,
   UpdateOrderData,
+  OrderSourceChannel,
   UpdateOrderItemData,
 };

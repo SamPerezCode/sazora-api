@@ -12,6 +12,9 @@ type CurrentOrderRow = RowDataPacket & {
   status: OrderStatus;
   paymentStatus: OrderPaymentStatus;
   serviceType: OrderServiceType;
+  customerName: string | null;
+  customerPhone: string | null;
+  customerEmail: string | null;
   restaurantTableId: string | null;
   customerCount: number | null;
   notes: string | null;
@@ -72,6 +75,9 @@ const updateOrder = async (
           CAST(restaurant_table_id AS CHAR) AS restaurantTableId,
           CAST(location_id AS CHAR) AS locationId,
           customer_count AS customerCount,
+          customer_name AS customerName,
+          customer_phone AS customerPhone,
+          customer_email AS customerEmail,
           notes
         FROM orders
         WHERE
@@ -196,24 +202,45 @@ const updateOrder = async (
         ? currentOrder.customerCount
         : data.customerCount;
 
+    const customerName =
+      data.customerName === undefined
+        ? currentOrder.customerName
+        : data.customerName;
+
+    const customerPhone =
+      data.customerPhone === undefined
+        ? currentOrder.customerPhone
+        : data.customerPhone;
+
+    const customerEmail =
+      data.customerEmail === undefined
+        ? currentOrder.customerEmail
+        : data.customerEmail;
+
     const notes = data.notes === undefined ? currentOrder.notes : data.notes;
 
     await connection.execute<ResultSetHeader>(
       `
-        UPDATE orders
-        SET
-          service_type = ?,
-          restaurant_table_id = ?,
-          customer_count = ?,
-          notes = ?
-        WHERE
-          business_id = ?
-          AND id = ?
-      `,
+    UPDATE orders
+    SET
+      service_type = ?,
+      restaurant_table_id = ?,
+      customer_count = ?,
+      customer_name = ?,
+      customer_phone = ?,
+      customer_email = ?,
+      notes = ?
+    WHERE
+      business_id = ?
+      AND id = ?
+  `,
       [
         serviceType,
         restaurantTableId,
         customerCount,
+        customerName,
+        customerPhone,
+        customerEmail,
         notes,
         businessId,
         orderId,

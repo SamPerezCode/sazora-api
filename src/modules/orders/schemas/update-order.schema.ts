@@ -5,6 +5,66 @@ const databaseIdSchema = z
   .trim()
   .regex(/^[1-9]\d*$/, "El identificador debe ser un entero positivo");
 
+const editableNullableText = (maximum: number, message: string) =>
+  z
+    .string()
+    .trim()
+    .max(maximum, message)
+    .nullable()
+    .optional()
+    .transform((value) => {
+      if (value === undefined) {
+        return undefined;
+      }
+
+      if (value === null || value === "") {
+        return null;
+      }
+
+      return value;
+    });
+
+const editableNullablePhone = z
+  .string()
+  .trim()
+  .max(30, "El teléfono no puede superar 30 caracteres")
+  .regex(/^\+?[0-9\s()-]+$/, "El teléfono contiene caracteres no permitidos")
+  .nullable()
+  .optional()
+  .or(z.literal(""))
+  .transform((value) => {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null || value === "") {
+      return null;
+    }
+
+    return value;
+  });
+
+const editableNullableEmail = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .email("El correo electrónico no es válido")
+  .max(254, "El correo no puede superar 254 caracteres")
+  .nullable()
+  .optional()
+  .or(z.literal(""))
+  .transform((value) => {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null || value === "") {
+      return null;
+    }
+
+    return value;
+  });
+
 const updateOrderSchema = z
   .object({
     serviceType: z.enum(["TABLE", "TAKEAWAY", "DELIVERY"]).optional(),
@@ -18,6 +78,15 @@ const updateOrderSchema = z
       .max(65535, "La cantidad de clientes no puede superar 65535")
       .nullable()
       .optional(),
+
+    customerName: editableNullableText(
+      150,
+      "El nombre no puede superar 150 caracteres",
+    ),
+
+    customerPhone: editableNullablePhone,
+
+    customerEmail: editableNullableEmail,
 
     notes: z
       .string()

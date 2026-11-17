@@ -30,6 +30,24 @@ const updateOrderDetails = async (
           customerCount: input.customerCount,
         }),
 
+    ...(input.customerName === undefined
+      ? {}
+      : {
+          customerName: input.customerName,
+        }),
+
+    ...(input.customerPhone === undefined
+      ? {}
+      : {
+          customerPhone: input.customerPhone,
+        }),
+
+    ...(input.customerEmail === undefined
+      ? {}
+      : {
+          customerEmail: input.customerEmail,
+        }),
+
     ...(input.notes === undefined
       ? {}
       : {

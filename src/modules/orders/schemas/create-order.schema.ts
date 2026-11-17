@@ -5,6 +5,54 @@ const databaseIdSchema = z
   .trim()
   .regex(/^[1-9]\d*$/, "El identificador no es válido");
 
+const nullableText = (maximum: number, message: string) =>
+  z
+    .string()
+    .trim()
+    .max(maximum, message)
+    .nullable()
+    .optional()
+    .transform((value) => {
+      if (value === undefined || value === null || value === "") {
+        return null;
+      }
+
+      return value;
+    });
+
+const nullablePhoneSchema = z
+  .string()
+  .trim()
+  .max(30, "El teléfono no puede superar 30 caracteres")
+  .regex(/^\+?[0-9\s()-]+$/, "El teléfono contiene caracteres no permitidos")
+  .nullable()
+  .optional()
+  .or(z.literal(""))
+  .transform((value) => {
+    if (value === undefined || value === null || value === "") {
+      return null;
+    }
+
+    return value;
+  });
+
+const nullableEmailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .email("El correo electrónico no es válido")
+  .max(254, "El correo no puede superar 254 caracteres")
+  .nullable()
+  .optional()
+  .or(z.literal(""))
+  .transform((value) => {
+    if (value === undefined || value === null || value === "") {
+      return null;
+    }
+
+    return value;
+  });
+
 const initialOrderItemSchema = z
   .object({
     productId: databaseIdSchema,
@@ -31,6 +79,11 @@ const createOrderSchema = z
 
     serviceType: z.enum(["TABLE", "TAKEAWAY", "DELIVERY"]),
 
+    sourceChannel: z
+      .enum(["IN_PERSON", "WHATSAPP", "PHONE"])
+      .optional()
+      .default("IN_PERSON"),
+
     restaurantTableId: databaseIdSchema
       .nullable()
       .optional()
@@ -44,6 +97,15 @@ const createOrderSchema = z
       .nullable()
       .optional()
       .transform((value) => value ?? null),
+
+    customerName: nullableText(
+      150,
+      "El nombre no puede superar 150 caracteres",
+    ),
+
+    customerPhone: nullablePhoneSchema,
+
+    customerEmail: nullableEmailSchema,
 
     notes: z
       .string()
@@ -73,6 +135,28 @@ const createOrderSchema = z
         code: "custom",
         path: ["restaurantTableId"],
         message: "Las órdenes para llevar o domicilio no pueden tener una mesa",
+      });
+    }
+
+    if (
+      (input.sourceChannel === "WHATSAPP" || input.sourceChannel === "PHONE") &&
+      input.customerName === null
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["customerName"],
+        message: "El nombre del cliente es obligatorio para este canal",
+      });
+    }
+
+    if (
+      (input.sourceChannel === "WHATSAPP" || input.sourceChannel === "PHONE") &&
+      input.customerPhone === null
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["customerPhone"],
+        message: "El teléfono del cliente es obligatorio para este canal",
       });
     }
   });

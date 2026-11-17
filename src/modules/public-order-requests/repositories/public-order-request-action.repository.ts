@@ -15,6 +15,9 @@ type RequestStateRow = RowDataPacket & {
   status: PublicOrderRequestStatus;
   locationId: string;
   serviceType: PublicOrderRequestServiceType;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string | null;
   notes: string | null;
 };
 
@@ -251,21 +254,21 @@ const acceptPublicOrderRequestRecord = async (
 
     const [requestRows] = await connection.execute<RequestStateRow[]>(
       `
-          SELECT
-            status,
-            service_type AS serviceType,
-            notes
-          FROM public_order_requests
-          INNER JOIN preparation_area_locations AS pal
-            ON pal.business_id = p.business_id
-            AND pal.preparation_area_id = p.preparation_area_id
-          WHERE
-            business_id = ?
-            AND id = ?
-            AND pal.location_id = ?
-          LIMIT 1
-          FOR UPDATE
-        `,
+    SELECT
+      status,
+      CAST(location_id AS CHAR) AS locationId,
+      service_type AS serviceType,
+      customer_name AS customerName,
+      customer_phone AS customerPhone,
+      customer_email AS customerEmail,
+      notes
+    FROM public_order_requests
+    WHERE
+      business_id = ?
+      AND id = ?
+    LIMIT 1
+    FOR UPDATE
+  `,
       [businessId, requestId],
     );
 
@@ -339,22 +342,41 @@ const acceptPublicOrderRequestRecord = async (
 
     const [orderResult] = await connection.execute<ResultSetHeader>(
       `
-        INSERT INTO orders (
-          business_id,
-          location_id,
-          restaurant_table_id,
-          opened_by_membership_id,
-          service_type,
-          customer_count,
-          notes
-        )
-        VALUES (?, ?, NULL, ?, ?, NULL, ?)
-      `,
+    INSERT INTO orders (
+      business_id,
+      location_id,
+      restaurant_table_id,
+      opened_by_membership_id,
+      service_type,
+      source_channel,
+      customer_count,
+      customer_name,
+      customer_phone,
+      customer_email,
+      notes
+    )
+    VALUES (
+      ?,
+      ?,
+      NULL,
+      ?,
+      ?,
+      'PUBLIC_MENU',
+      NULL,
+      ?,
+      ?,
+      ?,
+      ?
+    )
+  `,
       [
         businessId,
         currentRequest.locationId,
         membershipId,
         currentRequest.serviceType,
+        currentRequest.customerName,
+        currentRequest.customerPhone,
+        currentRequest.customerEmail,
         currentRequest.notes,
       ],
     );

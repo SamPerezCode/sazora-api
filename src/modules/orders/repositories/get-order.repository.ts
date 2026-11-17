@@ -11,6 +11,7 @@ import type {
   OrderPaymentStatus,
   OrderServiceType,
   OrderStatus,
+  OrderSourceChannel,
 } from "../order.types";
 
 type OrderDetailRow = RowDataPacket & {
@@ -20,6 +21,10 @@ type OrderDetailRow = RowDataPacket & {
   kitchenWorkflowMode: KitchenWorkflowMode | null;
   openedByMembershipId: string;
   serviceType: OrderServiceType;
+  sourceChannel: OrderSourceChannel;
+  customerName: string | null;
+  customerPhone: string | null;
+  customerEmail: string | null;
   status: OrderStatus;
   paymentStatus: OrderPaymentStatus;
   paymentVerifiedAt: Date | null;
@@ -126,11 +131,15 @@ const findOrderDetailById = async (
           CAST(o.opened_by_membership_id AS CHAR)
             AS openedByMembershipId,
           o.service_type AS serviceType,
+          o.source_channel AS sourceChannel,
           o.status,
           o.payment_status AS paymentStatus,
           o.payment_verified_at AS paymentVerifiedAt,
           o.kitchen_workflow_mode AS kitchenWorkflowMode,
           o.customer_count AS customerCount,
+          o.customer_name AS customerName,
+          o.customer_phone AS customerPhone,
+          o.customer_email AS customerEmail,
           o.notes,
           CAST(
             COALESCE(
@@ -270,11 +279,15 @@ const findOrderDetailById = async (
       restaurantTableId: order.restaurantTableId,
       openedByMembershipId: order.openedByMembershipId,
       serviceType: order.serviceType,
+      sourceChannel: order.sourceChannel,
       status: order.status,
       paymentStatus: order.paymentStatus,
       paymentVerifiedAt: order.paymentVerifiedAt,
       kitchenWorkflowMode: order.kitchenWorkflowMode,
       customerCount: order.customerCount,
+      customerName: order.customerName,
+      customerPhone: order.customerPhone,
+      customerEmail: order.customerEmail,
       notes: order.notes,
       subtotal: order.subtotal,
       netSubtotal: order.netSubtotal,

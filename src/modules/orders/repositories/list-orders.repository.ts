@@ -9,6 +9,7 @@ import type {
   OrderPaymentStatus,
   OrderServiceType,
   OrderStatus,
+  OrderSourceChannel,
 } from "../order.types";
 
 type OrderListRow = RowDataPacket & {
@@ -17,6 +18,10 @@ type OrderListRow = RowDataPacket & {
   restaurantTableId: string | null;
   openedByMembershipId: string;
   serviceType: OrderServiceType;
+  sourceChannel: OrderSourceChannel;
+  customerName: string | null;
+  customerPhone: string | null;
+  customerEmail: string | null;
   status: OrderStatus;
   paymentStatus: OrderPaymentStatus;
   paymentVerifiedAt: Date | null;
@@ -50,11 +55,15 @@ const mapOrderListRow = (row: OrderListRow): OrderListItem => ({
   restaurantTableId: row.restaurantTableId,
   openedByMembershipId: row.openedByMembershipId,
   serviceType: row.serviceType,
+  sourceChannel: row.sourceChannel,
   status: row.status,
   paymentStatus: row.paymentStatus,
   paymentVerifiedAt: row.paymentVerifiedAt,
   kitchenWorkflowMode: row.kitchenWorkflowMode,
   customerCount: row.customerCount,
+  customerName: row.customerName,
+  customerPhone: row.customerPhone,
+  customerEmail: row.customerEmail,
   notes: row.notes,
   restaurantTableCode: row.restaurantTableCode,
   restaurantTableName: row.restaurantTableName,
@@ -129,11 +138,15 @@ const findOrdersByBusinessId = async (
           CAST(o.opened_by_membership_id AS CHAR)
             AS openedByMembershipId,
           o.service_type AS serviceType,
+          o.source_channel AS sourceChannel,
           o.status,
           o.payment_status AS paymentStatus,
           o.payment_verified_at AS paymentVerifiedAt,
           o.kitchen_workflow_mode AS kitchenWorkflowMode,
           o.customer_count AS customerCount,
+          o.customer_name AS customerName,
+          o.customer_phone AS customerPhone,
+          o.customer_email AS customerEmail,
           o.notes,
           rt.code AS restaurantTableCode,
           rt.name AS restaurantTableName,
