@@ -1,4 +1,7 @@
-import type { OrderServiceType } from "../orders/order.types";
+import type {
+  OrderServiceType,
+  OrderSourceChannel,
+} from "../orders/order.types";
 
 type SalesBusinessContext = Readonly<{
   id: string;
@@ -36,6 +39,7 @@ type SalesReportFilters = Readonly<{
 
   locationId?: string;
   serviceType?: OrderServiceType;
+  sourceChannel?: OrderSourceChannel;
   openedByMembershipId?: string;
 
   page: number;
@@ -57,6 +61,13 @@ type SalesByServiceType = Readonly<{
   unitsSold: number;
 }>;
 
+type SalesBySourceChannel = Readonly<{
+  sourceChannel: OrderSourceChannel;
+  salesTotal: string;
+  orderCount: number;
+  unitsSold: number;
+}>;
+
 type SalesHistoryItem = Readonly<{
   orderId: string;
 
@@ -65,6 +76,7 @@ type SalesHistoryItem = Readonly<{
   locationName: string;
 
   serviceType: OrderServiceType;
+  sourceChannel: OrderSourceChannel;
 
   restaurantTableId: string | null;
   restaurantTableCode: string | null;
@@ -132,6 +144,7 @@ type SalesReport = Readonly<{
 
   summary: SalesSummaryRecord;
   byServiceType: readonly SalesByServiceType[];
+  bySourceChannel: readonly SalesBySourceChannel[];
   byLocation: readonly SalesByLocation[];
   topProducts: readonly SalesTopProduct[];
   history: SalesHistoryResult;
@@ -143,7 +156,6 @@ export type {
   SalesBusinessContext,
   SalesByLocation,
   SalesByLocationRecord,
-  SalesByServiceType,
   SalesHistoryItem,
   SalesHistoryResult,
   SalesLocationContext,
@@ -153,4 +165,6 @@ export type {
   SalesReportScope,
   SalesSummaryRecord,
   SalesTopProduct,
+  SalesByServiceType,
+  SalesBySourceChannel,
 };

@@ -4,6 +4,7 @@ import {
   findSalesBusinessContext,
   findSalesByLocation,
   findSalesByServiceType,
+  findSalesBySourceChannel,
   findSalesHistory,
   findSalesSummary,
   findSalesTopProducts,
@@ -116,6 +117,11 @@ const getSalesReport = async (
       : {
           serviceType: query.serviceType,
         }),
+    ...(query.sourceChannel === undefined
+      ? {}
+      : {
+          sourceChannel: query.sourceChannel,
+        }),
 
     ...(query.openedByMembershipId === undefined
       ? {}
@@ -124,20 +130,28 @@ const getSalesReport = async (
         }),
   };
 
-  const [summary, rawByServiceType, topProducts, history, rawByLocation] =
-    await Promise.all([
-      findSalesSummary(businessId, filters),
+  const [
+    summary,
+    rawByServiceType,
+    rawBySourceChannel,
+    topProducts,
+    history,
+    rawByLocation,
+  ] = await Promise.all([
+    findSalesSummary(businessId, filters),
 
-      findSalesByServiceType(businessId, filters),
+    findSalesByServiceType(businessId, filters),
 
-      findSalesTopProducts(businessId, filters),
+    findSalesBySourceChannel(businessId, filters),
 
-      findSalesHistory(businessId, filters),
+    findSalesTopProducts(businessId, filters),
 
-      scope.type === "BUSINESS"
-        ? findSalesByLocation(businessId, filters)
-        : Promise.resolve([]),
-    ]);
+    findSalesHistory(businessId, filters),
+
+    scope.type === "BUSINESS"
+      ? findSalesByLocation(businessId, filters)
+      : Promise.resolve([]),
+  ]);
 
   const serviceTotalsByType = new Map(
     rawByServiceType.map((item) => [item.serviceType, item]),
@@ -147,6 +161,22 @@ const getSalesReport = async (
     (serviceType) =>
       serviceTotalsByType.get(serviceType) ?? {
         serviceType,
+        salesTotal: "0.00",
+        orderCount: 0,
+        unitsSold: 0,
+      },
+  );
+
+  const salesTotalsBySourceChannel = new Map(
+    rawBySourceChannel.map((item) => [item.sourceChannel, item]),
+  );
+
+  const bySourceChannel = (
+    ["IN_PERSON", "WHATSAPP", "PHONE", "PUBLIC_MENU"] as const
+  ).map(
+    (sourceChannel) =>
+      salesTotalsBySourceChannel.get(sourceChannel) ?? {
+        sourceChannel,
         salesTotal: "0.00",
         orderCount: 0,
         unitsSold: 0,
@@ -171,6 +201,7 @@ const getSalesReport = async (
 
     summary,
     byServiceType,
+    bySourceChannel,
     byLocation,
     topProducts,
     history,

@@ -33,6 +33,9 @@ const salesReportQuerySchema = z
     locationId: databaseIdSchema.optional(),
 
     serviceType: z.enum(["TABLE", "TAKEAWAY", "DELIVERY"]).optional(),
+    sourceChannel: z
+      .enum(["IN_PERSON", "WHATSAPP", "PHONE", "PUBLIC_MENU"])
+      .optional(),
 
     openedByMembershipId: databaseIdSchema.optional(),
 

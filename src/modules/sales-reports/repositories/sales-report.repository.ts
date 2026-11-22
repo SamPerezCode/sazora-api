@@ -1,11 +1,15 @@
 import type { RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
-import type { OrderServiceType } from "../../orders/order.types";
+import type {
+  OrderServiceType,
+  OrderSourceChannel,
+} from "../../orders/order.types";
 import type {
   SalesBusinessContext,
   SalesByLocationRecord,
   SalesByServiceType,
+  SalesBySourceChannel,
   SalesHistoryItem,
   SalesHistoryResult,
   SalesReportFilters,
@@ -33,6 +37,12 @@ type SalesByServiceTypeRow = RowDataPacket & {
   orderCount: string;
   unitsSold: string;
 };
+type SalesBySourceChannelRow = RowDataPacket & {
+  sourceChannel: OrderSourceChannel;
+  salesTotal: string;
+  orderCount: string;
+  unitsSold: string;
+};
 
 type SalesHistoryRow = RowDataPacket & {
   orderId: string;
@@ -42,6 +52,7 @@ type SalesHistoryRow = RowDataPacket & {
   locationName: string;
 
   serviceType: OrderServiceType;
+  sourceChannel: OrderSourceChannel;
 
   restaurantTableId: string | null;
   restaurantTableCode: string | null;
@@ -110,6 +121,11 @@ const createSalesWhereClause = (
   if (filters.serviceType !== undefined) {
     conditions.push("o.service_type = ?");
     values.push(filters.serviceType);
+  }
+
+  if (filters.sourceChannel !== undefined) {
+    conditions.push("o.source_channel = ?");
+    values.push(filters.sourceChannel);
   }
 
   if (filters.openedByMembershipId !== undefined) {
@@ -297,6 +313,7 @@ const findSalesHistory = async (
           bl.name AS locationName,
 
           o.service_type AS serviceType,
+          o.source_channel AS sourceChannel,
 
           CAST(o.restaurant_table_id AS CHAR)
             AS restaurantTableId,
@@ -374,6 +391,7 @@ const findSalesHistory = async (
           bl.code,
           bl.name,
           o.service_type,
+          o.source_channel,
           o.restaurant_table_id,
           rt.code,
           rt.name,
@@ -403,6 +421,7 @@ const findSalesHistory = async (
     locationName: row.locationName,
 
     serviceType: row.serviceType,
+    sourceChannel: row.sourceChannel,
 
     restaurantTableId: row.restaurantTableId,
 
@@ -442,6 +461,56 @@ const findSalesHistory = async (
       totalPages: total === 0 ? 0 : Math.ceil(total / filters.pageSize),
     },
   };
+};
+
+const findSalesBySourceChannel = async (
+  businessId: string,
+  filters: SalesReportFilters,
+): Promise<SalesBySourceChannel[]> => {
+  const where = createSalesWhereClause(businessId, filters);
+
+  const [rows] = await databasePool.execute<SalesBySourceChannelRow[]>(
+    `
+      SELECT
+        o.source_channel AS sourceChannel,
+
+        CAST(
+          COALESCE(SUM(oi.quantity * oi.unit_price), 0.00)
+          AS CHAR
+        ) AS salesTotal,
+
+        CAST(
+          COUNT(DISTINCT o.id)
+          AS CHAR
+        ) AS orderCount,
+
+        CAST(
+          COALESCE(SUM(oi.quantity), 0)
+          AS CHAR
+        ) AS unitsSold
+
+      FROM orders AS o
+
+      INNER JOIN order_items AS oi
+        ON oi.business_id = o.business_id
+        AND oi.order_id = o.id
+        AND oi.status = 'ACTIVE'
+
+      WHERE
+        ${where.sql}
+
+      GROUP BY o.source_channel
+      ORDER BY o.source_channel ASC
+    `,
+    [...where.values],
+  );
+
+  return rows.map((row) => ({
+    sourceChannel: row.sourceChannel,
+    salesTotal: row.salesTotal,
+    orderCount: Number(row.orderCount),
+    unitsSold: Number(row.unitsSold),
+  }));
 };
 
 const findSalesByLocation = async (
@@ -648,6 +717,7 @@ export {
   findSalesByLocation,
   findSalesByServiceType,
   findSalesHistory,
+  findSalesBySourceChannel,
   findSalesSummary,
   findSalesTopProducts,
 };
