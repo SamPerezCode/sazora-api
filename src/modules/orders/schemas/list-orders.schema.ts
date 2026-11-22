@@ -15,6 +15,10 @@ const listOrdersQuerySchema = z
 
     serviceType: z.enum(["TABLE", "TAKEAWAY", "DELIVERY"]).optional(),
 
+    sourceChannel: z
+      .enum(["IN_PERSON", "WHATSAPP", "PHONE", "PUBLIC_MENU"])
+      .optional(),
+
     page: z.coerce
       .number()
       .int("La página debe ser un número entero")

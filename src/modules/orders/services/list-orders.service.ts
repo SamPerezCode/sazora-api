@@ -24,6 +24,12 @@ const listOrders = async (
       : {
           serviceType: query.serviceType,
         }),
+
+    ...(query.sourceChannel === undefined
+      ? {}
+      : {
+          sourceChannel: query.sourceChannel,
+        }),
   };
 
   return findOrdersByBusinessId(businessId, filters);

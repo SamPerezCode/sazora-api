@@ -245,6 +245,7 @@ const createSaleRecord = async (
         o.id,
         o.location_id,
         o.service_type,
+        o.source_channel,
         o.status,
         o.payment_status
       LIMIT 1

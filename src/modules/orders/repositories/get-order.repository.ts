@@ -14,6 +14,8 @@ import type {
   OrderSourceChannel,
 } from "../order.types";
 
+import { summarizeOrderFulfillment } from "../order-fulfillment";
+
 type OrderDetailRow = RowDataPacket & {
   id: string;
   businessId: string;
@@ -263,6 +265,10 @@ const findOrderDetailById = async (
       [businessId, orderId],
     );
 
+    const items = orderItemRows.map(mapOrderItemDetailRow);
+
+    const fulfillmentSummary = summarizeOrderFulfillment(items);
+
     await connection.commit();
 
     return {
@@ -293,13 +299,14 @@ const findOrderDetailById = async (
       netSubtotal: order.netSubtotal,
       taxTotal: order.taxTotal,
       total: order.subtotal,
+      fulfillmentSummary,
       confirmedAt: order.confirmedAt,
       deliveredAt: order.deliveredAt,
       closedAt: order.closedAt,
       cancelledAt: order.cancelledAt,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
-      items: orderItemRows.map(mapOrderItemDetailRow),
+      items,
     };
   } catch (error) {
     await connection.rollback();

@@ -108,12 +108,21 @@ type OrderItemDetail = OrderItem &
     lineTotal: string;
   }>;
 
+type OrderFulfillmentSummary = Readonly<{
+  activeItemCount: number;
+  activeUnitCount: number;
+  readyToServeUnitCount: number;
+  prepareToOrderUnitCount: number;
+  requiresPreparation: boolean;
+}>;
+
 type OrderDetail = Order &
   Readonly<{
     subtotal: string;
     netSubtotal: string;
     taxTotal: string;
     total: string;
+    fulfillmentSummary: OrderFulfillmentSummary;
     items: readonly OrderItemDetail[];
   }>;
 
@@ -123,12 +132,14 @@ type OrderListItem = Order &
     restaurantTableName: string | null;
     activeItemCount: number;
     subtotal: string;
+    fulfillmentSummary: OrderFulfillmentSummary;
   }>;
 
 type ListOrdersFilters = Readonly<{
   locationId?: string;
   status?: OrderStatus;
   serviceType?: OrderServiceType;
+  sourceChannel?: OrderSourceChannel;
   page: number;
   pageSize: number;
 }>;
@@ -165,6 +176,7 @@ export type {
   NewOrderItemData,
   Order,
   OrderDetail,
+  OrderFulfillmentSummary,
   OrderItem,
   OrderItemDetail,
   OrderItemStatus,

@@ -31,6 +31,9 @@ type OrderListRow = RowDataPacket & {
   restaurantTableCode: string | null;
   restaurantTableName: string | null;
   activeItemCount: string;
+  activeUnitCount: string;
+  readyToServeUnitCount: string;
+  prepareToOrderUnitCount: string;
   subtotal: string;
   confirmedAt: Date | null;
   deliveredAt: Date | null;
@@ -69,6 +72,13 @@ const mapOrderListRow = (row: OrderListRow): OrderListItem => ({
   restaurantTableName: row.restaurantTableName,
   activeItemCount: Number(row.activeItemCount),
   subtotal: row.subtotal,
+  fulfillmentSummary: {
+    activeItemCount: Number(row.activeItemCount),
+    activeUnitCount: Number(row.activeUnitCount),
+    readyToServeUnitCount: Number(row.readyToServeUnitCount),
+    prepareToOrderUnitCount: Number(row.prepareToOrderUnitCount),
+    requiresPreparation: Number(row.prepareToOrderUnitCount) > 0,
+  },
   confirmedAt: row.confirmedAt,
   deliveredAt: row.deliveredAt,
   closedAt: row.closedAt,
@@ -102,6 +112,12 @@ const findOrdersByBusinessId = async (
     whereConditions.push("o.service_type = ?");
     queryValues.push(filters.serviceType);
   }
+
+  if (filters.sourceChannel) {
+    whereConditions.push("o.source_channel = ?");
+    queryValues.push(filters.sourceChannel);
+  }
+
   if (filters.locationId) {
     whereConditions.push("o.location_id = ?");
     queryValues.push(filters.locationId);
@@ -154,6 +170,22 @@ const findOrdersByBusinessId = async (
             COALESCE(item_totals.active_item_count, 0)
             AS CHAR
           ) AS activeItemCount,
+
+          CAST(
+            COALESCE(item_totals.active_unit_count, 0)
+            AS CHAR
+          ) AS activeUnitCount,
+
+          CAST(
+            COALESCE(item_totals.ready_to_serve_unit_count, 0)
+            AS CHAR
+          ) AS readyToServeUnitCount,
+
+          CAST(
+            COALESCE(item_totals.prepare_to_order_unit_count, 0)
+            AS CHAR
+          ) AS prepareToOrderUnitCount,
+
           CAST(
             COALESCE(item_totals.subtotal, 0.00)
             AS CHAR
@@ -175,8 +207,29 @@ const findOrdersByBusinessId = async (
           SELECT
             business_id,
             order_id,
+
             COUNT(*) AS active_item_count,
+
+            SUM(quantity) AS active_unit_count,
+
+            SUM(
+              CASE
+                WHEN fulfillment_mode = 'READY_TO_SERVE'
+                  THEN quantity
+                ELSE 0
+              END
+            ) AS ready_to_serve_unit_count,
+
+            SUM(
+              CASE
+                WHEN fulfillment_mode = 'PREPARE_TO_ORDER'
+                  THEN quantity
+                ELSE 0
+              END
+            ) AS prepare_to_order_unit_count,
+
             SUM(quantity * unit_price) AS subtotal
+
           FROM order_items
           WHERE status = 'ACTIVE'
           GROUP BY
