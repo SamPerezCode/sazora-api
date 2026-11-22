@@ -3,6 +3,10 @@ import type { RowDataPacket } from "mysql2/promise";
 import { databasePool } from "../../../database/pool";
 import type { LocationType } from "../../locations/location.types";
 import type {
+  OrderServiceType,
+  OrderSourceChannel,
+} from "../../orders/order.types";
+import type {
   ListSalesFilters,
   SaleListItem,
   SaleListResult,
@@ -14,6 +18,8 @@ interface SaleListRow extends RowDataPacket {
   businessId: string;
   locationId: string;
   orderId: string;
+  serviceType: OrderServiceType;
+  sourceChannel: OrderSourceChannel;
   cashSessionId: string;
   commercialCustomerId: string | null;
   customerName: string | null;
@@ -59,6 +65,8 @@ const mapSaleListRow = (row: SaleListRow): SaleListItem => ({
   businessId: row.businessId,
   locationId: row.locationId,
   orderId: row.orderId,
+  serviceType: row.serviceType,
+  sourceChannel: row.sourceChannel,
   cashSessionId: row.cashSessionId,
   commercialCustomerId: row.commercialCustomerId,
   customerName: row.customerName,
@@ -141,6 +149,16 @@ const findSales = async (
     parameters.push(filters.status);
   }
 
+  if (filters.serviceType !== undefined) {
+    conditions.push("s.service_type = ?");
+    parameters.push(filters.serviceType);
+  }
+
+  if (filters.sourceChannel !== undefined) {
+    conditions.push("s.source_channel = ?");
+    parameters.push(filters.sourceChannel);
+  }
+
   if (filters.from !== undefined) {
     conditions.push("s.sold_at >= ?");
     parameters.push(filters.from);
@@ -175,6 +193,8 @@ const findSales = async (
           CAST(s.business_id AS CHAR) AS businessId,
           CAST(s.location_id AS CHAR) AS locationId,
           CAST(s.order_id AS CHAR) AS orderId,
+          s.service_type AS serviceType,
+          s.source_channel AS sourceChannel,
           CAST(s.cash_session_id AS CHAR) AS cashSessionId,
           CAST(s.commercial_customer_id AS CHAR)
             AS commercialCustomerId,

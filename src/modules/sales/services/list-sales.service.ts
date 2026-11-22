@@ -18,6 +18,13 @@ const listSales = async (
       : { cashSessionId: query.cashSessionId }),
 
     ...(query.status === undefined ? {} : { status: query.status }),
+    ...(query.serviceType === undefined
+      ? {}
+      : { serviceType: query.serviceType }),
+
+    ...(query.sourceChannel === undefined
+      ? {}
+      : { sourceChannel: query.sourceChannel }),
 
     ...(query.from === undefined ? {} : { from: new Date(query.from) }),
 

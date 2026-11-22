@@ -5,6 +5,7 @@ import { decimalToScaledBigInt } from "../../../shared/math/fixed-decimal";
 import type {
   OrderPaymentStatus,
   OrderServiceType,
+  OrderSourceChannel,
 } from "../../orders/order.types";
 import type { CreateSaleData } from "../sale.types";
 
@@ -12,6 +13,7 @@ interface OrderSaleStateRow extends RowDataPacket {
   id: string;
   locationId: string;
   serviceType: OrderServiceType;
+  sourceChannel: OrderSourceChannel;
   status: "OPEN" | "CONFIRMED" | "DELIVERED" | "CLOSED" | "CANCELLED";
   paymentStatus: OrderPaymentStatus;
   netSubtotal: string;
@@ -105,6 +107,7 @@ const findOrderSaleState = async (
         CAST(o.id AS CHAR) AS id,
         CAST(o.location_id AS CHAR) AS locationId,
         o.service_type AS serviceType,
+        o.source_channel AS sourceChannel,
         o.status,
         o.payment_status AS paymentStatus,
         CAST(
@@ -160,6 +163,7 @@ const findOrderSaleState = async (
         o.id,
         o.location_id,
         o.service_type,
+        o.source_channel,
         o.status,
         o.payment_status
       LIMIT 1
@@ -185,6 +189,7 @@ const createSaleRecord = async (
           CAST(o.id AS CHAR) AS id,
           CAST(o.location_id AS CHAR) AS locationId,
           o.service_type AS serviceType,
+          o.source_channel AS sourceChannel,
           o.status,
           o.payment_status AS paymentStatus,
           CAST(
@@ -461,6 +466,8 @@ const createSaleRecord = async (
           business_id,
           location_id,
           order_id,
+          service_type,
+          source_channel,
           cash_session_id,
           commercial_customer_id,
           sold_by_membership_id,
@@ -475,6 +482,8 @@ const createSaleRecord = async (
           change_total
         )
         VALUES (
+          ?,
+          ?,
           ?,
           ?,
           ?,
@@ -496,6 +505,8 @@ const createSaleRecord = async (
         businessId,
         order.locationId,
         data.orderId,
+        order.serviceType,
+        order.sourceChannel,
         data.cashSessionId,
         data.commercialCustomerId,
         data.soldByMembershipId,

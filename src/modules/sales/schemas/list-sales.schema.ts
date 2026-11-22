@@ -19,6 +19,12 @@ const listSalesQuerySchema = z
       .enum(["COMPLETED", "PARTIALLY_REFUNDED", "REFUNDED", "VOIDED"])
       .optional(),
 
+    serviceType: z.enum(["TABLE", "TAKEAWAY", "DELIVERY"]).optional(),
+
+    sourceChannel: z
+      .enum(["IN_PERSON", "WHATSAPP", "PHONE", "PUBLIC_MENU"])
+      .optional(),
+
     from: dateTimeSchema.optional(),
     to: dateTimeSchema.optional(),
 

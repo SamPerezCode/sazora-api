@@ -2,6 +2,10 @@ import type { RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
 import type { LocationType } from "../../locations/location.types";
+import type {
+  OrderServiceType,
+  OrderSourceChannel,
+} from "../../orders/order.types";
 import type { PaymentType } from "../../payment-methods/payment-method.types";
 import type { TaxType } from "../../tax-classes/tax-class.types";
 import type { Sale, SaleItem, SalePayment, SaleStatus } from "../sale.types";
@@ -11,6 +15,8 @@ interface SaleRow extends RowDataPacket {
   businessId: string;
   locationId: string;
   orderId: string;
+  serviceType: OrderServiceType;
+  sourceChannel: OrderSourceChannel;
   cashSessionId: string;
   commercialCustomerId: string | null;
   soldByMembershipId: string;
@@ -155,6 +161,8 @@ const findSaleById = async (
         CAST(s.business_id AS CHAR) AS businessId,
         CAST(s.location_id AS CHAR) AS locationId,
         CAST(s.order_id AS CHAR) AS orderId,
+        s.service_type AS serviceType,
+        s.source_channel AS sourceChannel,
         CAST(s.cash_session_id AS CHAR) AS cashSessionId,
         CAST(s.commercial_customer_id AS CHAR) AS commercialCustomerId,
         CAST(s.sold_by_membership_id AS CHAR) AS soldByMembershipId,
@@ -289,6 +297,8 @@ const findSaleById = async (
     businessId: saleRow.businessId,
     locationId: saleRow.locationId,
     orderId: saleRow.orderId,
+    serviceType: saleRow.serviceType,
+    sourceChannel: saleRow.sourceChannel,
     cashSessionId: saleRow.cashSessionId,
     commercialCustomerId: saleRow.commercialCustomerId,
     soldByMembershipId: saleRow.soldByMembershipId,

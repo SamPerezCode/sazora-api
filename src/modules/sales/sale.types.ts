@@ -1,4 +1,8 @@
 import type { LocationType } from "../locations/location.types";
+import type {
+  OrderServiceType,
+  OrderSourceChannel,
+} from "../orders/order.types";
 import type { PaymentType } from "../payment-methods/payment-method.types";
 import type { TaxType } from "../tax-classes/tax-class.types";
 
@@ -74,6 +78,8 @@ interface Sale {
   businessId: string;
   locationId: string;
   orderId: string;
+  serviceType: OrderServiceType;
+  sourceChannel: OrderSourceChannel;
   cashSessionId: string;
   commercialCustomerId: string | null;
   soldByMembershipId: string;
@@ -132,6 +138,8 @@ interface SaleListItem {
   businessId: string;
   locationId: string;
   orderId: string;
+  serviceType: OrderServiceType;
+  sourceChannel: OrderSourceChannel;
   cashSessionId: string;
   commercialCustomerId: string | null;
   customerName: string | null;
@@ -176,6 +184,8 @@ interface ListSalesFilters {
   locationId?: string;
   cashSessionId?: string;
   status?: SaleStatus;
+  serviceType?: OrderServiceType;
+  sourceChannel?: OrderSourceChannel;
   from?: Date;
   to?: Date;
   page: number;
