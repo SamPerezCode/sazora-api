@@ -120,6 +120,11 @@ const findOrdersByBusinessId = async (
     queryValues.push(filters.sourceChannel);
   }
 
+  if (filters.commercialCustomerId !== undefined) {
+    whereConditions.push("o.commercial_customer_id = ?");
+    queryValues.push(filters.commercialCustomerId);
+  }
+
   if (filters.locationId) {
     whereConditions.push("o.location_id = ?");
     queryValues.push(filters.locationId);

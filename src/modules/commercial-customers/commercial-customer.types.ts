@@ -6,7 +6,7 @@ type CommercialCustomer = Readonly<{
   legalName: string;
   billingEmail: string | null;
   billingPhone: string | null;
-  normalizedPhone: string;
+  normalizedPhone: string | null;
   acquisitionSourceChannel: OrderSourceChannel | null;
   lastSourceChannel: OrderSourceChannel | null;
   marketingConsent: boolean;
@@ -16,6 +16,36 @@ type CommercialCustomer = Readonly<{
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+}>;
+
+type CommercialCustomerListItem = CommercialCustomer &
+  Readonly<{
+    orderCount: number;
+    saleCount: number;
+    grossSalesTotal: string;
+    refundedTotal: string;
+    effectiveSalesTotal: string;
+    firstPurchaseAt: Date | null;
+    lastPurchaseAt: Date | null;
+  }>;
+
+type CommercialCustomerDetail = CommercialCustomerListItem;
+
+type ListCommercialCustomersFilters = Readonly<{
+  search?: string;
+  isActive?: boolean;
+  page: number;
+  pageSize: number;
+}>;
+
+type CommercialCustomerListResult = Readonly<{
+  customers: readonly CommercialCustomerListItem[];
+  pagination: Readonly<{
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  }>;
 }>;
 
 type ResolveCommercialCustomerData = Readonly<{
@@ -37,6 +67,10 @@ type UpsertCommercialCustomerIdentityData = Readonly<{
 
 export type {
   CommercialCustomer,
+  CommercialCustomerDetail,
+  CommercialCustomerListItem,
+  CommercialCustomerListResult,
+  ListCommercialCustomersFilters,
   ResolveCommercialCustomerData,
   UpsertCommercialCustomerIdentityData,
 };

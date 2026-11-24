@@ -141,6 +141,7 @@ type ListOrdersFilters = Readonly<{
   status?: OrderStatus;
   serviceType?: OrderServiceType;
   sourceChannel?: OrderSourceChannel;
+  commercialCustomerId?: string;
   page: number;
   pageSize: number;
 }>;

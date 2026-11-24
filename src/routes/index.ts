@@ -33,6 +33,7 @@ import { cashSessionRouter } from "../modules/cash-sessions/cash-session.routes"
 import { cashMovementRouter } from "../modules/cash-movements/cash-movement.routes";
 import { paymentMethodRouter } from "../modules/payment-methods/payment-method.routes";
 import { saleRouter } from "../modules/sales/sale.routes";
+import { commercialCustomerRouter } from "../modules/commercial-customers/commercial-customer.routes";
 
 import {
   publicOrderRequestRouter,
@@ -57,6 +58,7 @@ apiRouter.use("/products", productRouter);
 apiRouter.use("/restaurant-tables", restaurantTableRouter);
 apiRouter.use("/orders", orderRouter);
 apiRouter.use("/sales", saleRouter);
+apiRouter.use("/commercial-customers", commercialCustomerRouter);
 apiRouter.use("/kitchen-tickets", kitchenTicketRouter);
 apiRouter.use("/public-order-assignments", publicOrderAssignmentRouter);
 apiRouter.use("/public-menu-settings", publicMenuSettingsRouter);

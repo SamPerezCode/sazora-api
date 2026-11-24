@@ -186,6 +186,7 @@ interface ListSalesFilters {
   status?: SaleStatus;
   serviceType?: OrderServiceType;
   sourceChannel?: OrderSourceChannel;
+  commercialCustomerId?: string;
   from?: Date;
   to?: Date;
   page: number;

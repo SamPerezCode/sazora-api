@@ -159,6 +159,11 @@ const findSales = async (
     parameters.push(filters.sourceChannel);
   }
 
+  if (filters.commercialCustomerId !== undefined) {
+    conditions.push("s.commercial_customer_id = ?");
+    parameters.push(filters.commercialCustomerId);
+  }
+
   if (filters.from !== undefined) {
     conditions.push("s.sold_at >= ?");
     parameters.push(filters.from);
