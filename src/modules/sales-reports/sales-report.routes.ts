@@ -6,6 +6,7 @@ import { authorizePermissions } from "../auth/middlewares/authorize-permissions.
 import {
   getCancellationReportController,
   getKitchenOperationReportController,
+  getPublicMenuConversionReportController,
   getSalesReportController,
 } from "./controllers/sales-report.controller";
 
@@ -30,6 +31,13 @@ salesReportRouter.get(
   authenticate,
   authorizePermissions("sales.reports.read"),
   getKitchenOperationReportController,
+);
+
+salesReportRouter.get(
+  "/public-menu-conversion",
+  authenticate,
+  authorizePermissions("sales.reports.read"),
+  getPublicMenuConversionReportController,
 );
 
 export { salesReportRouter };

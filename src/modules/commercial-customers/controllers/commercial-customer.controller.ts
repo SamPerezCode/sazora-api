@@ -5,7 +5,14 @@ import {
   commercialCustomerHistoryQuerySchema,
   commercialCustomerIdParamsSchema,
   listCommercialCustomersQuerySchema,
+  updateCommercialCustomerConsentSchema,
+  updateCommercialCustomerStatusSchema,
 } from "../schemas/commercial-customer.schema";
+
+import {
+  changeCommercialCustomerConsent,
+  changeCommercialCustomerStatus,
+} from "../services/manage-commercial-customer.service";
 import {
   getCommercialCustomerOrders,
   getCommercialCustomerSales,
@@ -118,9 +125,71 @@ const getCommercialCustomerSalesController: RequestHandler = async (
   });
 };
 
+const updateCommercialCustomerConsentController: RequestHandler = async (
+  request,
+  response,
+) => {
+  if (!request.auth) {
+    throw new AppError(
+      "Se requiere autenticación",
+      401,
+      "AUTHENTICATION_REQUIRED",
+    );
+  }
+
+  const { customerId } = commercialCustomerIdParamsSchema.parse(request.params);
+
+  const input = updateCommercialCustomerConsentSchema.parse(request.body);
+
+  const customer = await changeCommercialCustomerConsent(
+    request.auth.businessId,
+    customerId,
+    input,
+  );
+
+  response.status(200).json({
+    status: "success",
+    data: {
+      customer,
+    },
+  });
+};
+
+const updateCommercialCustomerStatusController: RequestHandler = async (
+  request,
+  response,
+) => {
+  if (!request.auth) {
+    throw new AppError(
+      "Se requiere autenticación",
+      401,
+      "AUTHENTICATION_REQUIRED",
+    );
+  }
+
+  const { customerId } = commercialCustomerIdParamsSchema.parse(request.params);
+
+  const input = updateCommercialCustomerStatusSchema.parse(request.body);
+
+  const customer = await changeCommercialCustomerStatus(
+    request.auth.businessId,
+    customerId,
+    input,
+  );
+
+  response.status(200).json({
+    status: "success",
+    data: {
+      customer,
+    },
+  });
+};
+
 export {
   getCommercialCustomerController,
   getCommercialCustomerOrdersController,
   getCommercialCustomerSalesController,
   listCommercialCustomersController,
+  updateCommercialCustomerConsentController,
+  updateCommercialCustomerStatusController,
 };

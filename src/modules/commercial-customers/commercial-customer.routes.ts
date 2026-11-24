@@ -7,6 +7,8 @@ import {
   getCommercialCustomerOrdersController,
   getCommercialCustomerSalesController,
   listCommercialCustomersController,
+  updateCommercialCustomerConsentController,
+  updateCommercialCustomerStatusController,
 } from "./controllers/commercial-customer.controller";
 
 const commercialCustomerRouter = Router();
@@ -30,6 +32,20 @@ commercialCustomerRouter.get(
   authenticate,
   authorizePermissions("customers.read"),
   getCommercialCustomerSalesController,
+);
+
+commercialCustomerRouter.patch(
+  "/:customerId/marketing-consent",
+  authenticate,
+  authorizePermissions("customers.manage"),
+  updateCommercialCustomerConsentController,
+);
+
+commercialCustomerRouter.patch(
+  "/:customerId/status",
+  authenticate,
+  authorizePermissions("customers.manage"),
+  updateCommercialCustomerStatusController,
 );
 
 commercialCustomerRouter.get(

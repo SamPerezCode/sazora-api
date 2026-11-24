@@ -18,6 +18,9 @@ import { getKitchenOperationReport } from "../services/kitchen-operation-report.
 
 import { getSalesReport } from "../services/sales-report.service";
 
+import { publicMenuConversionReportQuerySchema } from "../schemas/public-menu-conversion-report.schema";
+import { getPublicMenuConversionReport } from "../services/public-menu-conversion-report.service";
+
 const requireAuthentication = (
   auth: AuthenticatedSession | undefined,
 ): AuthenticatedSession => {
@@ -89,8 +92,30 @@ const getKitchenOperationReportController: RequestHandler = async (
   });
 };
 
+const getPublicMenuConversionReportController: RequestHandler = async (
+  request,
+  response,
+) => {
+  const auth = requireAuthentication(request.auth);
+
+  const query = publicMenuConversionReportQuerySchema.parse(request.query);
+
+  const locationId = resolveScopedLocationId(auth, query.locationId);
+
+  const report = await getPublicMenuConversionReport(auth.businessId, {
+    ...query,
+    ...(locationId ? { locationId } : {}),
+  });
+
+  response.status(200).json({
+    status: "success",
+    data: report,
+  });
+};
+
 export {
   getCancellationReportController,
   getKitchenOperationReportController,
+  getPublicMenuConversionReportController,
   getSalesReportController,
 };

@@ -28,6 +28,18 @@ const commercialCustomerHistoryQuerySchema = z
   })
   .strict();
 
+const updateCommercialCustomerConsentSchema = z
+  .object({
+    marketingConsent: z.boolean(),
+  })
+  .strict();
+
+const updateCommercialCustomerStatusSchema = z
+  .object({
+    isActive: z.boolean(),
+  })
+  .strict();
+
 const listCommercialCustomersQuerySchema = z
   .object({
     search: z
@@ -72,11 +84,25 @@ type CommercialCustomerHistoryQuery = z.infer<
 type ListCommercialCustomersQuery = z.infer<
   typeof listCommercialCustomersQuerySchema
 >;
+type UpdateCommercialCustomerConsentInput = z.infer<
+  typeof updateCommercialCustomerConsentSchema
+>;
+
+type UpdateCommercialCustomerStatusInput = z.infer<
+  typeof updateCommercialCustomerStatusSchema
+>;
 
 export {
   commercialCustomerHistoryQuerySchema,
   commercialCustomerIdParamsSchema,
   listCommercialCustomersQuerySchema,
+  updateCommercialCustomerConsentSchema,
+  updateCommercialCustomerStatusSchema,
 };
 
-export type { CommercialCustomerHistoryQuery, ListCommercialCustomersQuery };
+export type {
+  CommercialCustomerHistoryQuery,
+  ListCommercialCustomersQuery,
+  UpdateCommercialCustomerConsentInput,
+  UpdateCommercialCustomerStatusInput,
+};

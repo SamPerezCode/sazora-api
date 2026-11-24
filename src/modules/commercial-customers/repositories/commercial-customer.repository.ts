@@ -603,9 +603,58 @@ const findCommercialCustomerById = async (
   };
 };
 
+const updateCommercialCustomerConsent = async (
+  businessId: string,
+  customerId: string,
+  marketingConsent: boolean,
+): Promise<CommercialCustomerDetail | null> => {
+  await databasePool.execute<ResultSetHeader>(
+    `
+      UPDATE commercial_customers
+      SET
+        marketing_consent = ?,
+        marketing_consent_at = CASE
+          WHEN ? = TRUE
+            THEN COALESCE(
+              marketing_consent_at,
+              CURRENT_TIMESTAMP(3)
+            )
+          ELSE NULL
+        END
+      WHERE
+        business_id = ?
+        AND id = ?
+    `,
+    [marketingConsent, marketingConsent, businessId, customerId],
+  );
+
+  return findCommercialCustomerById(businessId, customerId);
+};
+
+const updateCommercialCustomerStatus = async (
+  businessId: string,
+  customerId: string,
+  isActive: boolean,
+): Promise<CommercialCustomerDetail | null> => {
+  await databasePool.execute<ResultSetHeader>(
+    `
+      UPDATE commercial_customers
+      SET is_active = ?
+      WHERE
+        business_id = ?
+        AND id = ?
+    `,
+    [isActive, businessId, customerId],
+  );
+
+  return findCommercialCustomerById(businessId, customerId);
+};
+
 export {
   findCommercialCustomerById,
   findCommercialCustomerByNormalizedPhone,
   findCommercialCustomers,
+  updateCommercialCustomerConsent,
+  updateCommercialCustomerStatus,
   upsertCommercialCustomerIdentity,
 };
