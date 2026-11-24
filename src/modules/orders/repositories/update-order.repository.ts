@@ -1,9 +1,11 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
+import { resolveCommercialCustomer } from "../../commercial-customers/services/resolve-commercial-customer.service";
 import type {
   OrderPaymentStatus,
   OrderServiceType,
+  OrderSourceChannel,
   OrderStatus,
   UpdateOrderData,
 } from "../order.types";
@@ -12,6 +14,8 @@ type CurrentOrderRow = RowDataPacket & {
   status: OrderStatus;
   paymentStatus: OrderPaymentStatus;
   serviceType: OrderServiceType;
+  sourceChannel: OrderSourceChannel;
+  commercialCustomerId: string | null;
   customerName: string | null;
   customerPhone: string | null;
   customerEmail: string | null;
@@ -72,6 +76,9 @@ const updateOrder = async (
           status,
           payment_status AS paymentStatus,
           service_type AS serviceType,
+          source_channel AS sourceChannel,
+          CAST(commercial_customer_id AS CHAR)
+            AS commercialCustomerId,
           CAST(restaurant_table_id AS CHAR) AS restaurantTableId,
           CAST(location_id AS CHAR) AS locationId,
           customer_count AS customerCount,
@@ -217,27 +224,48 @@ const updateOrder = async (
         ? currentOrder.customerEmail
         : data.customerEmail;
 
+    let commercialCustomerId = currentOrder.commercialCustomerId;
+
+    if (customerName !== null && customerPhone !== null) {
+      const commercialCustomer = await resolveCommercialCustomer(
+        connection,
+        businessId,
+        {
+          customerName,
+          customerPhone,
+          customerEmail,
+          sourceChannel: currentOrder.sourceChannel,
+        },
+      );
+
+      commercialCustomerId = commercialCustomer?.id ?? null;
+    } else {
+      commercialCustomerId = null;
+    }
+
     const notes = data.notes === undefined ? currentOrder.notes : data.notes;
 
     await connection.execute<ResultSetHeader>(
       `
-    UPDATE orders
-    SET
-      service_type = ?,
-      restaurant_table_id = ?,
-      customer_count = ?,
-      customer_name = ?,
-      customer_phone = ?,
-      customer_email = ?,
-      notes = ?
-    WHERE
-      business_id = ?
-      AND id = ?
-  `,
+        UPDATE orders
+        SET
+          service_type = ?,
+          restaurant_table_id = ?,
+          customer_count = ?,
+          commercial_customer_id = ?,
+          customer_name = ?,
+          customer_phone = ?,
+          customer_email = ?,
+          notes = ?
+        WHERE
+          business_id = ?
+          AND id = ?
+      `,
       [
         serviceType,
         restaurantTableId,
         customerCount,
+        commercialCustomerId,
         customerName,
         customerPhone,
         customerEmail,

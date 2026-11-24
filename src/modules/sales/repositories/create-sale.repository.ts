@@ -12,6 +12,7 @@ import type { CreateSaleData } from "../sale.types";
 interface OrderSaleStateRow extends RowDataPacket {
   id: string;
   locationId: string;
+  commercialCustomerId: string | null;
   serviceType: OrderServiceType;
   sourceChannel: OrderSourceChannel;
   status: "OPEN" | "CONFIRMED" | "DELIVERED" | "CLOSED" | "CANCELLED";
@@ -106,6 +107,8 @@ const findOrderSaleState = async (
       SELECT
         CAST(o.id AS CHAR) AS id,
         CAST(o.location_id AS CHAR) AS locationId,
+        CAST(o.commercial_customer_id AS CHAR)
+          AS commercialCustomerId,
         o.service_type AS serviceType,
         o.source_channel AS sourceChannel,
         o.status,
@@ -162,6 +165,7 @@ const findOrderSaleState = async (
       GROUP BY
         o.id,
         o.location_id,
+        o.commercial_customer_id,
         o.service_type,
         o.source_channel,
         o.status,
@@ -188,6 +192,8 @@ const createSaleRecord = async (
         SELECT
           CAST(o.id AS CHAR) AS id,
           CAST(o.location_id AS CHAR) AS locationId,
+          CAST(o.commercial_customer_id AS CHAR)
+            AS commercialCustomerId,
           o.service_type AS serviceType,
           o.source_channel AS sourceChannel,
           o.status,
@@ -244,6 +250,7 @@ const createSaleRecord = async (
       GROUP BY
         o.id,
         o.location_id,
+        o.commercial_customer_id,
         o.service_type,
         o.source_channel,
         o.status,
@@ -393,7 +400,7 @@ const createSaleRecord = async (
       };
     }
 
-    if (data.commercialCustomerId) {
+    if (order.commercialCustomerId) {
       const [customerRows] = await connection.execute<CustomerStateRow[]>(
         `
           SELECT
@@ -406,7 +413,7 @@ const createSaleRecord = async (
           LIMIT 1
           FOR UPDATE
         `,
-        [businessId, data.commercialCustomerId],
+        [businessId, order.commercialCustomerId],
       );
 
       const customer = customerRows[0];
@@ -509,7 +516,7 @@ const createSaleRecord = async (
         order.serviceType,
         order.sourceChannel,
         data.cashSessionId,
-        data.commercialCustomerId,
+        order.commercialCustomerId,
         data.soldByMembershipId,
         cashSession.currencyCode,
         order.netSubtotal,

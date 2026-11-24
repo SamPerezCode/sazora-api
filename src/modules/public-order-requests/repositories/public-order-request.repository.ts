@@ -5,6 +5,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { databasePool } from "../../../database/pool";
 import type { KitchenPreparationStatus } from "../../kitchen-tickets/kitchen-ticket.types";
 import type { OrderStatus } from "../../orders/order.types";
+import { resolveCommercialCustomer } from "../../commercial-customers/services/resolve-commercial-customer.service";
 
 type LocationRow = RowDataPacket & {
   id: string;
@@ -76,6 +77,7 @@ type RequestRow = RowDataPacket & {
   businessId: string;
   locationId: string;
   locationName: string;
+  commercialCustomerId: string | null;
   serviceType: PublicOrderRequestServiceType;
   status: PublicOrderRequestStatus;
   customerName: string;
@@ -150,6 +152,8 @@ const requestSelect = `
     CAST(por.business_id AS CHAR) AS businessId,
     CAST(por.location_id AS CHAR) AS locationId,
     bl.name AS locationName,
+    CAST(por.commercial_customer_id AS CHAR)
+      AS commercialCustomerId,
     por.service_type AS serviceType,
     por.status,
     por.customer_name AS customerName,
@@ -183,6 +187,7 @@ const mapRequestRow = (
   businessId: row.businessId,
   locationId: row.locationId,
   locationName: row.locationName,
+  commercialCustomerId: row.commercialCustomerId,
   serviceType: row.serviceType,
   status: row.status,
   customerName: row.customerName,
@@ -431,6 +436,17 @@ const createPublicOrderRequestRecord = async (
       };
     });
 
+    const commercialCustomer = await resolveCommercialCustomer(
+      connection,
+      business.businessId,
+      {
+        customerName: data.customerName,
+        customerPhone: data.customerPhone,
+        customerEmail: data.customerEmail,
+        sourceChannel: "PUBLIC_MENU",
+      },
+    );
+
     const publicCode = randomUUID();
 
     const [requestResult] = await connection.execute<ResultSetHeader>(
@@ -439,6 +455,7 @@ const createPublicOrderRequestRecord = async (
           public_code,
           business_id,
           location_id,
+          commercial_customer_id,
           service_type,
           customer_name,
           customer_phone,
@@ -447,12 +464,13 @@ const createPublicOrderRequestRecord = async (
           notes,
           subtotal
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         publicCode,
         business.businessId,
         data.locationId,
+        commercialCustomer?.id ?? null,
         data.serviceType,
         data.customerName,
         data.customerPhone,

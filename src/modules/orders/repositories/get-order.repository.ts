@@ -19,6 +19,7 @@ import { summarizeOrderFulfillment } from "../order-fulfillment";
 type OrderDetailRow = RowDataPacket & {
   id: string;
   businessId: string;
+  commercialCustomerId: string | null;
   restaurantTableId: string | null;
   kitchenWorkflowMode: KitchenWorkflowMode | null;
   openedByMembershipId: string;
@@ -125,6 +126,8 @@ const findOrderDetailById = async (
           CAST(o.id AS CHAR) AS id,
           CAST(o.business_id AS CHAR) AS businessId,
           CAST(o.location_id AS CHAR) AS locationId,
+          CAST(o.commercial_customer_id AS CHAR)
+            AS commercialCustomerId,
           bl.code AS locationCode,
           bl.name AS locationName,
           bl.location_type AS locationType,
@@ -275,6 +278,7 @@ const findOrderDetailById = async (
       id: order.id,
       businessId: order.businessId,
       locationId: order.locationId,
+      commercialCustomerId: order.commercialCustomerId,
       location: {
         id: order.locationId,
         code: order.locationCode,

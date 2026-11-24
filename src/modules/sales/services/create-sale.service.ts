@@ -89,7 +89,7 @@ const createSale = async (
     data = {
       orderId: input.orderId,
       cashSessionId: advancePayment.cashSessionId,
-      commercialCustomerId: input.commercialCustomerId,
+      commercialCustomerId: order.commercialCustomerId,
       soldByMembershipId: membershipId,
       advancePaymentBatchId: advancePayment.id,
       paidTotal: advancePayment.paidTotal,
@@ -191,7 +191,7 @@ const createSale = async (
     data = {
       orderId: input.orderId,
       cashSessionId: input.cashSessionId,
-      commercialCustomerId: input.commercialCustomerId,
+      commercialCustomerId: order.commercialCustomerId,
       soldByMembershipId: membershipId,
       advancePaymentBatchId: null,
       paidTotal: settlement.paidTotal,

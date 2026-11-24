@@ -26,6 +26,7 @@ type Order = Readonly<{
   id: string;
   businessId: string;
   locationId: string;
+  commercialCustomerId: string | null;
   location: OrderLocation;
   restaurantTableId: string | null;
   openedByMembershipId: string;

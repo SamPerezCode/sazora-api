@@ -1,6 +1,7 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
+import { resolveCommercialCustomer } from "../../commercial-customers/services/resolve-commercial-customer.service";
 import type { ProductFulfillmentMode } from "../../products/product.types";
 import type { KitchenWorkflowMode } from "../../kitchen-settings/kitchen-settings.types";
 import { formatDateInTimezone } from "../../../shared/dates/local-date";
@@ -20,6 +21,7 @@ type OrderRow = RowDataPacket & {
   id: string;
   businessId: string;
   locationId: string;
+  commercialCustomerId: string | null;
   locationCode: string;
   locationName: string;
   locationType: "PRODUCTION_WAREHOUSE" | "POINT_OF_SALE";
@@ -107,6 +109,7 @@ const mapOrderRow = (row: OrderRow): Order => ({
   id: row.id,
   businessId: row.businessId,
   locationId: row.locationId,
+  commercialCustomerId: row.commercialCustomerId,
   location: {
     id: row.locationId,
     code: row.locationCode,
@@ -351,11 +354,29 @@ const createOrder = async (
       }
     }
 
+    let commercialCustomerId: string | null = null;
+
+    if (data.customerName !== null && data.customerPhone !== null) {
+      const commercialCustomer = await resolveCommercialCustomer(
+        connection,
+        businessId,
+        {
+          customerName: data.customerName,
+          customerPhone: data.customerPhone,
+          customerEmail: data.customerEmail,
+          sourceChannel: data.sourceChannel,
+        },
+      );
+
+      commercialCustomerId = commercialCustomer?.id ?? null;
+    }
+
     const [insertResult] = await connection.execute<ResultSetHeader>(
       `
     INSERT INTO orders (
       business_id,
       location_id,
+      commercial_customer_id,
       restaurant_table_id,
       opened_by_membership_id,
       service_type,
@@ -366,11 +387,12 @@ const createOrder = async (
       customer_email,
       notes
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
       [
         businessId,
         data.locationId,
+        commercialCustomerId,
         data.restaurantTableId,
         data.openedByMembershipId,
         data.serviceType,
@@ -516,6 +538,8 @@ const createOrder = async (
       CAST(o.id AS CHAR) AS id,
       CAST(o.business_id AS CHAR) AS businessId,
       CAST(o.location_id AS CHAR) AS locationId,
+      CAST(o.commercial_customer_id AS CHAR)
+        AS commercialCustomerId,
       bl.code AS locationCode,
       bl.name AS locationName,
       bl.location_type AS locationType,

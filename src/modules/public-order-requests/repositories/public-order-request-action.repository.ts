@@ -1,6 +1,7 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { databasePool } from "../../../database/pool";
+import { resolveCommercialCustomer } from "../../commercial-customers/services/resolve-commercial-customer.service";
 import type { OrderDetail } from "../../orders/order.types";
 import { findOrderDetailById } from "../../orders/repositories/get-order.repository";
 import type { ProductFulfillmentMode } from "../../products/product.types";
@@ -15,6 +16,7 @@ type RequestStateRow = RowDataPacket & {
   status: PublicOrderRequestStatus;
   locationId: string;
   serviceType: PublicOrderRequestServiceType;
+  commercialCustomerId: string | null;
   customerName: string;
   customerPhone: string;
   customerEmail: string | null;
@@ -255,10 +257,12 @@ const acceptPublicOrderRequestRecord = async (
     const [requestRows] = await connection.execute<RequestStateRow[]>(
       `
     SELECT
-      status,
-      CAST(location_id AS CHAR) AS locationId,
-      service_type AS serviceType,
-      customer_name AS customerName,
+    status,
+    CAST(location_id AS CHAR) AS locationId,
+    service_type AS serviceType,
+    CAST(commercial_customer_id AS CHAR)
+      AS commercialCustomerId,
+    customer_name AS customerName,
       customer_phone AS customerPhone,
       customer_email AS customerEmail,
       notes
@@ -340,38 +344,54 @@ const acceptPublicOrderRequestRecord = async (
       };
     }
 
+    const resolvedCustomer =
+      currentRequest.commercialCustomerId === null
+        ? await resolveCommercialCustomer(connection, businessId, {
+            customerName: currentRequest.customerName,
+            customerPhone: currentRequest.customerPhone,
+            customerEmail: currentRequest.customerEmail,
+            sourceChannel: "PUBLIC_MENU",
+          })
+        : null;
+
+    const commercialCustomerId =
+      currentRequest.commercialCustomerId ?? resolvedCustomer?.id ?? null;
+
     const [orderResult] = await connection.execute<ResultSetHeader>(
       `
-    INSERT INTO orders (
-      business_id,
-      location_id,
-      restaurant_table_id,
-      opened_by_membership_id,
-      service_type,
-      source_channel,
-      customer_count,
-      customer_name,
-      customer_phone,
-      customer_email,
-      notes
-    )
-    VALUES (
-      ?,
-      ?,
-      NULL,
-      ?,
-      ?,
-      'PUBLIC_MENU',
-      NULL,
-      ?,
-      ?,
-      ?,
-      ?
-    )
-  `,
+      INSERT INTO orders (
+        business_id,
+        location_id,
+        commercial_customer_id,
+        restaurant_table_id,
+        opened_by_membership_id,
+        service_type,
+        source_channel,
+        customer_count,
+        customer_name,
+        customer_phone,
+        customer_email,
+        notes
+      )
+      VALUES (
+        ?,
+        ?,
+        ?,
+        NULL,
+        ?,
+        ?,
+        'PUBLIC_MENU',
+        NULL,
+        ?,
+        ?,
+        ?,
+        ?
+      )
+    `,
       [
         businessId,
         currentRequest.locationId,
+        commercialCustomerId,
         membershipId,
         currentRequest.serviceType,
         currentRequest.customerName,
@@ -444,12 +464,16 @@ const acceptPublicOrderRequestRecord = async (
           status = 'ACCEPTED',
           handled_by_membership_id = ?,
           order_id = ?,
+          commercial_customer_id = COALESCE(
+            commercial_customer_id,
+            ?
+          ),
           accepted_at = CURRENT_TIMESTAMP(3)
         WHERE
           business_id = ?
           AND id = ?
       `,
-      [membershipId, orderId, businessId, requestId],
+      [membershipId, orderId, commercialCustomerId, businessId, requestId],
     );
 
     if (currentRequest.serviceType === "DELIVERY") {

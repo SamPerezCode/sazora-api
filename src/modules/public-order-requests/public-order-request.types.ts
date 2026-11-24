@@ -36,6 +36,7 @@ type PublicOrderRequest = Readonly<{
   businessId: string;
   locationId: string;
   locationName: string;
+  commercialCustomerId: string | null;
   serviceType: PublicOrderRequestServiceType;
   status: PublicOrderRequestStatus;
   customerName: string;

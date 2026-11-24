@@ -15,6 +15,7 @@ import type {
 type OrderListRow = RowDataPacket & {
   id: string;
   businessId: string;
+  commercialCustomerId: string | null;
   restaurantTableId: string | null;
   openedByMembershipId: string;
   serviceType: OrderServiceType;
@@ -55,6 +56,7 @@ type OrderCountRow = RowDataPacket & {
 const mapOrderListRow = (row: OrderListRow): OrderListItem => ({
   id: row.id,
   businessId: row.businessId,
+  commercialCustomerId: row.commercialCustomerId,
   restaurantTableId: row.restaurantTableId,
   openedByMembershipId: row.openedByMembershipId,
   serviceType: row.serviceType,
@@ -145,6 +147,8 @@ const findOrdersByBusinessId = async (
         SELECT
           CAST(o.id AS CHAR) AS id,
           CAST(o.business_id AS CHAR) AS businessId,
+          CAST(o.commercial_customer_id AS CHAR)
+            AS commercialCustomerId,
           CAST(o.restaurant_table_id AS CHAR) AS restaurantTableId,
           CAST(o.location_id AS CHAR) AS locationId,
           bl.code AS locationCode,
