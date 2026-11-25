@@ -33,6 +33,7 @@ type CommercialCustomerDetail = CommercialCustomerListItem;
 
 type ListCommercialCustomersFilters = Readonly<{
   search?: string;
+  acquisitionSourceChannel?: OrderSourceChannel;
   isActive?: boolean;
   page: number;
   pageSize: number;

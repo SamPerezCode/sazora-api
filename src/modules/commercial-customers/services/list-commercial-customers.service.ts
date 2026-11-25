@@ -13,6 +13,12 @@ const listCommercialCustomers = async (
     page: query.page,
     pageSize: query.pageSize,
 
+    ...(query.acquisitionSourceChannel === undefined
+      ? {}
+      : {
+          acquisitionSourceChannel: query.acquisitionSourceChannel,
+        }),
+
     ...(query.search === undefined
       ? {}
       : {

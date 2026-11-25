@@ -244,6 +244,11 @@ const findCommercialCustomers = async (
     values.push(searchPattern, searchPattern, searchPattern, searchPattern);
   }
 
+  if (filters.acquisitionSourceChannel !== undefined) {
+    conditions.push("cc.acquisition_source_channel = ?");
+    values.push(filters.acquisitionSourceChannel);
+  }
+
   if (filters.isActive !== undefined) {
     conditions.push("cc.is_active = ?");
     values.push(filters.isActive);

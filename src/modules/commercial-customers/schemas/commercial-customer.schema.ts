@@ -42,6 +42,9 @@ const updateCommercialCustomerStatusSchema = z
 
 const listCommercialCustomersQuerySchema = z
   .object({
+    acquisitionSourceChannel: z
+      .enum(["IN_PERSON", "WHATSAPP", "PHONE", "PUBLIC_MENU"])
+      .optional(),
     search: z
       .string()
       .trim()
