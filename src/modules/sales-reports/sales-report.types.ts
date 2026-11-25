@@ -131,6 +131,17 @@ type SalesHistoryResult = Readonly<{
   }>;
 }>;
 
+type SalesProfitability = Readonly<{
+  dateBasis: "SOLD_AT";
+  netSalesBeforeRefunds: string;
+  refundedNetAmount: string;
+  effectiveNetSales: string;
+  costOfGoodsSold: string | null;
+  grossProfit: string | null;
+  grossMarginPercentage: string | null;
+  unknownCostLineCount: number;
+}>;
+
 type SalesReport = Readonly<{
   generatedAt: Date;
   business: SalesBusinessContext;
@@ -143,6 +154,7 @@ type SalesReport = Readonly<{
   }>;
 
   summary: SalesSummaryRecord;
+  profitability: SalesProfitability;
   byServiceType: readonly SalesByServiceType[];
   bySourceChannel: readonly SalesBySourceChannel[];
   byLocation: readonly SalesByLocation[];
@@ -167,4 +179,5 @@ export type {
   SalesTopProduct,
   SalesByServiceType,
   SalesBySourceChannel,
+  SalesProfitability,
 };

@@ -17,6 +17,7 @@ import type {
   SalesReportScope,
 } from "../sales-report.types";
 import type { SalesReportQuery } from "../schemas/sales-report.schema";
+import { findSalesProfitability } from "../repositories/sales-profitability.repository";
 
 const resolveSalesReportScope = async (
   businessId: string,
@@ -82,10 +83,10 @@ const calculateLocationPercentages = (
   }));
 };
 
-const getSalesReport = async (
+const resolveSalesReportContext = async (
   businessId: string,
   query: SalesReportQuery,
-): Promise<SalesReport> => {
+) => {
   const business = await findSalesBusinessContext(businessId);
 
   if (!business) {
@@ -130,8 +131,21 @@ const getSalesReport = async (
         }),
   };
 
+  return { business, scope, period, filters };
+};
+
+const getSalesReport = async (
+  businessId: string,
+  query: SalesReportQuery,
+): Promise<SalesReport> => {
+  const { business, scope, period, filters } = await resolveSalesReportContext(
+    businessId,
+    query,
+  );
+
   const [
     summary,
+    profitability,
     rawByServiceType,
     rawBySourceChannel,
     topProducts,
@@ -139,6 +153,7 @@ const getSalesReport = async (
     rawByLocation,
   ] = await Promise.all([
     findSalesSummary(businessId, filters),
+    findSalesProfitability(businessId, filters),
 
     findSalesByServiceType(businessId, filters),
 
@@ -205,9 +220,10 @@ const getSalesReport = async (
     byLocation,
     topProducts,
     history,
+    profitability,
 
     financialSource: "CLOSED_ORDERS",
   };
 };
 
-export { getSalesReport };
+export { getSalesReport, resolveSalesReportContext };

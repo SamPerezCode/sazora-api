@@ -8,9 +8,17 @@ import {
   getKitchenOperationReportController,
   getPublicMenuConversionReportController,
   getSalesReportController,
+  exportSalesReportController,
 } from "./controllers/sales-report.controller";
 
 const salesReportRouter = Router();
+
+salesReportRouter.get(
+  "/history/export",
+  authenticate,
+  authorizePermissions("sales.reports.read"),
+  exportSalesReportController,
+);
 
 salesReportRouter.get(
   "/history",

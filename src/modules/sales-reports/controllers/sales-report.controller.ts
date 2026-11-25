@@ -17,6 +17,7 @@ import { getCancellationReport } from "../services/cancellation-report.service";
 import { getKitchenOperationReport } from "../services/kitchen-operation-report.service";
 
 import { getSalesReport } from "../services/sales-report.service";
+import { exportSalesReport } from "../services/sales-export.service";
 
 import { publicMenuConversionReportQuerySchema } from "../schemas/public-menu-conversion-report.schema";
 import { getPublicMenuConversionReport } from "../services/public-menu-conversion-report.service";
@@ -50,6 +51,32 @@ const getSalesReportController: RequestHandler = async (request, response) => {
     status: "success",
     data: report,
   });
+};
+
+const exportSalesReportController: RequestHandler = async (
+  request,
+  response,
+) => {
+  const auth = requireAuthentication(request.auth);
+  const query = salesReportQuerySchema.parse(request.query);
+  const locationId = resolveScopedLocationId(auth, query.locationId);
+
+  const file = await exportSalesReport(auth.businessId, {
+    ...query,
+    ...(locationId ? { locationId } : {}),
+  });
+
+  const filename = `ventas-${query.from}-a-${query.to}.xlsx`;
+
+  response
+    .set({
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Cache-Control": "private, no-store",
+    })
+    .status(200)
+    .send(file);
 };
 
 const getCancellationReportController: RequestHandler = async (
@@ -118,4 +145,5 @@ export {
   getKitchenOperationReportController,
   getPublicMenuConversionReportController,
   getSalesReportController,
+  exportSalesReportController,
 };
