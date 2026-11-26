@@ -10,7 +10,15 @@ import {
   updateProductInventoryLinkStatusController,
 } from "./controllers/product-inventory-link.controller";
 
+import { saveProductInventoryCompositionController } from "./controllers/product-inventory-composition.controller";
+
 const productInventoryLinkRouter = Router();
+productInventoryLinkRouter.put(
+  "/product/:productId/composition",
+  authenticate,
+  authorizePermissions("inventory.links.manage"),
+  saveProductInventoryCompositionController,
+);
 
 productInventoryLinkRouter.get(
   "/",
