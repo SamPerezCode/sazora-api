@@ -183,7 +183,7 @@ const confirmOrder = async (
                 SUM(
                   CASE
                     WHEN status = 'ACTIVE'
-                      THEN line_total
+                      THEN quantity * unit_price
                     ELSE 0
                   END
                 ),
