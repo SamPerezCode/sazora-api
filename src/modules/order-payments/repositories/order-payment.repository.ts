@@ -259,7 +259,7 @@ const recordOrderPayment = async (
                 SUM(
                   CASE
                     WHEN oi.status = 'ACTIVE'
-                      THEN oi.line_total
+                      THEN oi.quantity * oi.unit_price
                     ELSE 0
                   END
                 ),
